@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Aggregate_Operation__c</fullName>
+    <description
+  >Calculation used to produce one value from the matching records.</description>
+    <inlineHelpText
+  >COUNT counts visible matching records. Other operations calculate one readable field.</inlineHelpText>
+    <label>Calculation</label>
+    <type>Picklist</type>
+    <valueSet><restricted>true</restricted><valueSetDefinition><sorted
+      >false</sorted>
+        <value><fullName>COUNT</fullName><default>false</default><label
+        >Count records</label></value>
+        <value><fullName>SUM</fullName><default>false</default><label
+        >Sum</label></value>
+        <value><fullName>AVG</fullName><default>false</default><label
+        >Average</label></value>
+        <value><fullName>MIN</fullName><default>false</default><label
+        >Minimum</label></value>
+        <value><fullName>MAX</fullName><default>false</default><label
+        >Maximum</label></value>
+    </valueSetDefinition></valueSet>
+</CustomField>

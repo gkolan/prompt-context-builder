@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Last_Health_Version__c</fullName><description
+  >Published template version inspected by the last scheduled setup check.</description><label
+  >Last Checked Version</label><precision>9</precision><scale>0</scale><type
+  >Number</type>
+</CustomField>

@@ -1,0 +1,11 @@
+ignores:
+  files:
+    - "code-analyzer-results-*"
+    - "coverage/**"
+
+engines:
+  eslint:
+    eslint_config_file: eslint.config.js
+    disable_javascript_base_config: true
+    disable_lwc_base_config: true
+    disable_slds_base_config: true

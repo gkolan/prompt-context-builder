@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomLabels xmlns="http://soap.sforce.com/2006/04/metadata">
+    <labels>
+        <fullName>PCB_Access_Denied</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription
+    >Prompt Context Builder access denied</shortDescription>
+        <value
+    >You do not have access to the requested object, field, or record.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Generation_Failed</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Prompt generation failure</shortDescription>
+        <value
+    >The prompt could not be generated. Review the template configuration and try again.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Invalid_Configuration</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Invalid prompt configuration</shortDescription>
+        <value
+    >The template configuration is invalid. Correct the listed problems and try again.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Publish_Requires_Preview</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Publish requires preview</shortDescription>
+        <value
+    >A successful preview record is required before publishing.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Generator_Title</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Generator title</shortDescription>
+        <value>Build Prompt from Record</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Generating_Prompt</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Generator busy text</shortDescription>
+        <value>Generating prompt</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Published_Template</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Published template field label</shortDescription>
+        <value>Published template</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Prefix_Label</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Optional prefix label</shortDescription>
+        <value>Add instructions at the top (optional)</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Generate_Context</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Generate context action</shortDescription>
+        <value>Generate record context</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Generated_Context</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Generated context field label</shortDescription>
+        <value>Generated record context (editable)</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Suffix_Label</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Optional suffix label</shortDescription>
+        <value>Add instructions at the bottom (optional)</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Source_Summary</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Data set summary heading</shortDescription>
+        <value>Included records by data set</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Copy_Complete_Prompt</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Copy prompt action</shortDescription>
+        <value>Copy complete prompt</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Start_Over</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Start over action</shortDescription>
+        <value>Start over</value>
+    </labels>
+    <labels>
+        <fullName>PCB_No_Published_Templates</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>No matching template message</shortDescription>
+        <value
+    >No published prompt templates match this record's object. Open Prompt Builder to create and publish one.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Record_Context_Count</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Character count format</shortDescription>
+        <value
+    >Record context: {0} characters. Complete prompt: {1} characters.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Record_Unavailable_Title</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Missing record title</shortDescription>
+        <value>Record unavailable</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Record_Unavailable_Message</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Missing record message</shortDescription>
+        <value>Place this component on a Salesforce record page.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Choose_Template_Title</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Choose template title</shortDescription>
+        <value>Choose a template</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Choose_Template_Message</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Choose template message</shortDescription>
+        <value>Select a published template before generating.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Copied_Title</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Copied title</shortDescription>
+        <value>Copied</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Copied_Message</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Copied message</shortDescription>
+        <value>The complete prompt was copied to the clipboard.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Copy_Unavailable_Title</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Copy unavailable title</shortDescription>
+        <value>Copy unavailable</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Copy_Unavailable_Message</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Copy unavailable message</shortDescription>
+        <value>Select the prompt text and copy it manually.</value>
+    </labels>
+    <labels>
+        <fullName>PCB_Unable_To_Generate</fullName>
+        <categories>Prompt Context Builder</categories>
+        <language>en_US</language>
+        <protected>false</protected>
+        <shortDescription>Unable to generate title</shortDescription>
+        <value>Unable to generate prompt</value>
+    </labels>
+</CustomLabels>

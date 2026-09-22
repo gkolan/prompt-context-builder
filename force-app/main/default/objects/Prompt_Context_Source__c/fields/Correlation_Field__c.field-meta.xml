@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Correlation_Field__c</fullName>
+    <description
+  >Field on the related record that matches a field on the current record.</description>
+    <inlineHelpText>For Account to Contact, use AccountId.</inlineHelpText>
+    <label>Related Record Match Field</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+</CustomField>

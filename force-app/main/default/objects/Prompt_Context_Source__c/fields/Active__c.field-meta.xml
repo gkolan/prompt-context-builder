@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Active__c</fullName>
+    <defaultValue>true</defaultValue>
+    <description
+  >Controls whether this data set is included in validation, preview, and prompt generation.</description>
+    <inlineHelpText
+  >Clear this option to save the data set without including its records.</inlineHelpText>
+    <label>Include This Data Set</label>
+    <type>Checkbox</type>
+</CustomField>

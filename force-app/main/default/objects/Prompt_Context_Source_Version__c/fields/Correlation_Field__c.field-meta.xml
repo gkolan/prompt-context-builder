@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata"><fullName
+  >Correlation_Field__c</fullName><description
+  >Queried-object matching field captured at publication.</description><label
+  >Related Record Match Field</label><length>255</length><type
+  >Text</type></CustomField>

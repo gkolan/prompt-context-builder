@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Sort_JSON__c</fullName>
+    <description
+  >Saved sorting choices maintained by Prompt Builder.</description>
+    <inlineHelpText
+  >Use Prompt Builder to change the sorting. Salesforce uses Id last when records otherwise have the same order.</inlineHelpText>
+    <label>Sort Settings (Managed)</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

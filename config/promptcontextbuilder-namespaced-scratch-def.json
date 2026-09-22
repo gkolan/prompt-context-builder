@@ -1,0 +1,16 @@
+{
+  "orgName": "Prompt Context Builder Namespaced Verification",
+  "edition": "Developer",
+  "description": "Short-lived rhc-namespaced compatibility verification for Prompt Context Builder",
+  "hasSampleData": true,
+  "namespace": "rhc",
+  "features": ["EnableSetPasswordInApi"],
+  "settings": {
+    "lightningExperienceSettings": {
+      "enableS1DesktopEnabled": true
+    },
+    "mobileSettings": {
+      "enableS1EncryptedStoragePref2": false
+    }
+  }
+}

@@ -1,0 +1,59 @@
+name: Bug report
+description: Report behavior that differs from the documented contract
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Include a minimal reproduction and redacted evidence. Do not include customer data,
+        generated prompts, record IDs, full Org IDs, session IDs, or access tokens. Report
+        vulnerabilities privately through the Security policy.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: I searched existing issues for this behavior.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true
+        - label: I removed sensitive Salesforce and customer data from the report.
+          required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include the safe reason code, message, and correlation Id when available.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to reproduce
+      description: Include the source mode, result mode, and affected entry point.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Package or source version
+    validations:
+      required: true
+  - type: dropdown
+    id: channel
+    attributes:
+      label: Entry point
+      options:
+        - Prompt Generator record page
+        - Flow action
+        - Apex API
+        - Prompt Builder or Preview
+    validations:
+      required: true

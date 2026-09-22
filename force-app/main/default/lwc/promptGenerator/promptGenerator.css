@@ -1,0 +1,28 @@
+:host {
+  display: block;
+}
+
+.generate-button,
+.prompt-area,
+.message-panel,
+.action-row,
+.source-summary,
+.template-description {
+  display: block;
+  margin-top: var(--slds-g-spacing-4, 1rem);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.empty-state,
+.message-panel,
+.source-summary {
+  background: var(--slds-g-color-surface-container-1, #f3f3f3);
+  color: var(--slds-g-color-on-surface-1, #181818);
+  border-radius: var(--slds-g-radius-border-1, 0.25rem);
+  padding: var(--slds-g-spacing-4, 1rem);
+}

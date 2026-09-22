@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Template_Body__c</fullName>
+    <description
+  >Fixed prompt text saved when the template was published.</description>
+    <label>Prompt Text</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>20</visibleLines>
+</CustomField>

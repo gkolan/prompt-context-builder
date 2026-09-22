@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Developer_Key__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description
+  >Stable automation identity that does not change when the template label changes.</description>
+    <externalId>true</externalId>
+    <inlineHelpText
+  >Generated when the template is first saved and retained for its lifetime.</inlineHelpText>
+    <label>Automation Key</label>
+    <length>100</length>
+    <required>true</required>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<ValidationRule xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Developer_Key_Is_Immutable</fullName>
+    <active>true</active>
+    <description
+  >Protects Flow and Apex references from changes to a template's stable automation key.</description>
+    <errorConditionFormula
+  >AND(NOT(ISNEW()), ISCHANGED(Developer_Key__c))</errorConditionFormula>
+    <errorMessage
+  >The Automation Key is permanent after the template is first saved. Duplicate the template to create a new key.</errorMessage>
+</ValidationRule>

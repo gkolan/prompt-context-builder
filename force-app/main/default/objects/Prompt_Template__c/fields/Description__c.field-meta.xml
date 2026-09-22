@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Description__c</fullName>
+    <description
+  >Plain-language explanation of the purpose and expected use of this prompt template.</description>
+    <inlineHelpText
+  >Describe when a user should choose this template.</inlineHelpText>
+    <label>Description</label>
+    <type>TextArea</type>
+</CustomField>

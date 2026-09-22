@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Published_At__c</fullName>
+    <description
+  >Date and time when this template configuration was most recently published.</description>
+    <inlineHelpText
+  >Automatically set after successful validation and sample preview.</inlineHelpText>
+    <label>Last Published</label>
+    <type>DateTime</type>
+</CustomField>

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Filters_JSON__c</fullName>
+    <description>Saved filter rules maintained by Prompt Builder.</description>
+    <inlineHelpText
+  >Use Prompt Builder to change these rules. Rules in the same group must all match.</inlineHelpText>
+    <label>Filter Settings (Managed)</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

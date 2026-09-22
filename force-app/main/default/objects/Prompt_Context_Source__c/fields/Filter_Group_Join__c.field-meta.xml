@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Filter_Group_Join__c</fullName>
+  <defaultValue>'AND'</defaultValue>
+  <description
+  >Controls whether named filter groups are joined with AND or OR. Rules within a group always use AND.</description>
+  <label>How Filter Groups Combine</label>
+  <required>true</required>
+  <type>Picklist</type>
+  <valueSet>
+    <restricted>true</restricted>
+    <valueSetDefinition>
+      <sorted>false</sorted>
+      <value><fullName>AND</fullName><default>true</default><label
+        >All groups must match</label></value>
+      <value><fullName>OR</fullName><default>false</default><label
+        >Any group may match</label></value>
+    </valueSetDefinition>
+  </valueSet>
+</CustomField>

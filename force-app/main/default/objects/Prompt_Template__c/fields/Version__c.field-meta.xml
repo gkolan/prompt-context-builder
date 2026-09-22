@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Version__c</fullName>
+    <defaultValue>1</defaultValue>
+    <description
+  >Number that increases each time a changed template is published.</description>
+    <inlineHelpText
+  >The version increases each time a published template is changed and published again.</inlineHelpText>
+    <label>Published Version</label>
+    <precision>9</precision>
+    <scale>0</scale>
+    <type>Number</type>
+</CustomField>

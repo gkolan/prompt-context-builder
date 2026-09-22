@@ -1,0 +1,15 @@
+{
+  "orgName": "Prompt Context Builder",
+  "edition": "Developer",
+  "description": "30-day development scratch org for Prompt Context Builder",
+  "hasSampleData": true,
+  "features": ["EnableSetPasswordInApi"],
+  "settings": {
+    "lightningExperienceSettings": {
+      "enableS1DesktopEnabled": true
+    },
+    "mobileSettings": {
+      "enableS1EncryptedStoragePref2": false
+    }
+  }
+}

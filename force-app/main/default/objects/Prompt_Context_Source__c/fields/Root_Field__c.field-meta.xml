@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Root_Field__c</fullName>
+    <description
+  >Field on the current record used to find matching related records.</description>
+    <inlineHelpText
+  >Use Id for a normal child relationship, or choose another field that the person can access.</inlineHelpText>
+    <label>Current Record Match Field</label>
+    <length>255</length>
+    <required>false</required>
+    <type>Text</type>
+</CustomField>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Template_Body__c</fullName>
+    <description
+  >Prompt text containing the supported root-record and related-record merge syntax.</description>
+    <inlineHelpText
+  >Use the syntax help in Prompt Builder to insert supported merge expressions.</inlineHelpText>
+    <label>Prompt Text</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>20</visibleLines>
+</CustomField>

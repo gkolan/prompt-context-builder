@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Max_Rows__c</fullName>
+    <defaultValue>10</defaultValue>
+    <description
+  >Maximum number of records that this data set may add to the prompt.</description>
+    <inlineHelpText
+  >Choose 1 through 50. Smaller limits keep prompts focused and predictable.</inlineHelpText>
+    <label>Maximum Records</label>
+    <precision>2</precision>
+    <scale>0</scale>
+    <type>Number</type>
+</CustomField>

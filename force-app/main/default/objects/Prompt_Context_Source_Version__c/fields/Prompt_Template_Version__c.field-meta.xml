@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prompt_Template_Version__c</fullName>
+    <description
+  >Fixed prompt template version that owns this data set version.</description>
+    <label>Prompt Template Version</label>
+    <referenceTo>Prompt_Template_Version__c</referenceTo>
+    <relationshipLabel>Data Set Versions</relationshipLabel>
+    <relationshipName>Source_Versions</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

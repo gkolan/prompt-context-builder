@@ -1,0 +1,101 @@
+<template>
+  <lightning-card title={label.generatorTitle} icon-name="utility:prompt">
+    <div class="slds-p-horizontal_medium slds-p-bottom_medium">
+      <template lwc:if={isLoading}>
+        <lightning-spinner
+          alternative-text={label.generatingPrompt}
+        ></lightning-spinner>
+      </template>
+
+      <template lwc:if={hasTemplates}>
+        <lightning-combobox
+          label={label.publishedTemplate}
+          value={selectedTemplateId}
+          options={templateChoices}
+          required
+          disabled={isLoading}
+          onchange={handleTemplate}
+        ></lightning-combobox>
+        <template lwc:if={selectedTemplateDescription}>
+          <p class="template-description">{selectedTemplateDescription}</p>
+        </template>
+        <lightning-textarea
+          label={label.prefixLabel}
+          value={prefix}
+          disabled={isLoading}
+          onchange={handlePrefix}
+        ></lightning-textarea>
+        <lightning-button
+          class="generate-button"
+          variant="brand"
+          label={label.generateContext}
+          onclick={handleGenerate}
+          disabled={generateDisabled}
+        ></lightning-button>
+
+        <template lwc:if={hasPrompt}>
+          <lightning-textarea
+            class="prompt-area"
+            label={label.generatedContextLabel}
+            value={generatedContext}
+            disabled={isLoading}
+            onchange={handleContext}
+          ></lightning-textarea>
+          <p class="slds-text-body_small slds-text-color_weak">
+            {characterCountText}
+          </p>
+          <lightning-textarea
+            label={label.suffixLabel}
+            value={suffix}
+            disabled={isLoading}
+            onchange={handleSuffix}
+          ></lightning-textarea>
+
+          <template lwc:if={hasMessages}>
+            <div class="message-panel" role="status" aria-live="polite">
+              <template for:each={messages} for:item="message">
+                <p key={message.code}>{message.text}</p>
+              </template>
+            </div>
+          </template>
+
+          <template lwc:if={hasSourceCounts}>
+            <section
+              class="source-summary"
+              aria-labelledby="source-summary-heading"
+            >
+              <h3 id="source-summary-heading" class="slds-text-title_bold">
+                {label.sourceSummary}
+              </h3>
+              <ul class="slds-list_dotted">
+                <template for:each={sourceCounts} for:item="source">
+                  <li key={source.alias}>{source.alias}: {source.count}</li>
+                </template>
+              </ul>
+            </section>
+          </template>
+
+          <div class="action-row">
+            <lightning-button
+              label={label.copyCompletePrompt}
+              icon-name="utility:copy"
+              onclick={handleCopy}
+              disabled={isLoading}
+            ></lightning-button>
+            <lightning-button
+              class="start-over-button"
+              label={label.startOver}
+              onclick={handleStartOver}
+              disabled={isLoading}
+            ></lightning-button>
+          </div>
+        </template>
+      </template>
+      <template lwc:else>
+        <div class="empty-state" role="status">
+          {label.noPublishedTemplates}
+        </div>
+      </template>
+    </div>
+  </lightning-card>
+</template>

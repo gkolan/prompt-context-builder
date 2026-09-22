@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prompt_Template__c</fullName>
+    <description
+  >Prompt template that owns this fixed published version.</description>
+    <label>Prompt Template</label>
+    <referenceTo>Prompt_Template__c</referenceTo>
+    <relationshipLabel>Published Versions</relationshipLabel>
+    <relationshipName>Published_Versions</relationshipName>
+    <relationshipOrder>0</relationshipOrder>
+    <reparentableMasterDetail>false</reparentableMasterDetail>
+    <type>MasterDetail</type>
+    <writeRequiresMasterRead>false</writeRequiresMasterRead>
+</CustomField>

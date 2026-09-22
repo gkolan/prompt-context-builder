@@ -1,0 +1,381 @@
+/**
+ * Thin Lightning controller for configuring, previewing, publishing, and generating record-context prompts.
+ */
+public with sharing class PromptContextController {
+  /**
+   * @return Accessible queryable object choices
+   */
+  @AuraEnabled(cacheable=true)
+  public static List<PromptContextDTO.Option> getObjectOptions() {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptContextSchema.getObjectOptions();
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param objectApiName Object API name
+   * @return Readable supported field choices
+   */
+  @AuraEnabled(cacheable=true)
+  public static List<PromptContextDTO.Option> getFieldOptions(
+    String objectApiName
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptContextSchema.getFieldOptions(objectApiName);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /** Returns one limited template catalog page in a consistent Name and Id order. */
+  @AuraEnabled(cacheable=true)
+  public static PromptContextDTO.TemplateSummaryPage getTemplateSummaryPage(
+    String searchText,
+    Integer pageSize,
+    String afterName,
+    Id afterId
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateService.getTemplateSummaryPage(
+        searchText,
+        pageSize,
+        afterName,
+        afterId
+      );
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param templateId Template Id
+   * @return Complete editable template configuration
+   */
+  @AuraEnabled(cacheable=true)
+  public static PromptContextDTO.TemplateConfig getTemplate(Id templateId) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateService.getTemplate(templateId);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /** Returns the current setup check and the required field access saved at publication. */
+  @AuraEnabled
+  public static PromptContextDTO.TemplateHealth checkTemplateHealth(
+    String configJson
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateGovernanceService.checkHealth(
+        parseConfig(configJson)
+      );
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (JSONException exceptionValue) {
+      throw safeException(Label.PCB_Invalid_Configuration);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /** Returns fixed published versions, newest first. */
+  @AuraEnabled(cacheable=true)
+  public static List<PromptContextDTO.VersionSummary> getTemplateVersions(
+    Id templateId
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateGovernanceService.getVersions(templateId);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /** Returns a limited comparison of two fixed versions without record values. */
+  @AuraEnabled(cacheable=true)
+  public static PromptContextDTO.VersionComparison compareTemplateVersions(
+    Id templateId,
+    Integer fromVersion,
+    Integer toVersion
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateGovernanceService.compareVersions(
+        templateId,
+        fromVersion,
+        toVersion
+      );
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /** Copies a fixed published version into the editable draft. */
+  @AuraEnabled
+  public static PromptContextDTO.TemplateConfig restoreTemplateVersion(
+    Id templateId,
+    Integer versionNumber
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateGovernanceService.restoreVersionAsDraft(
+        templateId,
+        versionNumber
+      );
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param configJson Serialized template configuration
+   * @return Saved configuration
+   */
+  @AuraEnabled
+  public static PromptContextDTO.TemplateConfig saveDraft(String configJson) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateService.saveDraft(parseConfig(configJson));
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (JSONException exceptionValue) {
+      throw safeException(Label.PCB_Invalid_Configuration);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param configJson Serialized template configuration
+   * @return Validation result with all actionable messages
+   */
+  @AuraEnabled
+  public static PromptContextDTO.ValidationResult validateConfig(
+    String configJson
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptContextService.validate(parseConfig(configJson));
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (JSONException exceptionValue) {
+      throw safeException(Label.PCB_Invalid_Configuration);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param configJson Serialized template configuration, saved or unsaved
+   * @param recordId Sample current-record Id
+   * @return Preview result
+   */
+  @AuraEnabled
+  public static PromptContextDTO.PromptResult preview(
+    String configJson,
+    Id recordId
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptContextService.generate(parseConfig(configJson), recordId);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (JSONException exceptionValue) {
+      throw safeException(Label.PCB_Invalid_Configuration);
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param templateId Stored template Id
+   * @param sampleRecordId Required sample current-record Id
+   * @return Successful publish preview
+   */
+  @AuraEnabled
+  public static PromptContextDTO.PromptResult publish(
+    Id templateId,
+    Id sampleRecordId
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateService.publish(templateId, sampleRecordId);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param templateId Template to remove from prompt-generation choices
+   * @return Inactive template configuration
+   */
+  @AuraEnabled
+  public static PromptContextDTO.TemplateConfig deactivateTemplate(
+    Id templateId
+  ) {
+    try {
+      PromptContextAccess.requireConfigure();
+      return PromptTemplateService.deactivate(templateId);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param rootObject Salesforce object API name for the current record
+   * @return Published templates available for generation
+   */
+  @AuraEnabled(cacheable=true)
+  public static List<PromptContextDTO.TemplateChoice> getPublishedTemplates(
+    String rootObject
+  ) {
+    try {
+      PromptContextAccess.requireGenerate();
+      return PromptTemplateService.getPublishedChoices(rootObject);
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  /**
+   * @param templateId Published template Id
+   * @param recordId Current Salesforce record Id
+   * @return Generated prompt
+   */
+  @AuraEnabled
+  public static PromptContextDTO.PromptResult generatePrompt(
+    Id templateId,
+    Id recordId
+  ) {
+    Long startedAtMilliseconds = Datetime.now().getTime();
+    String correlationId = PromptContextTrace.newCorrelationId();
+    try {
+      PromptContextAccess.requireGenerate();
+      PromptContextDTO.PromptResult result = PromptTemplateService.generatePublished(
+        templateId,
+        recordId
+      );
+      publishMetric(
+        templateId,
+        result.templateVersion,
+        PromptContextReasonCodes.SUCCESS,
+        correlationId,
+        startedAtMilliseconds
+      );
+      return result;
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      publishMetric(
+        templateId,
+        null,
+        PromptContextReasonCodes.NOT_AUTHORIZED,
+        correlationId,
+        startedAtMilliseconds
+      );
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      publishMetric(
+        templateId,
+        null,
+        exceptionValue.reasonCode ??
+          PromptContextReasonCodes.INVALID_CONFIGURATION,
+        correlationId,
+        startedAtMilliseconds
+      );
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      publishMetric(
+        templateId,
+        null,
+        PromptContextReasonCodes.UNEXPECTED_ERROR,
+        correlationId,
+        startedAtMilliseconds
+      );
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
+  private static void publishMetric(
+    Id templateId,
+    Integer templateVersion,
+    String outcomeCode,
+    String correlationId,
+    Long startedAtMilliseconds
+  ) {
+    if (templateId == null) {
+      return;
+    }
+    PromptContextMetrics.Signal signal = new PromptContextMetrics.Signal();
+    signal.channel = 'LWC';
+    signal.outcomeCode = outcomeCode;
+    signal.startedAtMilliseconds = startedAtMilliseconds;
+    signal.templateId = templateId;
+    signal.templateVersion = templateVersion;
+    signal.correlationId = correlationId;
+    PromptContextMetrics.publishOne(signal);
+  }
+
+  private static PromptContextDTO.TemplateConfig parseConfig(
+    String configJson
+  ) {
+    if (String.isBlank(configJson)) {
+      throw new PromptContextException('A template configuration is required.');
+    }
+    return (PromptContextDTO.TemplateConfig) JSON.deserialize(
+      configJson,
+      PromptContextDTO.TemplateConfig.class
+    );
+  }
+
+  private static AuraHandledException safeException(String message) {
+    return new AuraHandledException(message);
+  }
+}

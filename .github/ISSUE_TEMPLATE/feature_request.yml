@@ -1,0 +1,25 @@
+name: Feature request
+description: Propose a new Prompt Context Builder capability
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: requirement
+    attributes:
+      label: Salesforce requirement
+      description: Describe the administrator or developer outcome, not only a proposed implementation.
+    validations:
+      required: true
+  - type: textarea
+    id: current
+    attributes:
+      label: Current workaround
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Security and data boundaries
+      description: Identify relevant objects, fields, sharing, retention, limits, and execution channels.
+    validations:
+      required: true

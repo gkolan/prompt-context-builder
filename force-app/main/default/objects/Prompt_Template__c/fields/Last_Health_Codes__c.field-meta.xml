@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+  <fullName>Last_Health_Codes__c</fullName><description
+  >Saved check results only. Never contains prompts, record values, filter values, Salesforce search text, or error details.</description><label
+  >Last Check Details</label><length>255</length><type>Text</type>
+</CustomField>
