@@ -27,8 +27,8 @@ containing customer values, or generated query details into an issue.
 4. Compare `reasonCode` with the [reason-code reference](../reference/reason-codes.md).
 5. Preview the same published settings with an equivalent user in a sandbox before changing
    production settings.
-6. If Salesforce fields or template settings changed, restore the earlier published version to a
-   Draft, correct it, preview it, and publish a new fixed version.
+6. If Salesforce fields or template settings changed, restore the earlier published version into
+   the editable settings, correct it, preview it, and publish a new fixed version.
 
 An access failure must remain a failure. Do not remove a required field merely to turn inaccessible
 data into blank output unless the business requirement also changed.

@@ -31,8 +31,8 @@ No visible open cases were found.
 {!/if}
 ```
 
-Loop aliases exist only inside their block. Nested blocks use distinct aliases. `else` belongs to
-the nearest compatible open block.
+Loop aliases exist only inside their block. An `each` block cannot be nested inside another `each`
+block. `if` blocks may be nested, and `else` belongs to the nearest compatible open block.
 
 ## Attributes
 

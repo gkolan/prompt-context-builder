@@ -61,7 +61,9 @@ public with sharing class PromptContextMetrics {
           Channel__c = signal.channel,
           Outcome_Code__c = signal.outcomeCode,
           Duration_Milliseconds__c = duration,
-          Template_Id__c = String.valueOf(signal.templateId),
+          Template_Id__c = signal.templateId == null
+            ? null
+            : String.valueOf(signal.templateId),
           Template_Version__c = signal.templateVersion,
           Correlation_Id__c = signal.correlationId
         )
@@ -90,7 +92,6 @@ public with sharing class PromptContextMetrics {
       CODE_PATTERN.matcher(signal.outcomeCode).matches() &&
       signal.startedAtMilliseconds != null &&
       signal.startedAtMilliseconds <= Datetime.now().getTime() &&
-      signal.templateId != null &&
       !String.isBlank(signal.correlationId) &&
       signal.correlationId.length() <= 32;
   }

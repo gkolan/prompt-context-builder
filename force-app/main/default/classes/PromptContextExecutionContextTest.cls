@@ -5,12 +5,14 @@ private class PromptContextExecutionContextTest {
   static void setupData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
-      Account accountRecord = PromptContextTestDataFactory.createAccount(true);
-      PromptContextTestDataFactory.createContacts(accountRecord.Id, true);
+      Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
       PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(
         PromptContextTestDataFactory.createTwoSourceConfig()
       );
-      PromptTemplateService.publish(saved.id, accountRecord.Id);
+      PromptTemplateService.publish(saved.id, rootRecord.Id);
     }
   }
 
@@ -18,11 +20,11 @@ private class PromptContextExecutionContextTest {
   static void shouldBuildFromFlowEntryPoint() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      PromptContextApi.Request request = requestForTestData();
+      PromptContextInputApi.Request request = requestForTestData();
 
       Test.startTest();
-      List<PromptContextApi.Response> responses = PromptContextApi.buildForFlow(
-        new List<PromptContextApi.Request>{ request }
+      List<PromptContextInputApi.Result> responses = PromptContextInputApi.prepareForFlow(
+        new List<PromptContextInputApi.Request>{ request }
       );
       Test.stopTest();
 
@@ -36,7 +38,7 @@ private class PromptContextExecutionContextTest {
   static void shouldBuildFromQueueableContext() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      PromptContextApi.Request request = requestForTestData();
+      PromptContextInputApi.Request request = requestForTestData();
       Test.startTest();
       System.enqueueJob(
         new ApiQueueable(request.templateDeveloperKey, request.recordId)
@@ -49,7 +51,7 @@ private class PromptContextExecutionContextTest {
   static void shouldBuildFromBatchContext() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      PromptContextApi.Request request = requestForTestData();
+      PromptContextInputApi.Request request = requestForTestData();
       Test.startTest();
       Database.executeBatch(
         new PromptContextBatchTestHarness(
@@ -66,7 +68,7 @@ private class PromptContextExecutionContextTest {
   static void shouldBuildFromScheduledContext() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      PromptContextApi.Request request = requestForTestData();
+      PromptContextInputApi.Request request = requestForTestData();
       Test.startTest();
       System.schedule(
         'Prompt Context API scheduled test',
@@ -78,27 +80,30 @@ private class PromptContextExecutionContextTest {
   }
 
   private static User getConfigurator() {
-    return [SELECT Id FROM User WHERE Alias = 'pcbtest' LIMIT 1];
+    return PromptContextTestDataFactory.createConfiguratorUser();
   }
 
-  private static PromptContextApi.Request requestForTestData() {
-    PromptContextApi.Request request = new PromptContextApi.Request();
+  private static PromptContextInputApi.Request requestForTestData() {
+    PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+    request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
     request.templateDeveloperKey = [
       SELECT Developer_Key__c
       FROM Prompt_Template__c
+      WHERE Status__c = 'Published'
       LIMIT 1
     ]
     .Developer_Key__c;
-    request.recordId = [SELECT Id FROM Account LIMIT 1].Id;
+    request.recordId = PromptContextTestDataFactory.selectRootRecord().Id;
     return request;
   }
 
   private static void assertSuccessfulBuild(String developerKey, Id recordId) {
-    PromptContextApi.Request request = new PromptContextApi.Request();
+    PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+    request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
     request.templateDeveloperKey = developerKey;
     request.recordId = recordId;
-    List<PromptContextApi.Response> responses = PromptContextApi.build(
-      new List<PromptContextApi.Request>{ request }
+    List<PromptContextInputApi.Result> responses = PromptContextInputApi.prepare(
+      new List<PromptContextInputApi.Request>{ request }
     );
     Assert.areEqual(1, responses.size());
     Assert.isTrue(responses[0].success, responses[0].message);

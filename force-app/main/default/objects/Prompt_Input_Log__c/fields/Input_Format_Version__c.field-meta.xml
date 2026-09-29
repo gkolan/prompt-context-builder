@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Input_Format_Version__c</fullName>
+    <defaultValue>&quot;1&quot;</defaultValue>
+    <description
+  >Identifies the saved-input format used to read the prepared text and selected file details.</description>
+    <inlineHelpText
+  >Managed by Prompt Context Builder. It changes only when the saved-input format changes.</inlineHelpText>
+    <label>Input Format Version</label>
+    <length>10</length>
+    <required>true</required>
+    <type>Text</type>
+</CustomField>

@@ -19,6 +19,46 @@
         <template lwc:if={selectedTemplateDescription}>
           <p class="template-description">{selectedTemplateDescription}</p>
         </template>
+        <template lwc:if={letsUserChooseFiles}>
+          <section
+            class="file-panel"
+            aria-labelledby="salesforce-files-heading"
+          >
+            <h3 id="salesforce-files-heading" class="slds-text-title_bold">
+              Salesforce Files
+            </h3>
+            <p class="slds-text-body_small slds-text-color_weak">
+              {fileHelpText} Selected files will leave Salesforce for the
+              approved service named in your company setup.
+            </p>
+            <lightning-checkbox-group
+              name="salesforceFiles"
+              label="Files to include"
+              options={fileOptions}
+              value={selectedFileVersionIds}
+              disabled={isLoading}
+              onchange={handleFiles}
+            ></lightning-checkbox-group>
+            <template lwc:if={hasMoreFiles}>
+              <lightning-button
+                class="show-more-files"
+                label="Show more Files"
+                disabled={isLoadingFiles}
+                onclick={handleShowMoreFiles}
+              ></lightning-button>
+            </template>
+          </section>
+        </template>
+        <template lwc:if={usesAllEligibleFiles}>
+          <div class="file-panel" role="note">
+            Salesforce will include all eligible Files linked directly to this
+            record, up to the template limit. The files will leave Salesforce
+            for the approved service named in your company setup.
+          </div>
+        </template>
+        <template lwc:if={fileListMessage}>
+          <p class="message-panel" role="status">{fileListMessage}</p>
+        </template>
         <lightning-textarea
           label={label.prefixLabel}
           value={prefix}
@@ -53,8 +93,8 @@
 
           <template lwc:if={hasMessages}>
             <div class="message-panel" role="status" aria-live="polite">
-              <template for:each={messages} for:item="message">
-                <p key={message.code}>{message.text}</p>
+              <template for:each={displayMessages} for:item="message">
+                <p key={message.key}>{message.text}</p>
               </template>
             </div>
           </template>

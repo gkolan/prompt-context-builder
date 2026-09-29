@@ -31,8 +31,8 @@ public with sharing class PromptContextService {
     PromptContextDTO.ValidationResult validation = validate(config);
     if (!validation.isValid) {
       throw PromptContextException.withReason(
-        validationReason(validation.messages),
-        joinErrors(validation.messages)
+        PromptContextValidationMessages.reason(validation.messages),
+        PromptContextValidationMessages.joinErrors(validation.messages)
       );
     }
 
@@ -151,7 +151,7 @@ public with sharing class PromptContextService {
       runtime.messages.add(
         new PromptContextDTO.Message(
           'WARNING',
-          'NULL_CORRELATION_VALUE',
+          PromptContextReasonCodes.NULL_MATCH_VALUE,
           'Data set ' + source.referenceName,
           'The current record match field is blank, so this data set has no records.'
         )
@@ -160,17 +160,37 @@ public with sharing class PromptContextService {
       return;
     }
     if (source.resultMode == 'AGGREGATE') {
-      PromptContextQuery.Plan aggregateQuery = PromptContextQuery.buildAggregate(
+      PromptContextQuery.Plan candidateQuery = PromptContextQuery.buildAggregateCandidates(
         source,
-        correlationValue
+        correlationValue,
+        PromptContextContract.MAX_AGGREGATE_INPUT_ROWS + 1
       );
-      List<SObject> aggregateRows = PromptContextSelector.selectDynamic(
-        aggregateQuery.soql,
-        aggregateQuery.binds
+      List<SObject> candidates = PromptContextSelector.selectDynamic(
+        candidateQuery.soql,
+        candidateQuery.binds
       );
-      Object aggregateValue = aggregateRows.isEmpty()
-        ? null
-        : aggregateRows[0].get('metric');
+      if (candidates.size() > PromptContextContract.MAX_AGGREGATE_INPUT_ROWS) {
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.TRANSACTION_BUDGET_EXCEEDED,
+          'A calculated data set matches too many records. Narrow its filters before generating.'
+        );
+      }
+      Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
+      Object aggregateValue = source.aggregateOperation == 'COUNT' ? 0 : null;
+      if (!candidateIds.isEmpty()) {
+        PromptContextQuery.Plan aggregateQuery = PromptContextQuery.buildAggregate(
+          source,
+          correlationValue,
+          candidateIds
+        );
+        List<SObject> aggregateRows = PromptContextSelector.selectDynamic(
+          aggregateQuery.soql,
+          aggregateQuery.binds
+        );
+        aggregateValue = aggregateRows.isEmpty()
+          ? aggregateValue
+          : aggregateRows[0].get('metric');
+      }
       runtime.aggregateByAlias.put(source.referenceName, aggregateValue);
       runtime.countsByAlias.put(source.referenceName, 1);
       loadRelatedAtIndex(sources, index + 1, runtime, templateBody);
@@ -185,7 +205,7 @@ public with sharing class PromptContextService {
       runtime.messages.add(
         new PromptContextDTO.Message(
           'WARNING',
-          'TOTAL_ROW_LIMIT',
+          PromptContextReasonCodes.TOTAL_ROW_LIMIT,
           'Data set ' + source.referenceName,
           'The prompt reached its 200-record limit before adding this data set.'
         )
@@ -209,7 +229,7 @@ public with sharing class PromptContextService {
       runtime.messages.add(
         new PromptContextDTO.Message(
           'WARNING',
-          'SOURCE_TRUNCATED',
+          PromptContextReasonCodes.SOURCE_TRUNCATED,
           'Data set ' + source.referenceName,
           'More records matched than the configured limit. Only the first ' +
             effectiveLimit +
@@ -221,38 +241,6 @@ public with sharing class PromptContextService {
     runtime.countsByAlias.put(source.referenceName, records.size());
     runtime.totalRows += records.size();
     loadRelatedAtIndex(sources, index + 1, runtime, templateBody);
-  }
-
-  private static String joinErrors(List<PromptContextDTO.Message> messages) {
-    List<String> errors = new List<String>();
-    for (PromptContextDTO.Message message : messages) {
-      if (message.severity == 'ERROR') {
-        errors.add(message.text);
-      }
-    }
-    return String.join(errors, ' ');
-  }
-
-  private static String validationReason(
-    List<PromptContextDTO.Message> messages
-  ) {
-    for (PromptContextDTO.Message message : messages) {
-      if (
-        message.severity == 'ERROR' &&
-        message.code == PromptContextReasonCodes.OBJECT_NOT_ACCESSIBLE
-      ) {
-        return PromptContextReasonCodes.OBJECT_NOT_ACCESSIBLE;
-      }
-    }
-    for (PromptContextDTO.Message message : messages) {
-      if (
-        message.severity == 'ERROR' &&
-        message.code == PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE
-      ) {
-        return PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE;
-      }
-    }
-    return PromptContextReasonCodes.INVALID_CONFIGURATION;
   }
 
   private class RuntimeContext {

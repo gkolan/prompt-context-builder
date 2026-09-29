@@ -3,6 +3,7 @@ import path from "node:path";
 
 const workspace = process.cwd();
 const roots = [
+  path.join(workspace, "AGENTS.md"),
   path.join(workspace, "README.md"),
   path.join(workspace, "CHANGELOG.md"),
   path.join(workspace, "SUPPORT.md"),
@@ -15,6 +16,7 @@ const roots = [
 ];
 const markdownFiles = [];
 const requiredFiles = [
+  "AGENTS.md",
   "README.md",
   "CHANGELOG.md",
   "SUPPORT.md",
@@ -30,7 +32,10 @@ const requiredFiles = [
   "docs/diagnostics/README.md",
   "docs/flow-guides/README.md",
   "docs/install/try-demo-scratch-org.md",
-  "docs/quality-gates/documentation-standard.md"
+  "docs/quality-gates/documentation-standard.md",
+  "docs/contributing/change-safety-playbook.md",
+  "docs/screenshots/README.md",
+  "docs/screenshots/manifest.json"
 ];
 
 function collect(currentPath) {

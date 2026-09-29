@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Input_Verification_Value__c</fullName>
+    <description
+  >Confirms that a repeated Request Key represents the same prepared text, record, template version, and selected file details.</description>
+    <inlineHelpText
+  >Managed by Prompt Context Builder. Use it to confirm that saved input has not changed.</inlineHelpText>
+    <label>Input Verification Value</label>
+    <length>64</length>
+    <required>true</required>
+    <type>Text</type>
+</CustomField>

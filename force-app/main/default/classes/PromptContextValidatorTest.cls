@@ -4,6 +4,62 @@
 @isTest
 private class PromptContextValidatorTest {
   @isTest
+  static void shouldReturnMissingBodyInsteadOfThrowingForNullBody() {
+    PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+    config.templateBody = null;
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(result.isValid);
+    Assert.isTrue(hasCode(result.messages, 'MISSING_TEMPLATE_BODY'));
+  }
+
+  @isTest
+  static void shouldReportInvalidReferenceWithoutCompilingItAsRegex() {
+    PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+    config.sources[0].referenceName = 'Cases(';
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(result.isValid);
+    Assert.isTrue(hasCode(result.messages, 'INVALID_REFERENCE'));
+  }
+
+  @isTest
+  static void shouldValidateFilterValuesBeforeRuntime() {
+    PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+    config.sources[0].filters[0].fieldName = 'CreatedDate';
+    config.sources[0].filters[0].operator = 'GT';
+    config.sources[0].filters[0].value = '2024-13-45';
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(result.isValid);
+    Assert.isTrue(
+      hasCode(result.messages, PromptContextReasonCodes.INVALID_CONFIGURATION)
+    );
+  }
+
+  @isTest
+  static void shouldRejectMatchFieldsThatReferenceDifferentObjects() {
+    PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+    config.sources[0].rootField = 'OwnerId';
+    config.sources[0].correlationField = 'Prompt_Template__c';
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(result.isValid);
+    Assert.isTrue(hasCode(result.messages, 'MATCH_REFERENCE_TARGETS_DIFFER'));
+  }
+  @isTest
   static void shouldRejectMissingConfiguration_WhenInputIsNull() {
     Test.startTest();
     PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
@@ -90,11 +146,27 @@ private class PromptContextValidatorTest {
   }
 
   @isTest
+  static void shouldNotWarn_WhenEachBlockUsesSourceWithoutRowFields() {
+    PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+    config.sources.remove(1);
+    config.templateBody = '{!#each related.recent_contacts as="contact"}Contact{!/each}';
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(
+      hasCode(result.messages, 'UNUSED_SOURCE'),
+      'An each block consumes its source even when its body uses no row field.'
+    );
+  }
+
+  @isTest
   static void shouldWarnWithoutBlocking_WhenReferenceSourceIsBounded() {
     PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
     config.name = 'Reference Context';
-    config.rootObject = 'Account';
-    config.templateBody = '{!related.reference_contacts[0].LastName}';
+    config.rootObject = 'Prompt_Template__c';
+    config.templateBody = '{!related.reference_contacts[0].Reference_Name__c}';
     config.sources.add(
       PromptContextTestDataFactory.createReferenceContactsSource()
     );
@@ -118,7 +190,7 @@ private class PromptContextValidatorTest {
   @isTest
   static void shouldRejectOperator_WhenFieldTypeIsIncompatible() {
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
-    config.sources[0].filters[0].fieldName = 'LastName';
+    config.sources[0].filters[0].fieldName = 'Reference_Name__c';
     config.sources[0].filters[0].operator = 'GT';
 
     Test.startTest();
@@ -173,7 +245,7 @@ private class PromptContextValidatorTest {
       'A DateTime field cannot correlate to an Account Id.'
     );
     Assert.isTrue(
-      hasCode(result.messages, 'INCOMPATIBLE_CORRELATION_TYPES'),
+      hasCode(result.messages, 'MATCH_FIELD_TYPES_DIFFER'),
       'The check should explain incompatible record-matching field types.'
     );
   }
@@ -262,7 +334,7 @@ private class PromptContextValidatorTest {
     config.sources.remove(1);
     source.resultMode = 'AGGREGATE';
     source.aggregateOperation = 'SUM';
-    source.aggregateField = 'LastName';
+    source.aggregateField = 'Reference_Name__c';
     source.sorts.clear();
     source.selectedFields.clear();
     config.templateBody = '{!related.recent_contacts.count}';
@@ -274,6 +346,78 @@ private class PromptContextValidatorTest {
     Assert.isFalse(result.isValid);
     Assert.isTrue(hasCode(result.messages, 'AGGREGATE_TYPE_MISMATCH'));
     Assert.isTrue(hasCode(result.messages, 'AGGREGATE_USED_AS_RECORDS'));
+  }
+
+  @isTest
+  static void shouldRequireCurrencyBoundaryInMultiCurrencyOrg() {
+    PromptContextDTO.TemplateConfig config = currencyAggregateConfig();
+    PromptContextValidator.multiCurrencyOverride = true;
+
+    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+      config
+    );
+
+    Assert.isFalse(result.isValid);
+    Assert.isTrue(
+      hasCode(
+        result.messages,
+        PromptContextReasonCodes.MISSING_CURRENCY_BOUNDARY
+      )
+    );
+  }
+
+  @isTest
+  static void shouldAcceptMandatoryCurrencyBoundary() {
+    PromptContextDTO.TemplateConfig config = currencyAggregateConfig();
+    PromptContextDTO.FilterRule currencyRule = new PromptContextDTO.FilterRule();
+    currencyRule.fieldName = 'CurrencyIsoCode';
+    currencyRule.operator = 'EQ';
+    currencyRule.value = 'USD';
+    config.sources[0].filters.add(currencyRule);
+    Assert.isTrue(
+      PromptContextValidator.hasMandatoryCurrencyBoundary(config.sources[0]),
+      'One required ISO code makes SUM comparable.'
+    );
+  }
+
+  @isTest
+  static void shouldRejectCurrencyBoundaryInsideOptionalOrGroups() {
+    PromptContextDTO.TemplateConfig config = currencyAggregateConfig();
+    PromptContextDTO.FilterRule currencyRule = new PromptContextDTO.FilterRule();
+    currencyRule.fieldName = 'CurrencyIsoCode';
+    currencyRule.operator = 'EQ';
+    currencyRule.value = 'USD';
+    currencyRule.groupName = 'currency';
+    config.sources[0].filters.add(currencyRule);
+    PromptContextDTO.FilterRule otherRule = new PromptContextDTO.FilterRule();
+    otherRule.fieldName = 'Name';
+    otherRule.operator = 'STARTS_WITH';
+    otherRule.value = 'Renewal';
+    otherRule.groupName = 'name';
+    config.sources[0].filters.add(otherRule);
+    config.sources[0].filterGroupJoin = 'OR';
+    Assert.isFalse(
+      PromptContextValidator.hasMandatoryCurrencyBoundary(config.sources[0]),
+      'A currency rule in one optional OR group is not mandatory.'
+    );
+  }
+
+  private static PromptContextDTO.TemplateConfig currencyAggregateConfig() {
+    PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
+    config.name = 'Opportunity amount';
+    config.rootObject = 'Account';
+    config.templateBody = '{!aggregate.amount.value}';
+    PromptContextDTO.SourceConfig source = new PromptContextDTO.SourceConfig();
+    source.referenceName = 'amount';
+    source.relatedObject = 'Opportunity';
+    source.rootField = 'Id';
+    source.correlationField = 'AccountId';
+    source.resultMode = 'AGGREGATE';
+    source.aggregateOperation = 'SUM';
+    source.aggregateField = 'Amount';
+    source.selectedFields.clear();
+    config.sources.add(source);
+    return config;
   }
 
   private static Boolean hasCode(

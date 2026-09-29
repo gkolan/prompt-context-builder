@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Service_Path__c</fullName>
+    <description
+  >Relative path on the approved AWS file service. It must start with a slash.</description>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Service Path</label>
+    <length>255</length>
+    <type>Text</type>
+</CustomField>

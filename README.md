@@ -18,7 +18,9 @@ record fields and limited related data it may read, preview the result, and publ
 Users can then generate, edit, and copy the completed plain-text prompt from a record page. Record
 pages and Salesforce automation use the same access checks.
 
-It does not call an AI model, read files, save generated prompts, or update customer records.
+It does not call an AI model, read Salesforce File bodies, or update customer records. Flow and
+Apex can explicitly save prepared prompt text plus file metadata to a private Prompt Input Log;
+record-page generation remains an edit-and-copy workflow and does not save the prompt.
 
 ## Get started
 
@@ -33,7 +35,11 @@ records are release evidence, not a promise that a version is publicly supported
 
 ## See it in action
 
-![Prompt Generator showing generated Account context and data set counts](./docs/screenshots/prompt-generator-runtime-current.png)
+![Published template open in Prompt Builder](./docs/screenshots/prompt-builder-current-overview.png)
+
+This browser capture was taken from the approved `promptcontextbuilder` scratch org on September
+26, 2026. It proves the deployed-org UI shown here, not deployment of every current workspace
+change. See the screenshot evidence page for the exact boundary.
 
 The prepared demo creates the same Account and Contacts each time, along with 12 numbered templates. Nine
 templates are published and runnable; two remain Draft to teach validation behavior, and one is
@@ -47,7 +53,7 @@ Inactive to demonstrate lifecycle enforcement.
 | Calculated values               | Counts, sums, averages, minimums, and maximums                                                   |
 | Safe failure                    | Invalid Draft, Inactive template, empty data, and inaccessible-data behavior                     |
 
-See the [historical deployed UI gallery](./docs/screenshots/README.md) and the
+See the [current and historical UI evidence](./docs/screenshots/README.md) and the
 [verification catalog](./specs/prompt-context-builder/11-sample-template-catalog.md) for every
 prepared scenario.
 

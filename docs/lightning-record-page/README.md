@@ -22,19 +22,29 @@ When exactly one matching template exists, the component selects it automaticall
 change because the record object or published templates change, an unavailable previous choice and
 its generated output are cleared.
 
+![Prompt Generator with a published Account template selected](../screenshots/prompt-generator-record-page-current.png)
+
+This September 26, 2026 browser capture uses the deterministic verification Account in the approved
+scratch-org baseline. The selected template has file input disabled.
+
 ## Use the component
 
 1. Choose a published template.
 2. Optionally enter text in **Add instructions at the top (optional)**.
-3. Select **Generate record context**.
-4. Review and edit **Generated record context (editable)**.
-5. Optionally enter text in **Add instructions at the bottom (optional)**.
-6. Select **Copy complete prompt**.
+3. If the published template uses **User selects files**, choose the eligible Salesforce Files. Use
+   **Show more Files** to load another page without clearing prior selections. A template using
+   **All eligible files** selects the limited eligible set automatically.
+4. Select **Generate record context**.
+5. Review and edit **Generated record context (editable)**.
+6. Optionally enter text in **Add instructions at the bottom (optional)**.
+7. Select **Copy complete prompt**.
 
 Copying is an explicit browser action. The component does not save the prompt to Salesforce or
 browser storage. **Start over** clears the optional instructions, generated text, messages, and
-data set counts. While generation is running, the template and text controls are disabled so the
-completed result cannot be combined with edits made for a different request.
+data set counts. File-enabled generation passes limited current-version file metadata into the
+prepared result; the component does not read `ContentVersion.VersionData`, upload a file, or call a
+model. While generation is running, the template and text controls are disabled so the completed
+result cannot be combined with edits made for a different request.
 
 A successful generation remains visible even when every merge value renders as blank. In that
 case, review the displayed warnings and data set counts before adding text or copying the result.
@@ -44,6 +54,9 @@ case, review the displayed warnings and data set counts before adding text or co
 - **No published templates:** confirm the template is Published and its Salesforce object matches the
   record page.
 - **Generate is disabled:** choose a template and use the component on a saved record.
+- **No Files appear:** confirm the published version enables files, the Files are linked directly to
+  the record, their current versions meet the published format and size limits, and the user has
+  both record access and **Prompt Context Send Files**.
 - **Access error:** assign generation capability, then verify read access to every configured
   object and field and visibility to the current record.
 - **Copy unavailable:** browser clipboard access can be restricted. Select the text and copy it

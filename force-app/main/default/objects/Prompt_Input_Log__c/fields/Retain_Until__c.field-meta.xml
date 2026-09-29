@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Retain_Until__c</fullName>
+    <description
+  >Sets the approved date and time after which retention cleanup may delete this saved input.</description>
+    <inlineHelpText
+  >Prompt Context Builder removes eligible saved inputs after this time according to the approved retention policy.</inlineHelpText>
+    <label>Retain Until</label>
+    <required>true</required>
+    <type>DateTime</type>
+</CustomField>

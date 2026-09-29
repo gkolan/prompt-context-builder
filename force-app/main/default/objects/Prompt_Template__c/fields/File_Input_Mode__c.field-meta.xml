@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>File_Input_Mode__c</fullName>
+    <description
+  >Controls whether a prompt uses no Salesforce Files, files selected by the user, or every eligible file linked directly to the source record.</description>
+    <inlineHelpText
+  >Choose Disabled, User Selects Files, or All Eligible Files. More than five files always stops the request.</inlineHelpText>
+    <label>File Input Mode</label>
+    <required>true</required>
+    <type>Picklist</type>
+    <valueSet>
+        <restricted>true</restricted>
+        <valueSetDefinition>
+            <sorted>false</sorted>
+            <value><fullName>DISABLED</fullName><default>true</default><label
+        >Disabled</label></value>
+            <value><fullName>USER_SELECT</fullName><default
+        >false</default><label>User Selects Files</label></value>
+            <value><fullName>ALL_ELIGIBLE</fullName><default
+        >false</default><label>All Eligible Files</label></value>
+        </valueSetDefinition>
+    </valueSet>
+</CustomField>

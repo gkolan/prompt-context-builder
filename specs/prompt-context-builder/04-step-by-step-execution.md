@@ -6,23 +6,23 @@ this sequence; final decisions and execution evidence are recorded in `06-build-
 Each implementation phase begins with a failing executable test or fixture for its observable
 contract, then adds the smallest production behavior needed to pass, followed by boundary tests.
 
-## Final execution disposition
+## Final execution outcome
 
 The approved version 1 scope is complete. This plan intentionally contains candidate capabilities
 that were evaluated and then explicitly deferred; they are not partial hidden features.
 
-| Phase | Disposition     | Final evidence or scope decision                                                                                                                          |
+| Phase | Outcome         | Final evidence or scope decision                                                                                                                          |
 | ----- | --------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0-1   | Complete        | Closed product/syntax contracts, central limits/reasons, 160-scenario corpus, stable automation keys                                                      |
 | 2-3   | Complete for v1 | Five-level schema paths, cached Describe, closed tokens/blocks, strict `fallback`/`format` attributes                                                     |
 | 4-5   | Complete        | RELATED/REFERENCE scopes, record/scalar aggregate results, typed OR groups, deterministic sort plus Id, binds, user mode, overflow and resource admission |
-| 6-7   | Complete        | CRUD/FLS/sharing/restriction-rule enforcement through user mode, atomic generation, bounded renderer                                                      |
-| 8     | Complete for v1 | Four-step junior-admin builder, searchable keyset catalog, lazy detail load, preview, publish, deactivate, duplicate                                      |
-| 9     | Complete        | Canary leakage tests, gated bounded diagnostics, correlation IDs, later-source atomic-failure test, Start over cleanup test                               |
+| 6-7   | Complete        | Object/field access, sharing, and restriction rules enforced through user mode; all-or-none prompt generation with enforced limits                        |
+| 8     | Complete for v1 | Four-step junior-admin builder, searchable paged catalog, details loaded after selection, preview, publish, deactivate, duplicate                         |
+| 9     | Complete        | Test-value leakage tests, limited diagnostics behind an explicit setting, request IDs, later-source all-or-none result test, Start over cleanup test      |
 | 10    | Complete        | Restricted user, 35/201-record bulk, automation contexts, 2GP install/upgrades, and isolated namespaced regression passed                                 |
 | 11    | Complete        | Admin, architecture, security, execution, traceability, screenshots, build, package, and quality records are current                                      |
 
-Delivered after the original version 1 baseline: bounded named OR groups and distinct scalar
+Delivered after the original version 1 baseline: limited named OR groups and distinct scalar
 aggregate sources. Still excluded are grouped aggregates, polymorphic sources, cross-source query
 chaining, arbitrary raw SOQL, model/files/conversation persistence, explicit currency conversion,
 and nested `each`. Raw query text, binds, and retrieved rows are not exposed in the UI because doing
@@ -43,9 +43,9 @@ Approve the in-scope and out-of-scope lists in `01-product-contract.md`.
 Exit gate:
 
 - The product builds prompts only.
-- Files, model calls, conversations, persistence, and customer-record writes remain excluded.
+- Files, external-provider calls, conversations, saved prompts, and customer-record changes remain excluded.
 
-### Step 0.2: Approve canonical syntax
+### Step 0.2: Approve standard syntax
 
 Approve:
 
@@ -81,7 +81,7 @@ Decide exact support for:
 
 - parent depth;
 - direct children;
-- parent-path correlation from a related source;
+- parent-path matching from a related source;
 - junction objects;
 - aggregates and grouped aggregates;
 - self relationships; and
@@ -98,11 +98,11 @@ Specify types for:
 - template draft and published version;
 - related source;
 - selected field;
-- correlation;
+- matching;
 - typed filter;
 - sort key;
 - parsed token/block node;
-- access manifest;
+- field-access list;
 - resource plan;
 - immutable merge context;
 - validation finding; and
@@ -162,14 +162,14 @@ logic.
 Resolve a path into typed relationship segments and one terminal field. Reject invalid, cyclic,
 unsupported, or excessive paths.
 
-Exit gate: root tokens, source projections, access manifest, query planner, and renderer share the
+Exit gate: current-record fields, source fields, field-access list, query preparation, and prompt building share the
 same typed field shape.
 
-### Step 2.3: Implement the access-manifest compiler
+### Step 2.3: Implement the field-access list builder
 
-Collect every field used for output, correlation, filter, order, group, aggregate, and traversal.
+Collect every field used for output, matching, filter, order, group, aggregate, and traversal.
 
-Exit gate: fixture manifests match exact independently authored expectations.
+Exit gate: test field-access lists match exact independently written expectations.
 
 ## Phase 3: Implement the merge parser and validator
 
@@ -193,7 +193,7 @@ Do not let downstream consumers reparse property strings.
 
 Exit gate: round-trip inspection of the scenario corpus produces stable typed shapes.
 
-### Step 3.4: Add semantic validation
+### Step 3.4: Validate setting combinations
 
 Validate namespaces, aliases, lexical scope, fields, attributes, formats, indexes, selected
 projections, and source availability.
@@ -210,7 +210,7 @@ Exit gate: limit fixtures fail deterministically without high CPU or heap use.
 
 ### Step 4.1: Add source-definition tests
 
-Cover duplicate aliases, stable alias behavior, invalid objects, invalid correlations, typed filters,
+Cover duplicate aliases, stable alias behavior, invalid objects, invalid matches, typed filters,
 sortability, maximum rows, namespaced fields, unused fields, and inactive sources.
 
 ### Step 4.2: Implement reference-name generation
@@ -221,7 +221,7 @@ published renames.
 ### Step 4.3: Implement typed filters
 
 Expose operators by field type. Convert values before query planning. Represent AND/OR groups as a
-typed tree, while keeping mandatory root correlation outside and ANDed with that tree.
+field-type-checked tree, while keeping the mandatory current-record match outside and ANDed with that tree.
 
 ### Step 4.4: Implement deterministic sort planning
 
@@ -230,7 +230,7 @@ placement.
 
 ### Step 4.5: Implement source projection planning
 
-Select only fields required by tokens, rendering, correlation, sort, grouping, currency basis, and
+Select only fields required by tokens, rendering, matching, sort, grouping, currency basis, and
 runtime proof. Warn about configured but unused output fields.
 
 Exit gate for Phase 4: every SRC and ORD compile-time scenario returns the expected outcome without
@@ -241,12 +241,12 @@ executing customer-data SOQL.
 ### Step 5.1: Add adversarial query-plan tests
 
 Cover quotes, wildcard text, typed dates/numbers/IDs, injection strings, invalid identifiers,
-correlation escape attempts, unsafe clauses, unsupported shapes, and user-supplied limits.
+matching escape attempts, unsafe clauses, unsupported shapes, and user-supplied limits.
 
 ### Step 5.2: Generate query structure only from trusted typed shapes
 
 Object/field identifiers come from Describe-backed plans. Values become named binds. The generated
-query has one outer SELECT and one mandatory correlation boundary.
+query has one outer SELECT and one mandatory matching boundary.
 
 ### Step 5.3: Enforce explicit user mode
 
@@ -273,10 +273,10 @@ value can alter query structure.
 Authorize template use, validate record ID, derive actual object type, compare it with the published
 root object, and reject mismatch before related queries.
 
-### Step 6.2: Preflight the access manifest
+### Step 6.2: Check the field-access list
 
-Check object and field readability for the running user, including correlation/filter/sort fields.
-Return one atomic access failure when required access is missing.
+Check object and field readability for the running user, including matching/filter/sort fields.
+Return one all-or-none access failure when required access is missing.
 
 ### Step 6.3: Load root data in user mode
 
@@ -290,7 +290,7 @@ not expose raw rows outside the server merge context.
 
 ### Step 6.5: Inspect defense-in-depth stripping if used
 
-If `stripInaccessible` is used, abort when its removed fields intersect the access manifest. Do not
+If `stripInaccessible` is used, abort when its removed fields intersect the field-access list. Do not
 turn stripped fields into nulls.
 
 Exit gate for Phase 6: all SEC-001 through SEC-010 and SEC-022 fixtures pass using representative
@@ -317,9 +317,9 @@ rich text to inert plain text.
 
 Honor stable row order, lexical aliases, `else`, and nesting limits. Never reparse rendered values.
 
-### Step 7.5: Enforce output limits atomically
+### Step 7.5: Enforce output limits as one all-or-none operation
 
-Build in a bounded buffer. When the final character/byte budget would be exceeded, discard output
+Build in a limited buffer. When the final character/byte budget would be exceeded, discard output
 and return `LIMIT_EXCEEDED`; never return clipped text.
 
 Exit gate for Phase 7: DAY, EMP, FMT, and rendering-related SEC fixtures pass with exact expected
@@ -347,7 +347,7 @@ and exposed fields. Keep generated SOQL read-only and collapsed.
 Show display labels, locations, reasons, and corrective actions. Preserve stable machine reason
 codes outside the prose.
 
-### Step 8.5: Implement access-manifest view
+### Step 8.5: Implement the field-access list view
 
 Group required access by object and explain output/filter/sort use without requiring SOQL knowledge.
 
@@ -372,10 +372,10 @@ text, field values, query bind values, record descriptions, and hidden counts.
 
 ### Step 9.2: Add negative leakage tests
 
-Seed unique canary values and assert they never appear in debug statements, exceptions, telemetry,
+Seed unique test values and assert they never appear in debug statements, exceptions, monitoring,
 events, browser storage, or ordinary error responses.
 
-### Step 9.3: Add atomic failure tests
+### Step 9.3: Add all-or-none failure tests
 
 Force a failure after one source succeeds and assert that no partial prompt or source row is returned.
 
@@ -390,7 +390,7 @@ Exit gate for Phase 9: SEC-019 through SEC-021 and recovery scenarios pass.
 ### Step 10.1: Run Apex unit and static analysis
 
 Verify sharing declarations, explicit user-mode data operations, no SOQL-in-loop, no dangerous
-dynamic query construction, bounded resource use, and no debug-value leakage.
+dynamic query construction, limited resource use, and no debug-value leakage.
 
 ### Step 10.2: Run LWC unit and accessibility tests
 
@@ -428,7 +428,7 @@ platform verification.
 
 ### Step 11.1: Publish administrator-facing reference
 
-Document syntax, editor actions, examples, empty behavior, visible-scope meaning, access manifest,
+Document syntax, editor actions, examples, empty behavior, visible-scope meaning, field-access list,
 limits, reason codes, and troubleshooting in plain language.
 
 ### Step 11.2: Publish technical architecture
@@ -453,4 +453,4 @@ Final exit gate:
 - no security or limit red scenario returns a partial prompt;
 - the configuration flow can be completed without writing SOQL;
 - documentation and product behavior agree; and
-- files, model calls, conversations, and prompt persistence remain absent.
+- files, external-provider calls, conversations, and saved prompts remain absent.

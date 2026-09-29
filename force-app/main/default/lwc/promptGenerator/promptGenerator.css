@@ -12,6 +12,13 @@
   margin-top: var(--slds-g-spacing-4, 1rem);
 }
 
+.file-panel {
+  margin-top: 1rem;
+  padding: 0.75rem;
+  border: 1px solid var(--slds-g-color-border-base-1, #c9c9c9);
+  border-radius: 0.25rem;
+}
+
 .action-row {
   display: flex;
   flex-wrap: wrap;

@@ -42,6 +42,43 @@ positions, or repeat blocks.
 
 Insert the result as `{!aggregate.reference_name.value}`.
 
+## Allow Salesforce Files
+
+File settings are optional. This package prepares exact Salesforce File references; it does not
+read file contents or send them to Amazon Bedrock.
+
+![Salesforce Files policy in Prompt Builder](../screenshots/prompt-builder-files-current.png)
+
+This September 26, 2026 browser capture shows a published sample with file input disabled in the
+approved scratch-org baseline. File-enabled templates expose the additional settings described
+below after an approved service setup is available.
+
+Before enabling files, a security owner must approve the service, model, region, formats, limits,
+Named Credential, and the later process that will receive the prepared input. The package does not
+ship an active provider record or a Named Credential.
+
+After approval:
+
+1. In Setup, open **Custom Metadata Types**, find **Prompt Context Provider**, and choose **Manage
+   Records**.
+2. Create one record whose **Developer Name** is the stable value administrators will choose in
+   Prompt Builder.
+3. Enter the approved Named Credential name, service path, Bedrock region, model ID, request type,
+   AWS service name, formats, file limits, review date, and review reference. Activate the record
+   only after all values have been checked. A review older than 90 days is rejected. The package
+   limit remains five files and 4,500,000 bytes per file even when the service allows more.
+4. Assign **Prompt Context Send Files** only to people or automation allowed to include Salesforce
+   File references in prepared input.
+5. In Prompt Builder, choose **User selects files** or **All eligible files**, the active **Approved
+   Service Setup**, a maximum from one through five, and the approved formats.
+6. Preview and publish. On the record page, **Show more Files** loads another 50 eligible Files
+   without clearing selections. A sixth selected or automatically eligible File stops the complete
+   request.
+
+The selected-file value contains IDs, name, format, size, version, and last-modified time. It never
+contains file bytes. **Return to Apex** lets approved code own the next action; **Save to Prompt
+Input Log** preserves the same managed list for approved later processing.
+
 ## Validate before publishing
 
 Validation checks the inserted fields and blocks, Salesforce fields, matching fields, filter rules,
@@ -49,5 +86,6 @@ sorting, record order, limits, and required field access. Preview then builds th
 record and the current person's access. Publishing requires a successful preview and creates a
 fixed version that cannot be edited.
 
-See [Merge syntax](../reference/merge-syntax.md), [Limits](../reference/limits.md), and
+See [Merge syntax](../reference/merge-syntax.md), [Limits](../reference/limits.md),
+[Permissions](../reference/permissions.md), and
 [Security and data access](../architecture/security-and-data-access.md).

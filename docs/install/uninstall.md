@@ -57,8 +57,8 @@ Afterward, confirm:
 
 - **Prompt Context Builder** no longer appears in **Installed Packages**;
 - no active Lightning page references **Prompt Generator**;
-- no Flow references **Build Record Context Prompt**;
-- no Apex caller references `PromptContextApi`; and
+- no Flow references **Prepare Record Prompt Input**;
+- no Apex caller references `PromptContextInputApi`; and
 - no scheduled template-health job remains active.
 
 An untested reinstall is not a proven recovery path. Validate clean reinstall and configuration

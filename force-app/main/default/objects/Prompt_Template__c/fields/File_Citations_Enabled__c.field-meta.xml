@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>File_Citations_Enabled__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description
+  >Requests file citations only when the approved provider settings support them.</description>
+    <inlineHelpText
+  >Select this only when the chosen Provider Profile supports file citations.</inlineHelpText>
+    <label>File Citations Enabled</label>
+    <type>Checkbox</type>
+</CustomField>

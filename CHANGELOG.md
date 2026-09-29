@@ -4,6 +4,27 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ## Unreleased
 
+### Added
+
+- Added field-value data-set matching so a source field can match a compatible current-record
+  field without requiring the administrator to choose a relationship path.
+- Added bulk prompt preparation with ordered per-record results, bounded work, and atomic failure
+  for each requested record.
+- Added Salesforce File policy metadata, deterministic current-version selection, format and size
+  limits, provider approval metadata, and a separate permission for allowing file references to
+  leave Salesforce. The package does not read file bodies or call a model.
+- Added the `PromptContextInputApi` Flow and Apex boundary with explicit **Return to Apex** and
+  **Save to Prompt Input Log** delivery choices, idempotent request keys, and a private managed input
+  log for approved later processing.
+- Added dedicated Save Input, Send Files, and Process Input permissions plus executable gates for
+  the common entry point, day-one contract, file policy, input log, bulk matching, field
+  descriptions, permissions, namespace fixtures, and test-data isolation.
+- Added a durable change-safety playbook that covers regression-first fixes, org-independent Apex
+  fixtures, static analysis, source conflicts, Scheduled Apex recovery, and evidence boundaries.
+- Added a dated screenshot manifest, current deployed-org browser captures, accurate historical
+  file extensions, and a screenshot contract gate for inventory, file signatures, evidence scope,
+  and alternative text.
+
 ### Fixed
 
 - Prompt Generator now clears an auto-selected template and generated output when refreshed
@@ -30,6 +51,11 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 - Added dedicated Flow, diagnostics, vulnerability-reporting, issue-intake, and pull-request guidance.
 - Corrected Permission Set guidance to reflect that Prompt Context Configure already includes the
   Generate and Diagnostics custom permissions.
+- Documented field-value matching, bulk preparation, Salesforce File metadata, provider approval,
+  Prompt Input Log retention, delivery choices, permissions, limits, reason codes, security
+  boundaries, and record-page behavior across the task guides and exact references.
+- Separated local, check-only validation, deployment, browser, and package claims throughout the
+  contributor and screenshot evidence guidance.
 
 ### Repository
 

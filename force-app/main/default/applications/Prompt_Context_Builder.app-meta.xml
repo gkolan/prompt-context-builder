@@ -1,13 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <CustomApplication xmlns="http://soap.sforce.com/2006/04/metadata">
-    <actionOverrides>
-        <actionName>View</actionName>
-        <content>Prompt_Context_Account_Record_Page</content>
-        <formFactor>Large</formFactor>
-        <pageOrSobjectType>Account</pageOrSobjectType>
-        <skipRecordTypeSelect>false</skipRecordTypeSelect>
-        <type>Flexipage</type>
-    </actionOverrides>
     <brand>
         <headerColor>#032D60</headerColor>
         <shouldOverrideOrgTheme>true</shouldOverrideOrgTheme>
@@ -22,8 +14,5 @@
     <tabs>standard-home</tabs>
     <tabs>Prompt_Builder</tabs>
     <tabs>Prompt_Template__c</tabs>
-    <tabs>Prompt_Context_Source__c</tabs>
-    <tabs>standard-Account</tabs>
-    <tabs>standard-Contact</tabs>
     <uiType>Lightning</uiType>
 </CustomApplication>

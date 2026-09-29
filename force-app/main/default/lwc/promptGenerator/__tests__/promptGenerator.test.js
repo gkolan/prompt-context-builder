@@ -1,6 +1,7 @@
 import { createElement } from "lwc";
 import PromptGenerator from "c/promptGenerator";
 import getPublishedTemplates from "@salesforce/apex/PromptContextController.getPublishedTemplates";
+import getEligibleFiles from "@salesforce/apex/PromptContextController.getEligibleFiles";
 import generatePrompt from "@salesforce/apex/PromptContextController.generatePrompt";
 
 jest.mock(
@@ -9,6 +10,12 @@ jest.mock(
     const { createApexTestWireAdapter } = require("@salesforce/sfdx-lwc-jest");
     return { default: createApexTestWireAdapter(jest.fn()) };
   },
+  { virtual: true }
+);
+
+jest.mock(
+  "@salesforce/apex/PromptContextController.getEligibleFiles",
+  () => ({ default: jest.fn() }),
   { virtual: true }
 );
 
@@ -75,7 +82,8 @@ describe("c-prompt-generator", () => {
 
     expect(generatePrompt).toHaveBeenCalledWith({
       templateId: "a00000000000001AAA",
-      recordId: "001000000000001AAA"
+      recordId: "001000000000001AAA",
+      selectedContentVersionIds: []
     });
     expect(element.shadowRoot.querySelector(".prompt-area").value).toBe(
       "Account: Acme"
@@ -90,7 +98,7 @@ describe("c-prompt-generator", () => {
       prompt: "",
       messages: [
         {
-          code: "NULL_CORRELATION_VALUE",
+          code: "NULL_MATCH_VALUE",
           text: "No related rows were queried."
         }
       ],
@@ -260,5 +268,245 @@ describe("c-prompt-generator", () => {
 
     expect(element.shadowRoot.querySelector(".prompt-area")).toBeNull();
     expect(element.shadowRoot.querySelector(".source-summary")).toBeNull();
+  });
+
+  it("lists eligible Files and passes the exact selected versions", async () => {
+    getEligibleFiles.mockResolvedValue({
+      items: [
+        {
+          contentVersionId: "068000000000001AAA",
+          label: "Proposal.pdf",
+          sizeInBytes: 1200
+        }
+      ],
+      hasMore: false
+    });
+    generatePrompt.mockResolvedValue({
+      prompt: "Account: Acme",
+      messages: [],
+      sourceRecordCounts: {}
+    });
+    const element = createElement("c-prompt-generator", {
+      is: PromptGenerator
+    });
+    element.recordId = "001000000000001AAA";
+    element.objectApiName = "Account";
+    document.body.appendChild(element);
+    getPublishedTemplates.emit([
+      {
+        id: "a00000000000001AAA",
+        name: "Account Summary",
+        version: 1,
+        fileInputMode: "USER_SELECT",
+        maxFiles: 5,
+        allowedFileFormats: "pdf"
+      }
+    ]);
+    await flushPromises();
+
+    element.shadowRoot.querySelector("lightning-checkbox-group").dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: ["068000000000001AAA"] }
+      })
+    );
+    element.shadowRoot.querySelector(".generate-button").click();
+    await flushPromises();
+
+    expect(getEligibleFiles).toHaveBeenCalledWith({
+      templateId: "a00000000000001AAA",
+      recordId: "001000000000001AAA",
+      afterTitle: null,
+      afterId: null
+    });
+    expect(generatePrompt).toHaveBeenCalledWith({
+      templateId: "a00000000000001AAA",
+      recordId: "001000000000001AAA",
+      selectedContentVersionIds: ["068000000000001AAA"]
+    });
+  });
+
+  it("loads the next eligible Salesforce File page without clearing selections", async () => {
+    getEligibleFiles
+      .mockResolvedValueOnce({
+        items: [
+          {
+            contentVersionId: "068000000000001AAA",
+            label: "First.pdf",
+            sizeInBytes: 1200
+          }
+        ],
+        hasMore: true,
+        nextTitle: "First",
+        nextId: "068000000000001AAA"
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            contentVersionId: "068000000000002AAA",
+            label: "Second.pdf",
+            sizeInBytes: 1300
+          }
+        ],
+        hasMore: false
+      });
+    const element = createElement("c-prompt-generator", {
+      is: PromptGenerator
+    });
+    element.recordId = "001000000000001AAA";
+    element.objectApiName = "Account";
+    document.body.appendChild(element);
+    getPublishedTemplates.emit([
+      {
+        id: "a00000000000001AAA",
+        name: "Account Summary",
+        version: 1,
+        fileInputMode: "USER_SELECT",
+        maxFiles: 5,
+        allowedFileFormats: "pdf"
+      }
+    ]);
+    await flushPromises();
+
+    element.shadowRoot.querySelector("lightning-checkbox-group").dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: ["068000000000001AAA"] }
+      })
+    );
+    element.shadowRoot.querySelector(".show-more-files").click();
+    await flushPromises();
+
+    expect(getEligibleFiles).toHaveBeenLastCalledWith({
+      templateId: "a00000000000001AAA",
+      recordId: "001000000000001AAA",
+      afterTitle: "First",
+      afterId: "068000000000001AAA"
+    });
+    expect(
+      element.shadowRoot.querySelectorAll("lightning-checkbox-group")[0].options
+    ).toHaveLength(2);
+    expect(
+      element.shadowRoot.querySelector("lightning-checkbox-group").value
+    ).toEqual(["068000000000001AAA"]);
+    expect(element.shadowRoot.querySelector(".show-more-files")).toBeNull();
+  });
+
+  it("ignores an eligible-file response after the template changes", async () => {
+    const firstFiles = deferred();
+    getEligibleFiles
+      .mockReturnValueOnce(firstFiles.promise)
+      .mockResolvedValueOnce({ items: [], hasMore: false });
+    const element = createElement("c-prompt-generator", {
+      is: PromptGenerator
+    });
+    element.recordId = "001000000000001AAA";
+    element.objectApiName = "Account";
+    document.body.appendChild(element);
+    getPublishedTemplates.emit([
+      {
+        id: "a00000000000001AAA",
+        name: "First",
+        version: 1,
+        fileInputMode: "USER_SELECT",
+        maxFiles: 5,
+        allowedFileFormats: "pdf"
+      },
+      {
+        id: "a00000000000002AAA",
+        name: "Second",
+        version: 1,
+        fileInputMode: "USER_SELECT",
+        maxFiles: 5,
+        allowedFileFormats: "pdf"
+      }
+    ]);
+    await flushPromises();
+
+    const picker = element.shadowRoot.querySelector("lightning-combobox");
+    picker.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: "a00000000000001AAA" }
+      })
+    );
+    picker.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: "a00000000000002AAA" }
+      })
+    );
+    firstFiles.resolve({
+      items: [
+        {
+          contentVersionId: "068000000000001AAA",
+          label: "Stale.pdf",
+          sizeInBytes: 1200
+        }
+      ],
+      hasMore: false
+    });
+    await flushPromises();
+
+    expect(
+      element.shadowRoot.querySelector("lightning-checkbox-group").options
+    ).toEqual([]);
+  });
+
+  it("disables required all-eligible generation when no file is eligible", async () => {
+    getEligibleFiles.mockResolvedValue({ items: [], hasMore: false });
+    const element = createElement("c-prompt-generator", {
+      is: PromptGenerator
+    });
+    element.recordId = "001000000000001AAA";
+    element.objectApiName = "Account";
+    document.body.appendChild(element);
+    getPublishedTemplates.emit([
+      {
+        id: "a00000000000001AAA",
+        name: "Required files",
+        version: 1,
+        fileInputMode: "ALL_ELIGIBLE",
+        maxFiles: 5,
+        requireAtLeastOneFile: true,
+        allowedFileFormats: "pdf"
+      }
+    ]);
+    await flushPromises();
+
+    expect(element.shadowRoot.querySelector(".generate-button").disabled).toBe(
+      true
+    );
+  });
+
+  it("formats megabyte-sized files in megabytes", async () => {
+    getEligibleFiles.mockResolvedValue({
+      items: [
+        {
+          contentVersionId: "068000000000001AAA",
+          label: "Large.pdf",
+          sizeInBytes: 2 * 1024 * 1024
+        }
+      ],
+      hasMore: false
+    });
+    const element = createElement("c-prompt-generator", {
+      is: PromptGenerator
+    });
+    element.recordId = "001000000000001AAA";
+    element.objectApiName = "Account";
+    document.body.appendChild(element);
+    getPublishedTemplates.emit([
+      {
+        id: "a00000000000001AAA",
+        name: "Files",
+        version: 1,
+        fileInputMode: "USER_SELECT",
+        maxFiles: 5,
+        allowedFileFormats: "pdf"
+      }
+    ]);
+    await flushPromises();
+
+    expect(
+      element.shadowRoot.querySelector("lightning-checkbox-group").options[0]
+        .label
+    ).toContain("2.0 MB");
   });
 });

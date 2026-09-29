@@ -4,6 +4,78 @@
 @isTest
 private class PromptTemplateLanguageTest {
   @isTest
+  static void shouldNotEvaluateMergeSyntaxStoredInRecordValues() {
+    Account accountRecord = new Account(
+      Name = '{!record.Industry}',
+      Industry = 'Technology'
+    );
+
+    String rendered = PromptTemplateLanguage.render(
+      '{!#each related.contacts as="row"}{!row.LastName}{!/each}',
+      accountRecord,
+      new Map<String, List<SObject>>{
+        'contacts' => new List<SObject>{
+          new Contact(LastName = '{!record.Industry}')
+        }
+      }
+    );
+
+    Assert.areEqual(
+      '{!record.Industry}',
+      rendered,
+      'Record data must remain plain text rather than becoming executable template syntax.'
+    );
+  }
+
+  @isTest
+  static void shouldNormalizeSupportedWhitespaceAcrossValidationAndRendering() {
+    String templateBody =
+      '{! #each related.contacts as = "row" }' +
+      '{! row.LastName}' +
+      '{! /each }';
+
+    PromptContextDTO.ValidationResult validation = PromptTemplateLanguage.validateSyntax(
+      templateBody,
+      new Set<String>{ 'contacts' }
+    );
+    String rendered = PromptTemplateLanguage.render(
+      templateBody,
+      new Account(Name = 'Acme'),
+      new Map<String, List<SObject>>{
+        'contacts' => new List<SObject>{ new Contact(LastName = 'Alpha') }
+      }
+    );
+
+    Assert.isTrue(validation.isValid, 'Supported whitespace must validate.');
+    Assert.areEqual('Alpha', rendered, 'Supported whitespace must render.');
+    Assert.areEqual(
+      new Set<String>{ 'LastName' },
+      PromptTemplateLanguage.getRelatedFieldPaths(templateBody).get('contacts'),
+      'Supported whitespace must preserve dependency extraction.'
+    );
+  }
+
+  @isTest
+  static void shouldRejectUnknownAndReservedLocalAliases() {
+    PromptContextDTO.ValidationResult unknown = PromptTemplateLanguage.validateSyntax(
+      '{!acct.Name}',
+      new Set<String>()
+    );
+    PromptContextDTO.ValidationResult reserved = PromptTemplateLanguage.validateSyntax(
+      '{!#each related.contacts as="record"}{!record.Name}{!/each}',
+      new Set<String>{ 'contacts' }
+    );
+
+    Assert.isFalse(
+      unknown.isValid,
+      'Unknown local aliases must not render silently.'
+    );
+    Assert.isFalse(
+      reserved.isValid,
+      'Built-in names must not be used as row aliases.'
+    );
+  }
+  @isTest
   static void shouldRenderRootRelatedAndBlocks_WhenContextExists() {
     Account accountRecord = new Account(Name = 'Acme');
     Contact contactRecord = new Contact(LastName = 'Alpha');

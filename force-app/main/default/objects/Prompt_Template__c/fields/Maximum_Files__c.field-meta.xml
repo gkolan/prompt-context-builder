@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Maximum_Files__c</fullName>
+    <description
+  >Sets the largest number of Salesforce Files this prompt can use, up to the package limit of five.</description>
+    <inlineHelpText
+  >Enter 1 through 5 when file input is enabled. A request over this number fails without omitting files.</inlineHelpText>
+    <label>Maximum Files</label>
+    <precision>1</precision>
+    <scale>0</scale>
+    <type>Number</type>
+</CustomField>

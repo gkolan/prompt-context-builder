@@ -25,8 +25,21 @@ public with sharing class PromptTemplateGovernanceService {
     health.isValid = validation.isValid;
     health.messages.addAll(validation.messages);
     if (config != null) {
-      health.accessManifest = buildAccessManifest(config);
-      health.messages.addAll(health.accessManifest.warnings);
+      try {
+        health.accessManifest = buildAccessManifest(config);
+        health.messages.addAll(health.accessManifest.warnings);
+      } catch (PromptContextException exceptionValue) {
+        health.isValid = false;
+        health.messages.add(
+          new PromptContextDTO.Message(
+            'ERROR',
+            exceptionValue.reasonCode ??
+              PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
+            'Required field access',
+            exceptionValue.getMessage()
+          )
+        );
+      }
     }
     return health;
   }
@@ -191,8 +204,44 @@ public with sharing class PromptTemplateGovernanceService {
     compareValue(
       comparison,
       'Prompt text signature',
-      beforeConfig.fingerprint,
-      afterConfig.fingerprint
+      beforeConfig.templateBody,
+      afterConfig.templateBody
+    );
+    compareValue(
+      comparison,
+      'File input mode',
+      beforeConfig.fileInputMode,
+      afterConfig.fileInputMode
+    );
+    compareValue(
+      comparison,
+      'Maximum files',
+      beforeConfig.maxFiles,
+      afterConfig.maxFiles
+    );
+    compareValue(
+      comparison,
+      'Required file setting',
+      beforeConfig.requireAtLeastOneFile,
+      afterConfig.requireAtLeastOneFile
+    );
+    compareValue(
+      comparison,
+      'Allowed file formats',
+      beforeConfig.allowedFileFormats,
+      afterConfig.allowedFileFormats
+    );
+    compareValue(
+      comparison,
+      'Provider profile',
+      beforeConfig.providerProfileKey,
+      afterConfig.providerProfileKey
+    );
+    compareValue(
+      comparison,
+      'File citations',
+      beforeConfig.fileCitationsEnabled,
+      afterConfig.fileCitationsEnabled
     );
     compareSources(comparison, beforeConfig.sources, afterConfig.sources);
     if (comparison.changes.isEmpty()) {
@@ -337,12 +386,21 @@ public with sharing class PromptTemplateGovernanceService {
       } else if (!afterByAlias.containsKey(alias)) {
         addChange(comparison, 'Data set ' + alias + ' was removed.');
       } else if (
-        JSON.serialize(beforeByAlias.get(alias)) !=
-        JSON.serialize(afterByAlias.get(alias))
+        comparableSource(beforeByAlias.get(alias)) !=
+        comparableSource(afterByAlias.get(alias))
       ) {
         addChange(comparison, 'Data set ' + alias + ' changed.');
       }
     }
+  }
+
+  private static String comparableSource(PromptContextDTO.SourceConfig source) {
+    PromptContextDTO.SourceConfig normalized = (PromptContextDTO.SourceConfig) JSON.deserialize(
+      JSON.serialize(source),
+      PromptContextDTO.SourceConfig.class
+    );
+    normalized.id = null;
+    return JSON.serialize(normalized);
   }
 
   private static Map<String, PromptContextDTO.SourceConfig> byAlias(

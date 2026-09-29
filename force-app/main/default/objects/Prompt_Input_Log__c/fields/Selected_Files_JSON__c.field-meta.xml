@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Selected_Files_JSON__c</fullName>
+    <description
+  >Stores the ordered details for up to five exact Salesforce File versions selected for this prepared input. It never stores file contents.</description>
+    <inlineHelpText
+  >Managed by Prompt Context Builder. This field contains file details only and should not be edited.</inlineHelpText>
+    <label>Selected Salesforce Files (Managed)</label>
+    <length>32768</length>
+    <type>LongTextArea</type>
+    <visibleLines>5</visibleLines>
+</CustomField>

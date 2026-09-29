@@ -1,69 +1,49 @@
-/** Stable bulk-first API shared by Apex, Flow, Queueable, Batch, and Scheduled execution. */
-global with sharing class PromptContextApi {
-  global class Request {
-    @AuraEnabled
-    @InvocableVariable(label='Published Template Id')
-    global Id templateId;
-    @AuraEnabled
-    @InvocableVariable(label='Template Automation Key')
-    global String templateDeveloperKey;
-    @AuraEnabled
-    @InvocableVariable(required=true label='Record Id')
-    global Id recordId;
+/**
+ * Runs the one prompt-preparation process shared by Apex, Flow, Lightning, Batch, Queueable, and
+ * future approved entry points.
+ */
+public with sharing class PromptContextPreparationService {
+  @TestVisible
+  private static String lastUnexpectedMessage;
+  /** Request fields accepted by the common preparation process. */
+  public class Request {
+    public Id templateId;
+    public String templateDeveloperKey;
+    public Id recordId;
+    public List<Id> selectedContentVersionIds;
   }
 
-  global class Response {
-    @AuraEnabled
-    @InvocableVariable
-    global Id templateId;
-    @AuraEnabled
-    @InvocableVariable
-    global Id recordId;
-    @AuraEnabled
-    @InvocableVariable
-    global Boolean success;
-    @AuraEnabled
-    @InvocableVariable
-    global String reasonCode;
-    @AuraEnabled
-    @InvocableVariable
-    global String message;
-    @AuraEnabled
-    @InvocableVariable
-    global String warningCodes;
-    @AuraEnabled
-    @InvocableVariable
-    global String warningMessage;
-    @AuraEnabled
-    @InvocableVariable
-    global String prompt;
-    @AuraEnabled
-    @InvocableVariable
-    global Integer templateVersion;
-    @AuraEnabled
-    @InvocableVariable
-    global String contractVersion;
-    @AuraEnabled
-    @InvocableVariable
-    global Integer syntaxVersion;
-    @AuraEnabled
-    @InvocableVariable
-    global String correlationId;
-    @AuraEnabled
-    @InvocableVariable
-    global String diagnosticSummary;
+  /** Result fields returned by the common preparation process. */
+  public class Response {
+    public Id templateId;
+    public Id templateVersionId;
+    public Id recordId;
+    public Boolean success;
+    public String reasonCode;
+    public String message;
+    public String warningCodes;
+    public String warningMessage;
+    public String prompt;
+    public String selectedFilesJson;
+    public Integer templateVersion;
+    public String contractVersion;
+    public Integer syntaxVersion;
+    public String fingerprint;
+    public Map<String, Integer> sourceRecordCounts;
+    public List<PromptContextDTO.Message> messages;
+    public PromptContextDTO.AccessManifest accessManifest;
+    public String correlationId;
+    public String diagnosticSummary;
   }
 
-  @InvocableMethod(
-    label='Build Record Context Prompt'
-    description='Builds one prompt per record using a published template and user-mode record access.'
-  )
-  global static List<Response> buildForFlow(List<Request> requests) {
-    return buildInternal(requests, 'FLOW');
-  }
-
-  global static List<Response> build(List<Request> requests) {
-    return buildInternal(requests, 'APEX');
+  /**
+   * Builds one complete prompt result for each request in the original order.
+   * @param requests Published template and current-record selections
+   * @param channel Approved entry-point name used only for value-free monitoring
+   * @return One ordered result for every request
+   */
+  public static List<Response> execute(List<Request> requests, String channel) {
+    return buildInternal(requests, channel);
   }
 
   private static List<Response> buildInternal(
@@ -162,7 +142,7 @@ global with sharing class PromptContextApi {
   ) {
     List<PromptContextMetrics.Signal> signals = new List<PromptContextMetrics.Signal>();
     for (Response response : responses) {
-      if (response.templateId == null || String.isBlank(response.reasonCode)) {
+      if (String.isBlank(response.reasonCode)) {
         continue;
       }
       PromptContextMetrics.Signal signal = new PromptContextMetrics.Signal();
@@ -188,7 +168,8 @@ global with sharing class PromptContextApi {
         templateId
       );
       if (header.status != 'Published') {
-        throw new PromptContextException(
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.TEMPLATE_NOT_PUBLISHED,
           'Only a published template can generate prompts.'
         );
       }
@@ -198,6 +179,9 @@ global with sharing class PromptContextApi {
       PromptContextResourcePlanner.Plan plan = PromptContextResourcePlanner.plan(
         config
       );
+      List<Integer> acceptedIndexes = new List<Integer>();
+      List<Id> acceptedRecordIds = new List<Id>();
+      Map<Integer, PromptContextFilePolicy.Selection> filesByResponseIndex = new Map<Integer, PromptContextFilePolicy.Selection>();
       for (Integer position = 0; position < indexes.size(); position++) {
         Integer responseIndex = indexes[position];
         Response response = responses[responseIndex];
@@ -210,22 +194,14 @@ global with sharing class PromptContextApi {
           continue;
         }
         try {
-          PromptContextDTO.PromptResult result = PromptContextService.generate(
+          PromptContextFilePolicy.Selection fileSelection = PromptContextFilePolicy.selectFiles(
             config,
-            requests[responseIndex].recordId
+            requests[responseIndex].recordId,
+            requests[responseIndex].selectedContentVersionIds
           );
-          response.success = true;
-          response.reasonCode = PromptContextReasonCodes.SUCCESS;
-          response.message = 'Prompt built successfully.';
-          copyWarnings(result.messages, response);
-          response.prompt = result.prompt;
-          response.templateVersion = result.templateVersion;
-          response.contractVersion = result.contractVersion;
-          response.syntaxVersion = result.syntaxVersion;
-          response.diagnosticSummary = PromptContextTrace.diagnosticSummary(
-            PromptContextReasonCodes.SUCCESS,
-            result.templateVersion
-          );
+          acceptedIndexes.add(responseIndex);
+          acceptedRecordIds.add(requests[responseIndex].recordId);
+          filesByResponseIndex.put(responseIndex, fileSelection);
         } catch (Exception itemException) {
           fail(
             response,
@@ -234,7 +210,49 @@ global with sharing class PromptContextApi {
           );
         }
       }
+      List<PromptContextBulkService.Outcome> outcomes = PromptContextBulkService.generate(
+        config,
+        acceptedRecordIds
+      );
+      for (
+        Integer position = 0; position < acceptedIndexes.size(); position++
+      ) {
+        Integer responseIndex = acceptedIndexes[position];
+        Response response = responses[responseIndex];
+        PromptContextBulkService.Outcome outcome = outcomes[position];
+        if (!outcome.isSuccess()) {
+          fail(response, outcome.reasonCode, outcome.message);
+          continue;
+        }
+        PromptContextDTO.PromptResult result = outcome.result;
+        response.success = true;
+        response.reasonCode = PromptContextReasonCodes.SUCCESS;
+        response.message = 'Prompt built successfully.';
+        copyWarnings(result.messages, response);
+        response.prompt = result.prompt;
+        response.selectedFilesJson = filesByResponseIndex
+          .get(responseIndex)
+          .selectedFilesJson;
+        response.templateVersionId = config.publishedVersionId;
+        response.templateVersion = result.templateVersion;
+        response.contractVersion = result.contractVersion;
+        response.syntaxVersion = result.syntaxVersion;
+        response.fingerprint = result.fingerprint;
+        response.sourceRecordCounts = result.sourceRecordCounts;
+        response.messages = result.messages;
+        response.accessManifest = result.accessManifest;
+        response.diagnosticSummary = PromptContextTrace.diagnosticSummary(
+          PromptContextReasonCodes.SUCCESS,
+          result.templateVersion
+        );
+      }
     } catch (Exception groupException) {
+      if (Test.isRunningTest()) {
+        lastUnexpectedMessage =
+          groupException.getTypeName() +
+          ': ' +
+          groupException.getMessage();
+      }
       for (Integer responseIndex : indexes) {
         fail(
           responses[responseIndex],
@@ -272,13 +290,25 @@ global with sharing class PromptContextApi {
   }
 
   private static void enforceFlowPayloadLimit(List<Response> responses) {
+    enforceFlowPayloadLimit(
+      responses,
+      PromptContextContract.MAX_FLOW_RESPONSE_CHARACTERS
+    );
+  }
+
+  @TestVisible
+  private static void enforceFlowPayloadLimit(
+    List<Response> responses,
+    Integer maximumCharacters
+  ) {
     Integer characterCount = 0;
     for (Response response : responses) {
       if (!response.success || response.prompt == null) {
         continue;
       }
       characterCount += response.prompt.length();
-      if (characterCount > PromptContextContract.MAX_FLOW_RESPONSE_CHARACTERS) {
+      if (characterCount > maximumCharacters) {
+        characterCount -= response.prompt.length();
         fail(
           response,
           PromptContextReasonCodes.FLOW_PAYLOAD_LIMIT_EXCEEDED,
@@ -299,6 +329,15 @@ global with sharing class PromptContextApi {
     response.warningCodes = null;
     response.warningMessage = null;
     response.prompt = null;
+    response.selectedFilesJson = null;
+    response.templateVersionId = null;
+    response.templateVersion = null;
+    response.contractVersion = null;
+    response.syntaxVersion = null;
+    response.fingerprint = null;
+    response.sourceRecordCounts = null;
+    response.messages = null;
+    response.accessManifest = null;
     response.diagnosticSummary = PromptContextTrace.diagnosticSummary(
       reasonCode,
       response.templateVersion

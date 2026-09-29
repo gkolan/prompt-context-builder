@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Prompt_Template_Version__c</fullName>
+    <deleteConstraint>Restrict</deleteConstraint>
+    <description
+  >Links the saved input to the exact published Prompt Template Version used to prepare it.</description>
+    <inlineHelpText
+  >The published template version used for this saved input cannot be replaced by a newer version.</inlineHelpText>
+    <label>Prompt Template Version</label>
+    <referenceTo>Prompt_Template_Version__c</referenceTo>
+    <relationshipLabel>Prompt Input Logs</relationshipLabel>
+    <relationshipName>PromptInputLogs</relationshipName>
+    <required>true</required>
+    <type>Lookup</type>
+</CustomField>

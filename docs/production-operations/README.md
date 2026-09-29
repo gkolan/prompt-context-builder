@@ -23,7 +23,8 @@ requires.
 3. Verify the runner has the generation Permission Set.
 4. Verify object, field, and record access for the complete required field list.
 5. Preview with the same record and an equivalent user before changing template settings.
-6. Restore an earlier published version to a new Draft when the current design must be revised.
+6. Restore an earlier published version into the editable settings when the current design must be
+   revised. The current fixed publication stays available until the restored settings are published.
 
 Do not expose generated searches, filter values, prompt content, or inaccessible field names to
 people who use the templates.

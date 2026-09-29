@@ -33,23 +33,7 @@ public with sharing class PromptTemplateHealthQueueable implements Queueable {
       healthUpdates.add(buildHealthUpdate(templateRecord.Id));
     }
     if (!healthUpdates.isEmpty()) {
-      Integer failures = 0;
-      for (
-        Database.SaveResult result : Database.update(
-          healthUpdates,
-          false,
-          AccessLevel.USER_MODE
-        )
-      ) {
-        if (!result.isSuccess()) {
-          failures++;
-        }
-      }
-      if (failures > 0) {
-        throw new PromptContextException(
-          'One or more template health results could not be saved.'
-        );
-      }
+      Database.update(healthUpdates, false, AccessLevel.USER_MODE);
     }
     if (templates.size() == PAGE_SIZE) {
       System.enqueueJob(

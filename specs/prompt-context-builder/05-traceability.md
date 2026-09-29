@@ -9,9 +9,9 @@ maintain, and verify the implementation.
 | Requirement                                                                                         | Durable specification owner                                                                                          |
 | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | Build only the prompt from a record and explicitly configured context                               | Product Contract sections 1-2 and invariant 8                                                                        |
-| Support multiple independently filtered, sorted, and bounded datasets for the same object           | Product Contract sections 6-12; Scenario Matrix sections A-D and H; Execution Phases 3-7                             |
+| Support multiple independently filtered, sorted, and limited datasets for the same object           | Product Contract sections 6-12; Scenario Matrix sections A-D and H; Execution Phases 3-7                             |
 | Cover everyday, invalid, adversarial, edge, recovery, and usability behavior before implementation  | Scenario Matrix in full; Product Contract sections 3, 5, 9, 13-15; Execution Phase 0 and Phase 8                     |
-| Enforce field security, record access, query safety, bounded execution, and safe diagnostics        | Security Contract in full; Scenario Matrix sections G-I; Execution Phases 5, 6, 9, and 10                            |
+| Enforce field security, record access, query safety, limited execution, and safe diagnostics        | Security Contract in full; Scenario Matrix sections G-I; Execution Phases 5, 6, 9, and 10                            |
 | Complete a greenfield implementation without legacy compatibility                                   | Application source, metadata, tests, and execution record                                                            |
 | Support record-page, Flow, Apex, Batch, Queueable, and Scheduled Apex entry points                  | Stable bulk Apex API, Flow invocable action, resource planner, and execution documentation                           |
 | Preserve versioned contracts, immutable publication snapshots, stable keys and codes, and extension | Versioned contracts, immutable publication snapshots, stable keys/codes, Describe cache, resource plan, lazy loading |
@@ -60,7 +60,7 @@ maintain, and verify the implementation.
 | Unsafe query shapes rejected           | User-mode SOQL template validation                    | Security §9; SEC-013-015     | Query compiler adversarial tests               |
 | Only root values bind related queries  | Merge-syntax binding rules                            | Product §2 and §12; SRC-016  | Surface validation tests                       |
 | Bound tokens/output/rows               | Record Health Check parser/output/row-cap design      | Product §15; LIM section     | Phase 0.3, Phase 3.5, Phase 5.4-5.5, Phase 7.5 |
-| Fail closed                            | Record Health Check validation and reason-code design | Product §11-16               | Every red fixture asserts no prompt            |
+| Return no prompt after an access error | Record Health Check validation and reason-code design | Product §11-16               | Every red fixture asserts no prompt            |
 
 ## 5. Security traceability
 
@@ -105,7 +105,7 @@ Total specified scenarios: 160.
    source snapshot records.
 3. Ungrouped scalar aggregate sources are delivered through a distinct typed result mode and
    `{!aggregate.alias.value}` namespace. Grouped aggregates remain excluded.
-4. Parent and correlation field paths are capped at five relationships.
+4. Parent and matching field paths are capped at five relationships.
 5. Polymorphic relationship paths are deferred.
 6. Warnings are returned per validation/generation run and are not persisted or acknowledged.
 7. Version 1 supports default typed date/datetime rendering plus `upper`, `lower`, and `percent`;
@@ -119,7 +119,7 @@ Total specified scenarios: 160.
 The public specification is traceable when:
 
 - all supported requirements have a durable specification owner;
-- superseded syntax is identified in the canonical contract;
+- superseded syntax is identified in the standard contract;
 - everyday, invalid, edge, security, volume, recovery, and usability behavior is enumerated;
 - execution is ordered into gated steps; and
 - completed build evidence is recorded separately in `06-build-record.md`.

@@ -27,6 +27,19 @@ private class PromptContextMetricsTest {
   }
 
   @isTest
+  static void shouldPublishFailureBeforeTemplateResolution() {
+    PromptContextMetrics.Signal signal = validSignal();
+    signal.templateId = null;
+    signal.templateVersion = null;
+    signal.outcomeCode = PromptContextReasonCodes.INVALID_REQUEST;
+
+    Assert.isTrue(
+      PromptContextMetrics.publishOne(signal),
+      'The optional template fields must not hide pre-resolution failures.'
+    );
+  }
+
+  @isTest
   static void shouldRejectBatch_WhenMoreThanContractLimit() {
     List<PromptContextMetrics.Signal> signals = new List<PromptContextMetrics.Signal>();
     for (Integer index = 0; index < 201; index++) {

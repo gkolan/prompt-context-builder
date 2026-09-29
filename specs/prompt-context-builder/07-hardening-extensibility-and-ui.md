@@ -16,7 +16,7 @@ Two source modes cover the intended use cases:
 | Mode              | Current-record binding | Intended use                                                                                                                     |
 | ----------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
 | Related records   | Required               | Contacts for an Account, Cases for a Contact, junction rows, records correlated through an external key                          |
-| Reference records | Not used               | A bounded policy list, active product guidance, regional reference data, or another visible dataset that provides shared context |
+| Reference records | Not used               | A limited policy list, active product guidance, regional reference data, or another visible dataset that provides shared context |
 
 Reference mode is deliberately visible and produces a warning during validation. It never grants
 access: user-mode SOQL, sharing, restriction rules, object access, field access, filters, sorting,
@@ -31,7 +31,7 @@ or system-mode execution are not accepted.
 2. Type the prompt and insert root fields using a picker.
 3. Add a source and choose whether it is related or reference context.
 4. Select the queried object and prompt-visible fields.
-5. For related mode, choose the two fields that establish correlation.
+5. For related mode, choose the two fields that establish matching.
 6. Add plain-language filter and sort rows.
 7. Insert an indexed field, count, or repeat block without typing syntax.
 8. Choose a preview record with a record picker.
@@ -58,22 +58,22 @@ or system-mode execution are not accepted.
 | ID       | Scenario                                                             | Required behavior                                                                     |
 | -------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
 | HARD-001 | Administrator pastes SOQL or a WHERE clause                          | No raw-query input exists; server DTO cannot accept executable SOQL                   |
-| HARD-002 | Related source omits current-record correlation                      | Validation blocks preview and publication                                             |
+| HARD-002 | Related source omits current-record matching                         | Validation blocks preview and publication                                             |
 | HARD-003 | Reference source is mistaken for related data                        | UI labels it as broader reference context and validation warns                        |
-| HARD-004 | User cannot read the queried object                                  | Generation fails atomically with a safe access message                                |
-| HARD-005 | User cannot read a selected, correlation, filter, or sort field      | Validation/generation fails closed before returning a prompt                          |
+| HARD-004 | User cannot read the queried object                                  | Generation fails as one all-or-none operation with a safe access message              |
+| HARD-005 | User cannot read a selected, matching, filter, or sort field         | Validation returns an access error and no prompt                                      |
 | HARD-006 | Filter field is not filterable                                       | Validation blocks the source                                                          |
 | HARD-007 | Sort field is not sortable                                           | Validation blocks the source                                                          |
 | HARD-008 | Text-only operator is applied to a number/date                       | Validation blocks the source with a field-specific correction                         |
 | HARD-009 | Range operator is applied to Boolean, reference, or unsupported text | Validation blocks the source                                                          |
-| HARD-010 | Correlation fields have incompatible types                           | Validation blocks the source                                                          |
+| HARD-010 | Matching fields have incompatible types                              | Validation blocks the source                                                          |
 | HARD-011 | Two sources query the same object differently                        | Each alias keeps independent filters, sorting, fields, count, and rows                |
 | HARD-012 | Two sources share a sequence                                         | Stable alias tie-break keeps execution deterministic and validation warns             |
 | HARD-013 | A source returns more rows than its limit                            | Extra row detects truncation; prompt includes only the configured maximum and warns   |
 | HARD-014 | Combined sources exceed the template row budget                      | Later sources stop at the total cap and return an explicit warning                    |
 | HARD-015 | Output exceeds the character budget                                  | No partial prompt is returned                                                         |
-| HARD-016 | Root record ID is from another object                                | User-mode root query returns no row; generation fails closed                          |
-| HARD-017 | Root record is deleted or sharing changes after selection            | Preview/generation fails atomically                                                   |
+| HARD-016 | Current-record ID is from another object                             | User-mode current-record query returns no row and no prompt                           |
+| HARD-017 | Root record is deleted or sharing changes after selection            | Preview/generation fails as one all-or-none operation                                 |
 | HARD-018 | Related lookup is null                                               | Source safely returns zero rows; no unrelated rows can match                          |
 | HARD-019 | Reference query has no filters                                       | Allowed only within the hard row limit, with warning and deterministic sort           |
 | HARD-020 | Filter value cannot convert to the field type                        | Validation/preview returns a correction without exposing SOQL                         |
@@ -131,7 +131,7 @@ Candidate future extensions are:
 - polymorphic relationship branches with explicit target types;
 - reusable source definitions and governed administrator approval;
 - token estimation for a selected downstream model;
-- additional channel-specific adapters that reuse the delivered Apex/Flow façade and the same
+- additional channel-specific entry points that reuse the delivered Apex/Flow façade and the same
   validation and generation services;
 - additional governed metrics beyond the delivered value-free Platform Event contract.
 
@@ -140,9 +140,9 @@ data access remain permanently outside the administrator-facing contract.
 
 ## Completion checklist
 
-- [x] Document record-related and bounded reference query modes.
+- [x] Document record-related and limited reference query modes.
 - [x] Add source-mode metadata, DTO mapping, validation, query planning, and runtime execution.
-- [x] Validate field filterability, sortability, operator compatibility, and correlation types.
+- [x] Validate field filterability, sortability, operator compatibility, and matching types.
 - [x] Replace manual preview IDs with a root-object record picker.
 - [x] Add junior-admin merge insertion controls and plain-language query summaries.
 - [x] Add duplicate, deactivate, dirty-state, loading, clipboard-error, and empty-state behavior.

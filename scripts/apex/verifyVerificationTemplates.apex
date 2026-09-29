@@ -28,10 +28,14 @@ for (Prompt_Template__c templateRow : templateRows) {
     Id recordId = templateRow.Root_Object__c == 'Contact'
       ? contactRecord.Id
       : accountRecord.Id;
-    PromptContextDTO.PromptResult result = PromptTemplateService.generatePublished(
-      templateRow.Id,
-      recordId
-    );
+    PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+    request.templateId = templateRow.Id;
+    request.recordId = recordId;
+    PromptContextPreparationService.Response result = PromptContextPreparationService.execute(
+      new List<PromptContextPreparationService.Request>{ request },
+      'APEX'
+    )[0];
+    System.assertEquals(true, result.success, templateRow.Name + ': ' + result.message);
     System.assert(String.isNotBlank(result.prompt), templateRow.Name + ' returned a blank prompt.');
     System.assertEquals(
       Integer.valueOf(templateRow.Version__c),
@@ -63,13 +67,14 @@ for (Prompt_Template__c templateRow : templateRows) {
     } else {
       System.assertEquals(true, health.isValid, 'The inactive-source draft should otherwise be valid.');
     }
-    Boolean rejectedAtRuntime = false;
-    try {
-      PromptTemplateService.generatePublished(templateRow.Id, accountRecord.Id);
-    } catch (PromptContextException expectedException) {
-      rejectedAtRuntime = true;
-    }
-    System.assert(rejectedAtRuntime, templateRow.Name + ' must not generate while Draft.');
+    PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+    request.templateId = templateRow.Id;
+    request.recordId = accountRecord.Id;
+    PromptContextPreparationService.Response rejected = PromptContextPreparationService.execute(
+      new List<PromptContextPreparationService.Request>{ request },
+      'APEX'
+    )[0];
+    System.assertEquals(false, rejected.success, templateRow.Name + ' must not generate while Draft.');
     draftCount++;
     System.debug(
       LoggingLevel.INFO,
@@ -81,13 +86,14 @@ for (Prompt_Template__c templateRow : templateRows) {
         JSON.serialize(health.messages)
     );
   } else if (templateRow.Status__c == 'Inactive') {
-    Boolean rejectedAtRuntime = false;
-    try {
-      PromptTemplateService.generatePublished(templateRow.Id, accountRecord.Id);
-    } catch (PromptContextException expectedException) {
-      rejectedAtRuntime = true;
-    }
-    System.assert(rejectedAtRuntime, templateRow.Name + ' must not generate while Inactive.');
+    PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+    request.templateId = templateRow.Id;
+    request.recordId = accountRecord.Id;
+    PromptContextPreparationService.Response rejected = PromptContextPreparationService.execute(
+      new List<PromptContextPreparationService.Request>{ request },
+      'APEX'
+    )[0];
+    System.assertEquals(false, rejected.success, templateRow.Name + ' must not generate while Inactive.');
     inactiveCount++;
     System.debug(LoggingLevel.INFO, 'CATALOG_EXPECTED_INACTIVE ' + templateRow.Name);
   } else {

@@ -11,10 +11,10 @@ contract described below.
 
 | Pillar    | Status                | Evidence                                                                                                                                                                                                                                   |
 | --------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Trusted   | Pass                  | `with sharing` entry points, user-mode queries and DML, schema-canonical identifiers, bind values, separate configure/generate permissions, atomic failures, safe controller errors                                                        |
+| Trusted   | Pass                  | `with sharing` entry points, user-mode queries and record changes, object and field names checked with Describe, query variables, separate configure/generate permissions, all-or-none failures, safe controller errors                    |
 | Easy      | Pass                  | Four numbered builder steps, schema-backed pickers, record picker, merge insertion buttons, plain-language query summaries, draft recovery, validation messages with locations                                                             |
 | Adaptable | Pass                  | DTO, validator, query planner, selector, renderer, lifecycle service, and UI are separate; source mode is explicit; aliases isolate repeated queries to one object                                                                         |
-| Resilient | Pass                  | Every query and output is bounded, ordering is deterministic, null correlations skip querying, loading controls prevent duplicate actions, Apex tests cover failures, and the repository includes an automated quality workflow.           |
+| Resilient | Pass                  | Every query and output is limited, ordering is deterministic, null matches skip querying, loading controls prevent duplicate actions, Apex tests cover failures, and the repository includes an automated quality workflow.                |
 | Compliant | Pass with observation | Least-privilege permission sets and no model/file/conversation persistence reduce data scope. Runtime generator labels and server errors are translatable Custom Labels; the admin-only authoring surface remains English in this release. |
 
 ### Manual architecture checklist
@@ -25,7 +25,7 @@ contract described below.
   record.
 - Two sources can query the same object with different filters, sorts, selected fields, sequence,
   and limits without shared mutable state.
-- A null related correlation value never becomes `field = null`; the source returns zero rows and
+- A null related matching value never becomes `field = null`; the source returns zero rows and
   an explanatory warning.
 - Runtime revalidates metadata and access instead of trusting configuration saved by an admin.
 - Generated prompts are plain text, and merged record text is never reparsed as template syntax.
@@ -37,7 +37,7 @@ contract described below.
 The controller and template service enforce configuration-object access. Business-record reads
 use `Database.queryWithBinds(..., AccessLevel.USER_MODE)` and sharing-aware classes. Before a
 query is compiled, the schema service validates object readability and every root, selected,
-correlation, filter, and sort field. Permission sets explicitly expose every optional
+matching, filter, and sort field. Permission sets explicitly expose every optional
 configuration field; required metadata fields follow Salesforce permission behavior. Missing
 object, field, record, or sharing access fails the whole generation so a blank value is never
 misrepresented as harmless missing data.
@@ -46,14 +46,14 @@ misrepresented as harmless missing data.
 
 Both production JavaScript files import from `lwc` and were reviewed against the Lightning Web
 Security restricted-API catalog. No use was found of dynamic code execution, global-object
-mutation, unsafe HTML sinks, script/iframe creation, nonce access, forbidden document events,
+mutation, unsafe HTML output, script/iframe creation, nonce access, forbidden document events,
 prototype/context manipulation, unsafe URL schemes, object URLs, XSLT, Fullscreen, or Map/Set
 serialization. The only browser integration is `navigator.clipboard.writeText`; rejection is
 caught and the user is told to copy from the still-editable text area.
 
 ## WCAG 2.2 source review
 
-Reviewed criteria: form labels and instructions, semantic regions and groups, headings, keyboard
+Reviewed criteria: form labels and instructions, meaningful regions and groups, headings, keyboard
 operation, on-input behavior, error identification and suggestions, label-in-name, name/role/value,
 use of color, non-text contrast, and reflow.
 
@@ -101,6 +101,6 @@ also governed by the explicit user-mode and schema checks above and by the separ
 New query capabilities must be new typed DTO fields or source modes, never raw query text. A future
 mode must add validator, planner, selector, resource-budget, permission, red-scenario, and UI-help
 coverage together. Cross-source dependencies additionally require cycle detection. Aggregate or
-polymorphic results require their own result schemas. Model invocation, files, and conversation
+polymorphic results require their own output shapes. External-provider calls, files, and conversation
 storage remain separate products so their consent, retention, audit, and provider-security needs
 cannot silently expand this component's data boundary.

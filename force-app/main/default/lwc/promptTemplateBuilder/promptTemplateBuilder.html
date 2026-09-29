@@ -8,7 +8,7 @@
       <div class="guidance-panel slds-m-bottom_medium" role="note">
         <strong>Choose what the prompt can use:</strong> select fields, filters,
         sorting, and record limits. Treat Salesforce record text as information
-        for the prompt, not as instructions to the AI.
+        for the prompt, not as instructions for the service that receives it.
       </div>
 
       <template lwc:if={isLoading}>
@@ -264,7 +264,7 @@
                 <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
                   <lightning-combobox
                     name="relatedObject"
-                    label="Related object"
+                    label="Object to query"
                     value={source.relatedObject}
                     options={objectOptions}
                     data-index={index}
@@ -299,7 +299,7 @@
                   <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
                     <lightning-combobox
                       name="correlationField"
-                      label="Related record match field"
+                      label="Source match field"
                       value={source.correlationField}
                       options={source.fieldOptions}
                       data-index={index}
@@ -658,9 +658,78 @@
         </template>
       </section>
 
+      <section class="section" aria-labelledby="files-heading">
+        <h2 id="files-heading" class="slds-text-heading_small">
+          4. Salesforce Files
+        </h2>
+        <p class="slds-text-body_small slds-text-color_weak">
+          Choose whether this template can use current Salesforce Files linked
+          directly to the record. A separate permission controls who may send
+          them outside Salesforce.
+        </p>
+        <lightning-combobox
+          name="fileInputMode"
+          label="Files to include"
+          value={config.fileInputMode}
+          options={fileInputModeOptions}
+          required
+          onchange={handleTemplateField}
+        ></lightning-combobox>
+        <template lwc:if={filesEnabled}>
+          <div class="slds-grid slds-wrap slds-gutters_small">
+            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+              <lightning-input
+                type="number"
+                name="maxFiles"
+                label="Maximum Files"
+                value={config.maxFiles}
+                min="1"
+                max="5"
+                required
+                onchange={handleTemplateField}
+                field-level-help="Amazon Bedrock accepts no more than five documents in one request."
+              ></lightning-input>
+            </div>
+            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+              <lightning-input
+                name="allowedFileFormats"
+                label="Allowed file formats"
+                value={config.allowedFileFormats}
+                placeholder="pdf,docx,txt"
+                required
+                onchange={handleTemplateField}
+                field-level-help="Use a comma-separated list chosen from pdf, csv, doc, docx, xls, xlsx, html, txt, and md."
+              ></lightning-input>
+            </div>
+          </div>
+          <lightning-input
+            name="providerProfileKey"
+            label="Approved service setup name"
+            value={config.providerProfileKey}
+            required
+            onchange={handleTemplateField}
+            field-level-help="Enter the Developer Name of the provider settings approved by your Salesforce administrator."
+          ></lightning-input>
+          <lightning-input
+            type="checkbox"
+            name="requireAtLeastOneFile"
+            label="Require at least one eligible File"
+            checked={config.requireAtLeastOneFile}
+            onchange={handleTemplateField}
+          ></lightning-input>
+          <lightning-input
+            type="checkbox"
+            name="fileCitationsEnabled"
+            label="Request file citations when the approved model supports them"
+            checked={config.fileCitationsEnabled}
+            onchange={handleTemplateField}
+          ></lightning-input>
+        </template>
+      </section>
+
       <section class="section" aria-labelledby="verify-heading">
         <h2 id="verify-heading" class="slds-text-heading_small">
-          4. Validate, preview, and publish
+          5. Validate, preview, and publish
         </h2>
         <lightning-record-picker
           label="Preview record"

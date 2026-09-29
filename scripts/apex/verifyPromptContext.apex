@@ -13,11 +13,15 @@ Account sampleAccount = [
   LIMIT 1
 ];
 
-PromptContextDTO.PromptResult result = PromptTemplateService.generatePublished(
-  templateRecord.Id,
-  sampleAccount.Id
-);
+PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+request.templateId = templateRecord.Id;
+request.recordId = sampleAccount.Id;
+PromptContextPreparationService.Response result = PromptContextPreparationService.execute(
+  new List<PromptContextPreparationService.Request>{ request },
+  'APEX'
+)[0];
 
+System.Assert.isTrue(result.success, result.reasonCode + ': ' + result.message);
 System.Assert.isNotNull(
   result.prompt,
   'The generated prompt must not be null.'

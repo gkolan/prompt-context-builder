@@ -1,6 +1,6 @@
 /** Test-only Batch Apex consumer for the public prompt-context API. */
 @isTest
-public class PromptContextBatchTestHarness implements Database.Batchable<Account> {
+public class PromptContextBatchTestHarness implements Database.Batchable<Prompt_Template__c> {
   private String developerKey;
   private Id recordId;
 
@@ -9,17 +9,23 @@ public class PromptContextBatchTestHarness implements Database.Batchable<Account
     this.recordId = recordId;
   }
 
-  public Iterable<Account> start(Database.BatchableContext context) {
-    return new List<Account>{ new Account(Id = recordId) };
+  public Iterable<Prompt_Template__c> start(Database.BatchableContext context) {
+    return new List<Prompt_Template__c>{
+      new Prompt_Template__c(Id = recordId)
+    };
   }
 
-  public void execute(Database.BatchableContext context, List<Account> scope) {
+  public void execute(
+    Database.BatchableContext context,
+    List<Prompt_Template__c> scope
+  ) {
     Assert.areEqual(1, scope.size());
-    PromptContextApi.Request request = new PromptContextApi.Request();
+    PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+    request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
     request.templateDeveloperKey = developerKey;
     request.recordId = scope[0].Id;
-    List<PromptContextApi.Response> responses = PromptContextApi.build(
-      new List<PromptContextApi.Request>{ request }
+    List<PromptContextInputApi.Result> responses = PromptContextInputApi.prepare(
+      new List<PromptContextInputApi.Request>{ request }
     );
     Assert.areEqual(1, responses.size());
     Assert.isTrue(responses[0].success, responses[0].message);

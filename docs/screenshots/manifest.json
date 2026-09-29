@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "capturePolicy": {
+    "approvedOrgAlias": "promptcontextbuilder",
+    "currentCaptureDate": "2026-09-26",
+    "evidenceScope": "browser-verified deployed-org state",
+    "sourceState": "The current captures prove the UI deployed in the named scratch org. They do not prove that every workspace change was deployed."
+  },
+  "screenshots": [
+    {
+      "file": "prompt-builder-current-overview.png",
+      "status": "current",
+      "surface": "Prompt Builder",
+      "state": "Published Account Contact Context template, template basics, and health status",
+      "viewport": "1400x907"
+    },
+    {
+      "file": "prompt-builder-related-data-current.png",
+      "status": "current",
+      "surface": "Prompt Builder",
+      "state": "Field-value matching for a configured Contact record data set",
+      "viewport": "1400x907"
+    },
+    {
+      "file": "prompt-builder-files-current.png",
+      "status": "current",
+      "surface": "Prompt Builder",
+      "state": "Salesforce Files policy and validate, preview, and publish actions",
+      "viewport": "1400x907"
+    },
+    {
+      "file": "prompt-generator-record-page-current.png",
+      "status": "current",
+      "surface": "Prompt Generator",
+      "state": "Published template selected on the deterministic verification Account",
+      "viewport": "1440x907"
+    },
+    {
+      "file": "prompt-builder-configured.png",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-query-source.png",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-generator-record-page.png",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-wide-aggregate-ready.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-aggregate-source.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-validation-manifest.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-preview.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-version-comparison.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-builder-narrow.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    },
+    {
+      "file": "prompt-generator-runtime-current.jpg",
+      "status": "historical",
+      "capturedOn": "2026-09-19"
+    }
+  ]
+}

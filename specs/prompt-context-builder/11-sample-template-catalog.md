@@ -23,12 +23,12 @@ creates a new immutable version, as expected from the versioning contract.
 | Verify 02 - Text and Null Filters    | Published   | `EQ`, `NE`, `CONTAINS`, `STARTS_WITH`, `NOT_NULL`; five named groups joined with `OR`                            |
 | Verify 03 - Range and Blank Filters  | Published   | `GT`, `GTE`, `LT`, `LTE`, `IS_NULL`; DateTime typed values; five named groups joined with `AND`                  |
 | Verify 04 - Independent Sorting      | Published   | Two Contact sources on one template; independent selected fields, limits, `ASC`/`DESC`, and `NULLS FIRST`/`LAST` |
-| Verify 05 - Reference Scope          | Published   | Bounded, non-correlated `REFERENCE` source with access and unfiltered-reference warnings                         |
+| Verify 05 - Reference Scope          | Published   | Limited, non-correlated `REFERENCE` source with access and unfiltered-reference warnings                         |
 | Verify 06 - Aggregate Calculations   | Published   | `AGGREGATE` sources using `COUNT`, `SUM`, `AVG`, `MIN`, and `MAX`                                                |
 | Verify 07 - Empty and Fallback       | Published   | Zero-row source; count zero; indexed fallback; false `if` branch; empty `each` branch                            |
 | Verify 08 - Inactive Source Draft    | Draft       | A retained source with Active off; root-only template remains valid and the source is not queried                |
-| Verify 09 - Intentional Errors Draft | Draft       | Unknown alias, missing RELATED correlation, nonnumeric `SUM`, unused-source warnings, and publication protection |
-| Verify 10 - Parent Paths             | Published   | Root relationship traversal and source correlation from `Contact.AccountId` to `Account.Id`                      |
+| Verify 09 - Intentional Errors Draft | Draft       | Unknown alias, missing RELATED matching, nonnumeric `SUM`, unused-source warnings, and publication protection    |
+| Verify 10 - Parent Paths             | Published   | Root relationship traversal and source matching from `Contact.AccountId` to `Account.Id`                         |
 | Verify 11 - Ten Source Boundary      | Published   | Maximum 10 active sources and planned 200-row boundary (10 sources × 20 rows)                                    |
 | Verify 12 - Inactive Template        | Inactive    | Valid publish followed by deactivation; excluded from choices and rejected at runtime                            |
 

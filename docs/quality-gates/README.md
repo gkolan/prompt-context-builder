@@ -1,8 +1,9 @@
 # Quality gates
 
 `npm run ci:gates` is the local pull-request gate. It verifies formatting, documentation links and
-navigation, the Permission Set custom-permission boundary, the namespace fixture contract, LWC
-lint, LWC Jest behavior, and enforced JavaScript coverage floors.
+navigation, screenshot inventory and file signatures, the Permission Set custom-permission
+boundary, a description for every Salesforce custom field, the namespace fixture contract, Apex
+test-data isolation, LWC lint, LWC Jest behavior, and enforced JavaScript coverage floors.
 
 The coverage command disables Jest's transform cache and then verifies that both shipped LWC
 controllers are present in `coverage-final.json`. A green percentage threshold is not accepted when
@@ -14,13 +15,66 @@ coverage data for a component is missing.
 | ----------------- | ------------------------------------------------------------------------------------- |
 | JavaScript or LWC | ESLint, focused Jest regression, complete Jest suite                                  |
 | Apex              | Focused Apex regression, `RunLocalTests`, coverage result, static analysis            |
-| Metadata          | Formatter, namespace fixture gate, deployment validation in an approved org           |
+| Metadata          | Formatter, field-description and namespace gates, approved-org deployment validation  |
 | Documentation     | Formatter, local-link validation, source review of every exact claim                  |
+| UI screenshots    | Manifest, file signature, alternative text, visual review, named browser evidence     |
 | Package boundary  | Package-version test and clean install/upgrade evidence approved by the release owner |
 
 Code Analyzer uses `code-analyzer.yml` to apply the repository's ESLint configuration and keep
 Node-only repository scripts out of LWC rule scope. Do not suppress a finding merely because it is
 inconvenient; document and narrowly bound any genuine engine false positive.
+
+The Apex test-data isolation gate rejects Account, Contact, and User DML in package test classes.
+Tests may construct those records in memory for language and schema behavior, reuse the running test
+user, and persist only package-owned fixtures. Deploy-critical tests therefore do not depend on
+subscriber validation rules, flows, or triggers on those org-owned records.
+
+The agent-guidance gate verifies that `AGENTS.md` retains the mandatory session link and that the
+[change safety playbook](../contributing/change-safety-playbook.md) remains connected to contributor
+and quality documentation. Repository-aware agents receive `AGENTS.md` at session start; the linked
+playbook is mandatory reading for Apex, metadata, validation, and deployment work.
+
+## Automated and external evidence
+
+| Check                                              | In `ci:gates` and GitHub CI | Requires an approved Salesforce org           |
+| -------------------------------------------------- | --------------------------- | --------------------------------------------- |
+| Formatting and documentation links                 | Yes                         | No                                            |
+| Screenshot inventory, signatures, and references   | Yes                         | No                                            |
+| Agent-guidance presence and navigation             | Yes                         | No                                            |
+| Apex test-data isolation source check              | Yes                         | No                                            |
+| LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                            |
+| Salesforce Code Analyzer                           | No                          | No, although some engines can use org context |
+| Apex compilation and `RunLocalTests`               | No                          | Yes                                           |
+| Check-only deployment                              | No                          | Yes                                           |
+| Source-conflict inspection and resolution          | No                          | Yes                                           |
+| Scheduled Apex inventory and restoration           | No                          | Yes                                           |
+| Mutating deployment                                | No                          | Yes                                           |
+| Browser or package verification                    | No                          | Yes                                           |
+
+The local gate cannot prove Apex compilation, Salesforce test results, source-conflict safety,
+deployment, schedule restoration, browser behavior, or package installation. Follow the
+[change safety playbook](../contributing/change-safety-playbook.md) for those steps and report each
+evidence category separately.
+
+## Screenshot boundary
+
+`check:screenshots` verifies that every image under `docs/screenshots` is recorded in the manifest,
+that its extension matches its PNG or JPEG signature, that current entries include surface, state,
+and viewport metadata, and that Markdown images have alternative text. It also prevents the root
+README from embedding an image marked historical.
+
+The gate cannot prove that a screenshot is fresh, that it came from the named org, that the visible
+state matches the working tree, or that no sensitive value is visible. A reviewer must inspect the
+image and the capture notes. Use the [UI screenshot evidence](../screenshots/README.md) procedure.
+
+## Isolation-gate boundary
+
+`check:test-data-isolation` is a structural guard, not a complete Apex parser. It detects direct and
+typed-variable DML patterns for `Account`, `Contact`, and `User` in test classes and the shared test
+factory. Reviewers must also inspect indirect factory calls, multiline expressions, generic
+`SObject` aliases, dynamic Apex, and new subscriber-owned object types. A package-owned fixture can
+still be affected by subscriber additions in some installation models, so any-org compatibility
+claims must name their prerequisites and tested org shapes.
 
 ## Regression-first rule
 
@@ -36,3 +90,5 @@ behavior.
 - Apex tests prove behavior of the source deployed to the target org.
 - A source deploy is not an installed-package upgrade.
 - Static analysis findings require review; severity alone does not prove a defect.
+- Check-only validation does not authorize bypassing Salesforce source-conflict protection.
+- A temporarily stopped Scheduled Apex job must be restored and verified even when deployment fails.

@@ -9,13 +9,44 @@ and read access to the fixed published settings needed for prompt generation.
 It does not grant access to customer objects, fields, or records. Salesforce profiles, Permission
 Sets, sharing, restriction rules, and scoping rules continue to control those records.
 
+## Prompt Context Save Input
+
+Assign **Permission Set: Prompt Context Save Input** together with **Prompt Context Generate** when
+a person or automation chooses **Save to Prompt Input Log**. It grants **Custom Permission: Prompt
+Context Save Input** and create/read access to the private Prompt Input Log and its managed fields.
+
+Saving fails with `NOT_AUTHORIZED` when this permission is missing. The package does not turn that
+failure into a blank value, and **Return to Apex** does not require this permission.
+
+## Prompt Context Send Files
+
+Assign **Permission Set: Prompt Context Send Files** only to people and automation allowed to select
+Salesforce Files for prepared input. It grants **Custom Permission: Prompt Context Send Files**. The
+running user must still be able to read each exact file version and its direct link to the current
+record.
+
+This permission does not send a file outside Salesforce by itself. The current package selects and
+stores file details only. Any later delivery requires a separately approved service and its own
+security review.
+
+## Prompt Context Process Input
+
+Assign **Permission Set: Prompt Context Process Input** to the user that claims, completes, retries,
+and removes Prompt Input Logs. It grants **Custom Permission: Prompt Context Process Input** and the
+private-object access needed by `PromptContextInputLifecycle`.
+
+Do not use this Permission Set as general record access. The worker receives only the Prompt Input
+Logs visible to its Salesforce user, and changed stored input fails verification before processing.
+
 ## Prompt Context Configure
 
 Assign **Permission Set: Prompt Context Configure** to template authors. It grants **Custom
 Permission: Prompt Context Configure**, access to Prompt Builder, and create/edit/delete access to
 Draft template and source records. It also grants the Generate and Diagnostics custom permissions
-so authors can preview, run, and troubleshoot their templates. Published version records cannot be
-edited.
+so authors can preview, run, save, and troubleshoot their templates. It includes Prompt Input Log
+create/read access for saving prepared input, but it does not grant edit or delete access to those
+logs and does not grant Send Files or Process Input. Published version records are read-only to the
+author; validated package service code creates them during publication.
 
 Do not also assign **Prompt Context Generate** to a user who already has **Prompt Context
 Configure**. Use the narrower Generate Permission Set for people and automation that only generate

@@ -85,6 +85,18 @@ public with sharing class PromptTemplateService {
     PromptContextDTO.TemplateConfig config
   ) {
     requireSavable(config);
+    String persistedStatus = 'Draft';
+    if (config.id != null) {
+      Prompt_Template__c existingTemplate = PromptContextSelector.selectTemplateById(
+        config.id
+      );
+      if (existingTemplate == null) {
+        throw new PromptContextException(
+          'The requested template was not found or is not accessible.'
+        );
+      }
+      persistedStatus = existingTemplate.Status__c ?? 'Draft';
+    }
     Savepoint savepointValue = Database.setSavepoint();
     try {
       Prompt_Template__c templateRecord = new Prompt_Template__c(
@@ -93,7 +105,13 @@ public with sharing class PromptTemplateService {
         Description__c = config.description,
         Root_Object__c = config.rootObject,
         Template_Body__c = config.templateBody,
-        Status__c = 'Draft'
+        File_Input_Mode__c = config.fileInputMode ?? 'DISABLED',
+        Maximum_Files__c = config.maxFiles,
+        Require_File__c = config.requireAtLeastOneFile == true,
+        Allowed_File_Formats__c = config.allowedFileFormats,
+        Provider_Profile_Key__c = config.providerProfileKey,
+        File_Citations_Enabled__c = config.fileCitationsEnabled == true,
+        Status__c = persistedStatus
       );
       if (config.id == null) {
         templateRecord.Developer_Key__c = String.isBlank(config.developerKey)
@@ -185,13 +203,19 @@ public with sharing class PromptTemplateService {
         Contract_Version__c = PromptContextContract.CONTRACT_VERSION,
         Root_Object__c = config.rootObject,
         Template_Body__c = config.templateBody,
+        File_Input_Mode__c = config.fileInputMode ?? 'DISABLED',
+        Maximum_Files__c = config.maxFiles,
+        Require_File__c = config.requireAtLeastOneFile == true,
+        Allowed_File_Formats__c = config.allowedFileFormats,
+        Provider_Profile_Key__c = config.providerProfileKey,
+        File_Citations_Enabled__c = config.fileCitationsEnabled == true,
         Fingerprint__c = fingerprint,
         Published_At__c = publishedAt
       );
       Database.SaveResult[] versionResults = Database.insert(
         new List<Prompt_Template_Version__c>{ versionRecord },
         true,
-        AccessLevel.USER_MODE
+        AccessLevel.SYSTEM_MODE
       );
       versionRecord.Id = versionResults[0].getId();
       List<Prompt_Context_Source_Version__c> sourceVersions = new List<Prompt_Context_Source_Version__c>();
@@ -202,7 +226,7 @@ public with sharing class PromptTemplateService {
         sourceVersions.add(mapSourceVersion(versionRecord.Id, source));
       }
       if (!sourceVersions.isEmpty()) {
-        Database.insert(sourceVersions, true, AccessLevel.USER_MODE);
+        Database.insert(sourceVersions, true, AccessLevel.SYSTEM_MODE);
       }
       Database.update(
         new List<Prompt_Template__c>{
@@ -253,6 +277,21 @@ public with sharing class PromptTemplateService {
       choice.name = templateRecord.Name;
       choice.description = templateRecord.Description__c;
       choice.version = Integer.valueOf(templateRecord.Version__c);
+      choice.fileInputMode = templateRecord.File_Input_Mode__c ?? 'DISABLED';
+      choice.maxFiles = templateRecord.Maximum_Files__c == null
+        ? null
+        : Integer.valueOf(templateRecord.Maximum_Files__c);
+      if (choice.fileInputMode != 'DISABLED') {
+        PromptContextProviderSettings.Settings provider = PromptContextProviderSettings.requireActive(
+          templateRecord.Provider_Profile_Key__c
+        );
+        choice.maxFiles = Math.min(
+          choice.maxFiles ?? PromptContextContract.MAX_SELECTED_FILES,
+          provider.maximumFiles
+        );
+      }
+      choice.requireAtLeastOneFile = templateRecord.Require_File__c;
+      choice.allowedFileFormats = templateRecord.Allowed_File_Formats__c;
       choices.add(choice);
     }
     return choices;
@@ -318,6 +357,7 @@ public with sharing class PromptTemplateService {
       );
     }
     PromptContextSchema.requireReadableObject(config.rootObject);
+    PromptContextFilePolicy.validateConfiguration(config);
     Set<String> aliases = new Set<String>();
     for (
       PromptContextDTO.SourceConfig source : config.sources ??
@@ -357,6 +397,14 @@ public with sharing class PromptTemplateService {
     config.lastHealthVersion = templateRecord.Last_Health_Version__c == null
       ? null
       : Integer.valueOf(templateRecord.Last_Health_Version__c);
+    config.fileInputMode = templateRecord.File_Input_Mode__c ?? 'DISABLED';
+    config.maxFiles = templateRecord.Maximum_Files__c == null
+      ? null
+      : Integer.valueOf(templateRecord.Maximum_Files__c);
+    config.requireAtLeastOneFile = templateRecord.Require_File__c;
+    config.allowedFileFormats = templateRecord.Allowed_File_Formats__c;
+    config.providerProfileKey = templateRecord.Provider_Profile_Key__c;
+    config.fileCitationsEnabled = templateRecord.File_Citations_Enabled__c;
     config.syntaxVersion = PromptContextContract.SYNTAX_VERSION;
     config.contractVersion = PromptContextContract.CONTRACT_VERSION;
     for (Prompt_Context_Source__c sourceRecord : sourceRecords) {
@@ -482,6 +530,7 @@ public with sharing class PromptTemplateService {
     }
     PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
     config.id = header.id;
+    config.publishedVersionId = versionRecord.Id;
     config.developerKey = header.developerKey;
     config.name = header.name;
     config.description = header.description;
@@ -493,6 +542,14 @@ public with sharing class PromptTemplateService {
     config.contractVersion = versionRecord.Contract_Version__c;
     config.fingerprint = versionRecord.Fingerprint__c;
     config.publishedAt = versionRecord.Published_At__c;
+    config.fileInputMode = versionRecord.File_Input_Mode__c ?? 'DISABLED';
+    config.maxFiles = versionRecord.Maximum_Files__c == null
+      ? null
+      : Integer.valueOf(versionRecord.Maximum_Files__c);
+    config.requireAtLeastOneFile = versionRecord.Require_File__c;
+    config.allowedFileFormats = versionRecord.Allowed_File_Formats__c;
+    config.providerProfileKey = versionRecord.Provider_Profile_Key__c;
+    config.fileCitationsEnabled = versionRecord.File_Citations_Enabled__c;
     for (
       Prompt_Context_Source_Version__c sourceRecord : PromptContextSelector.selectPublishedSources(
         versionRecord.Id
@@ -579,7 +636,21 @@ public with sharing class PromptTemplateService {
     );
     normalized.fingerprint = null;
     normalized.publishedAt = null;
-    normalized.status = 'Published';
+    normalized.id = null;
+    normalized.publishedVersionId = null;
+    normalized.developerKey = null;
+    normalized.name = null;
+    normalized.description = null;
+    normalized.status = null;
+    normalized.version = null;
+    normalized.lastHealthStatus = null;
+    normalized.lastHealthCheckedAt = null;
+    normalized.lastHealthCodes = null;
+    normalized.lastHealthVersion = null;
+    for (PromptContextDTO.SourceConfig source : normalized.sources) {
+      source.id = null;
+    }
+    normalized.sources.sort();
     Blob digest = Crypto.generateDigest(
       'SHA-256',
       Blob.valueOf(JSON.serialize(normalized))

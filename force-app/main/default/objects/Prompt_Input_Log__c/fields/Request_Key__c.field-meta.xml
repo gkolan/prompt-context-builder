@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Request_Key__c</fullName>
+    <caseSensitive>false</caseSensitive>
+    <description
+  >Identifies one caller request so a safe retry can find the same saved input instead of creating a duplicate.</description>
+    <externalId>true</externalId>
+    <inlineHelpText
+  >Managed by Prompt Context Builder. This verification value does not reveal the caller's original Request Key.</inlineHelpText>
+    <label>Request Key</label>
+    <length>100</length>
+    <required>true</required>
+    <type>Text</type>
+    <unique>true</unique>
+</CustomField>

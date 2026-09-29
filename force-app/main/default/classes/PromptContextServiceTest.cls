@@ -1,17 +1,33 @@
 /**
- * Tests validation and generation, including two independently configured sources on the same object.
+ * Tests validation and generation with package-owned records that subscriber automation cannot alter.
  */
 @isTest
 private class PromptContextServiceTest {
+  @isTest
+  static void shouldRejectUnsupportedRecordSelectionStrategy() {
+    try {
+      PromptContextSourceStrategies.forMode('UNSUPPORTED');
+      Assert.fail('An unsupported record selection must stop the request.');
+    } catch (PromptContextException exceptionValue) {
+      Assert.isTrue(exceptionValue.getMessage().contains('unsupported'));
+    }
+    Assert.isNotNull(
+      new PromptContextReasonCodes(),
+      'The stable result-code utility should remain constructible only for tests.'
+    );
+  }
+
   @TestSetup
   static void setupTestData() {
-    Account accountRecord = PromptContextTestDataFactory.createAccount(true);
-    PromptContextTestDataFactory.createContacts(accountRecord.Id, true);
+    Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+      true
+    );
+    PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
   }
 
   @isTest
   static void shouldKeepSameObjectSourcesIndependent_WhenFiltersAndSortsDiffer() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
 
     Test.startTest();
@@ -43,7 +59,7 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldApplyBoundedOrBetweenNamedFilterGroups() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
     config.sources.remove(1);
     PromptContextDTO.SourceConfig source = config.sources[0];
@@ -52,13 +68,13 @@ private class PromptContextServiceTest {
     source.filters.clear();
     for (String lastName : new List<String>{ 'Alpha', 'Zulu' }) {
       PromptContextDTO.FilterRule filter = new PromptContextDTO.FilterRule();
-      filter.fieldName = 'LastName';
+      filter.fieldName = 'Reference_Name__c';
       filter.operator = 'EQ';
       filter.value = lastName;
       filter.groupName = 'name_' + lastName.toLowerCase();
       source.filters.add(filter);
     }
-    config.templateBody = '{!#each related.recent_contacts as="row"}{!row.LastName};{!/each}';
+    config.templateBody = '{!#each related.recent_contacts as="row"}{!row.Reference_Name__c};{!/each}';
 
     Test.startTest();
     PromptContextDTO.PromptResult result = PromptContextService.generate(
@@ -83,7 +99,7 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldWarnAndTruncate_WhenMoreRowsMatchThanConfigured() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
     config.sources[0].maxRows = 1;
 
@@ -113,7 +129,7 @@ private class PromptContextServiceTest {
   @isTest
   static void shouldReportFieldNotSelected_WhenTemplateUsesUnavailableField() {
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
-    config.templateBody += ' {!related.recent_contacts[0].Phone}';
+    config.templateBody += ' {!related.recent_contacts[0].Correlation_Field__c}';
 
     Test.startTest();
     PromptContextDTO.ValidationResult result = PromptContextService.validate(
@@ -133,8 +149,9 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldRenderElse_WhenNoRelatedRecordsMatch() {
-    Account emptyAccount = new Account(Name = 'No Contacts');
-    insert emptyAccount;
+    Prompt_Template__c emptyAccount = PromptContextTestDataFactory.createRootRecord(
+      true
+    );
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
 
     Test.startTest();
@@ -156,13 +173,13 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldGenerateBoundedRows_WhenSourceIsReferenceMode() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
     config.name = 'Reference Context';
-    config.rootObject = 'Account';
+    config.rootObject = 'Prompt_Template__c';
     config.templateBody =
       'Account: {!record.Name}\n' +
-      '{!#each related.reference_contacts as="row"}{!row.LastName};{!/each}';
+      '{!#each related.reference_contacts as="row"}{!row.Reference_Name__c};{!/each}';
     config.sources.add(
       PromptContextTestDataFactory.createReferenceContactsSource()
     );
@@ -187,13 +204,13 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldReturnNoRows_WhenRelatedRootValueIsBlank() {
-    Account accountRecord = [SELECT Id, ParentId FROM Account LIMIT 1];
-    insert new Contact(LastName = 'Unrelated Orphan');
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
-    config.sources[0].rootField = 'ParentId';
+    config.sources[0].rootField = 'Description__c';
+    config.sources[0].correlationField = 'Reference_Name__c';
     config.sources[0].maxRows = 10;
     config.sources.remove(1);
-    config.templateBody = '{!#each related.recent_contacts as="row"}{!row.LastName};{!else}None{!/each}';
+    config.templateBody = '{!#each related.recent_contacts as="row"}{!row.Reference_Name__c};{!else}None{!/each}';
 
     Test.startTest();
     PromptContextDTO.PromptResult result = PromptContextService.generate(
@@ -208,22 +225,22 @@ private class PromptContextServiceTest {
       'A blank current-record match value must not include unrelated records with blank lookups.'
     );
     Assert.isTrue(
-      hasMessage(result.messages, 'NULL_CORRELATION_VALUE'),
+      hasMessage(result.messages, PromptContextReasonCodes.NULL_MATCH_VALUE),
       'The skipped query should be explained to the user.'
     );
   }
 
   @isTest
   static void shouldRenderBoundedAggregate_WhenSourceCountsRelatedRecords() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
-    config.name = 'Contact Count';
-    config.rootObject = 'Account';
+    config.name = 'Related Record Count';
+    config.rootObject = 'Prompt_Template__c';
     config.templateBody = 'Visible contacts: {!aggregate.contact_count.value}';
     PromptContextDTO.SourceConfig source = new PromptContextDTO.SourceConfig();
     source.referenceName = 'contact_count';
-    source.relatedObject = 'Contact';
-    source.correlationField = 'AccountId';
+    source.relatedObject = 'Prompt_Context_Source__c';
+    source.correlationField = 'Prompt_Template__c';
     source.rootField = 'Id';
     source.resultMode = 'AGGREGATE';
     source.aggregateOperation = 'COUNT';
@@ -246,9 +263,9 @@ private class PromptContextServiceTest {
 
   @isTest
   static void shouldFailAtomicallyWithoutExposingARejectedFilterValue() {
-    Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+    Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
-    config.sources[1].filters[0].fieldName = 'Birthdate';
+    config.sources[1].filters[0].fieldName = 'Sequence__c';
     config.sources[1].filters[0].operator = 'GTE';
     config.sources[1].filters[0].value = 'CANARY_CUSTOMER_VALUE';
 

@@ -7,7 +7,9 @@ user or integration decision.
 
 ## Does it save generated prompts?
 
-No. Published template settings and operation counts are stored. Generated customer text is not.
+Only when Flow or Apex explicitly chooses **Save to Prompt Input Log** and the running user has the
+Prompt Context Save Input permission. **Return to Apex** and the Prompt Generator record-page
+component do not save generated text.
 
 ## Do administrators write database searches?
 

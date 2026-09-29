@@ -4,7 +4,7 @@
 
 | Outcome         | Meaning                                                                                     |
 | --------------- | ------------------------------------------------------------------------------------------- |
-| SUCCESS         | A complete bounded prompt is returned                                                       |
+| SUCCESS         | A complete limited prompt is returned                                                       |
 | EMPTY           | A valid, visible source has zero rows or a readable field is null; template rules handle it |
 | DRAFT_ERROR     | Draft may save, but publish is blocked                                                      |
 | WARNING         | Configuration may publish after review                                                      |
@@ -40,23 +40,23 @@
 
 ## B. Multiple-source and ordering scenarios
 
-| ID      | Scenario                                                     | Expected outcome                                                               |
-| ------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------ |
-| ORD-001 | `recentContacts[0]` uses CreatedDate descending              | SUCCESS; newest visible row renders                                            |
-| ORD-002 | `oldestContacts[0]` uses CreatedDate ascending               | SUCCESS; oldest visible row renders                                            |
-| ORD-003 | Two rows tie on CreatedDate                                  | SUCCESS; automatic Id tiebreaker makes order stable                            |
-| ORD-004 | Indexed token has no authored order                          | DRAFT_ERROR unless query is provably single-row                                |
-| ORD-005 | Loop source has no authored order                            | DRAFT_ERROR for repeatable version 1 rendering                                 |
-| ORD-006 | Source has `LIMIT 1` but no order                            | DRAFT_ERROR; one arbitrary row is not a business definition                    |
-| ORD-007 | Source filters by exact Id and returns at most one record    | SUCCESS without order                                                          |
-| ORD-008 | Ungrouped aggregate returns one row                          | SUCCESS without order                                                          |
-| ORD-009 | Grouped aggregate is iterated without order                  | DRAFT_ERROR                                                                    |
-| ORD-010 | Grouped aggregate is ordered by grouped field/alias          | SUCCESS when all referenced aliases are valid                                  |
-| ORD-011 | Requested index equals configured maximum                    | DRAFT_ERROR because zero-based index is unreachable                            |
-| ORD-012 | Requested index exists in configuration but not current data | EMPTY; token fallback or blank applies                                         |
-| ORD-013 | Identical source referenced through two aliases              | SUCCESS; semantic aliases remain independent even if execution is deduplicated |
-| ORD-014 | One alias is renamed in a draft                              | SUCCESS only after every reference is updated atomically                       |
-| ORD-015 | One alias is renamed in a published version                  | CONFIG_INVALID operation; create a new version instead                         |
+| ID      | Scenario                                                     | Expected outcome                                                           |
+| ------- | ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| ORD-001 | `recentContacts[0]` uses CreatedDate descending              | SUCCESS; newest visible row renders                                        |
+| ORD-002 | `oldestContacts[0]` uses CreatedDate ascending               | SUCCESS; oldest visible row renders                                        |
+| ORD-003 | Two rows tie on CreatedDate                                  | SUCCESS; automatic Id tiebreaker makes order stable                        |
+| ORD-004 | Indexed token has no authored order                          | DRAFT_ERROR unless query is provably single-row                            |
+| ORD-005 | Loop source has no authored order                            | DRAFT_ERROR for repeatable version 1 rendering                             |
+| ORD-006 | Source has `LIMIT 1` but no order                            | DRAFT_ERROR; one arbitrary row is not a business definition                |
+| ORD-007 | Source filters by exact Id and returns at most one record    | SUCCESS without order                                                      |
+| ORD-008 | Ungrouped aggregate returns one row                          | SUCCESS without order                                                      |
+| ORD-009 | Grouped aggregate is iterated without order                  | DRAFT_ERROR                                                                |
+| ORD-010 | Grouped aggregate is ordered by grouped field/alias          | SUCCESS when all referenced aliases are valid                              |
+| ORD-011 | Requested index equals configured maximum                    | DRAFT_ERROR because zero-based index is unreachable                        |
+| ORD-012 | Requested index exists in configuration but not current data | EMPTY; token fallback or blank applies                                     |
+| ORD-013 | Identical source referenced through two source names         | SUCCESS; source names remain independent even when the query can run once  |
+| ORD-014 | One alias is renamed in a draft                              | SUCCESS only after every reference is updated as one all-or-none operation |
+| ORD-015 | One alias is renamed in a published version                  | CONFIG_INVALID operation; create a new version instead                     |
 
 ## C. Template misconfiguration scenarios
 
@@ -88,29 +88,29 @@
 
 ## D. Related-source misconfiguration scenarios
 
-| ID       | Scenario                                             | Expected outcome                                                      |
-| -------- | ---------------------------------------------------- | --------------------------------------------------------------------- |
-| SRC-001  | Duplicate reference name                             | DRAFT_ERROR                                                           |
-| SRC-002  | Label contains spaces                                | SUCCESS; generated reference name is valid                            |
-| SRC-003  | Reference name contains invalid characters           | DRAFT_ERROR or automatic normalization before first save              |
-| SRC-004  | Reference name is reserved                           | DRAFT_ERROR with suggestion                                           |
-| SRC-005  | Related object does not exist                        | DRAFT_ERROR                                                           |
-| SRC-006  | Correlation field does not exist                     | DRAFT_ERROR                                                           |
-| SRC-007  | Correlation does not lead to root record             | DRAFT_ERROR                                                           |
-| SRC-008  | Optional OR filter could bypass correlation          | Builder still emits `correlation AND (filters)`; escape is impossible |
-| SRC-009  | Text operator applied to Date                        | DRAFT_ERROR                                                           |
-| SRC-010  | Filter value cannot convert to field type            | DRAFT_ERROR                                                           |
-| SRC-011  | Sort field is not sortable                           | DRAFT_ERROR                                                           |
-| SRC-012  | Maximum records is zero or negative                  | DRAFT_ERROR                                                           |
-| SRC-013  | Maximum exceeds framework cap                        | DRAFT_ERROR                                                           |
-| SRC-014  | Incomplete source is saved                           | Draft saves; publish is blocked                                       |
-| SRC-015  | Inactive source is referenced                        | DRAFT_ERROR                                                           |
-| SRC-016  | Source references another source result              | DRAFT_ERROR                                                           |
-| SRC-017  | Related-mode source is not correlated to root record | DRAFT_ERROR                                                           |
-| SRC-017A | Bounded source intentionally uses Reference mode     | WARNING; visible rows may generate within security and row limits     |
-| SRC-018  | Unsupported child subquery requested                 | DRAFT_ERROR in version 1                                              |
-| SRC-019  | Unsupported polymorphic path requested               | DRAFT_ERROR in version 1                                              |
-| SRC-020  | Custom namespaced object and field are valid         | SUCCESS with exact API names preserved                                |
+| ID       | Scenario                                             | Expected outcome                                                   |
+| -------- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| SRC-001  | Duplicate reference name                             | DRAFT_ERROR                                                        |
+| SRC-002  | Label contains spaces                                | SUCCESS; generated reference name is valid                         |
+| SRC-003  | Reference name contains invalid characters           | DRAFT_ERROR or automatic normalization before first save           |
+| SRC-004  | Reference name is reserved                           | DRAFT_ERROR with suggestion                                        |
+| SRC-005  | Related object does not exist                        | DRAFT_ERROR                                                        |
+| SRC-006  | Matching field does not exist                        | DRAFT_ERROR                                                        |
+| SRC-007  | Matching does not lead to root record                | DRAFT_ERROR                                                        |
+| SRC-008  | Optional OR filter could bypass matching             | Builder still emits `matching AND (filters)`; escape is impossible |
+| SRC-009  | Text operator applied to Date                        | DRAFT_ERROR                                                        |
+| SRC-010  | Filter value cannot convert to field type            | DRAFT_ERROR                                                        |
+| SRC-011  | Sort field is not sortable                           | DRAFT_ERROR                                                        |
+| SRC-012  | Maximum records is zero or negative                  | DRAFT_ERROR                                                        |
+| SRC-013  | Maximum exceeds framework cap                        | DRAFT_ERROR                                                        |
+| SRC-014  | Incomplete source is saved                           | Draft saves; publish is blocked                                    |
+| SRC-015  | Inactive source is referenced                        | DRAFT_ERROR                                                        |
+| SRC-016  | Source references another source result              | DRAFT_ERROR                                                        |
+| SRC-017  | Related-mode source is not correlated to root record | DRAFT_ERROR                                                        |
+| SRC-017A | Limited source intentionally uses Reference mode     | WARNING; visible rows may generate within security and row limits  |
+| SRC-018  | Unsupported child subquery requested                 | DRAFT_ERROR in version 1                                           |
+| SRC-019  | Unsupported polymorphic path requested               | DRAFT_ERROR in version 1                                           |
+| SRC-020  | Custom namespaced object and field are valid         | SUCCESS with exact API names preserved                             |
 
 ## E. Empty and missing-data scenarios
 
@@ -150,36 +150,36 @@
 
 ## G. Security and adversarial scenarios
 
-| ID      | Scenario                                                     | Expected outcome                                                                                 |
-| ------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| SEC-001 | User lacks root-object read access                           | ACCESS_DENIED                                                                                    |
-| SEC-002 | User lacks root-field read access                            | ACCESS_DENIED                                                                                    |
-| SEC-003 | User lacks related-object read access                        | ACCESS_DENIED                                                                                    |
-| SEC-004 | User lacks selected related-field access                     | ACCESS_DENIED                                                                                    |
-| SEC-005 | User lacks access to a filter field                          | ACCESS_DENIED before source execution                                                            |
-| SEC-006 | User lacks access to a sort field                            | ACCESS_DENIED before source execution                                                            |
-| SEC-007 | Root record is hidden by sharing                             | ACCESS_DENIED                                                                                    |
-| SEC-008 | Related records are filtered by sharing/restriction rules    | SUCCESS with visible rows only; no hidden count disclosed                                        |
-| SEC-009 | Zero rows may mean hidden records exist                      | EMPTY with visible-scope wording only                                                            |
-| SEC-010 | Caller supplies Contact ID to Account template               | ACCESS_DENIED or CONFIG_INVALID request; no query proceeds                                       |
-| SEC-011 | Filter value contains quote and SOQL text                    | SUCCESS as a typed bind value; structure is unchanged                                            |
-| SEC-012 | Caller supplies object or field name as text                 | Rejected unless it matches a server-side described allowlist                                     |
-| SEC-013 | Query asks for SYSTEM_MODE                                   | DRAFT_ERROR                                                                                      |
-| SEC-014 | Query asks for FOR UPDATE or ALL ROWS                        | DRAFT_ERROR                                                                                      |
-| SEC-015 | Query contains DML keyword                                   | DRAFT_ERROR                                                                                      |
-| SEC-016 | Record text contains HTML or script                          | SUCCESS as inert plain text; nothing executes                                                    |
-| SEC-017 | Record text contains template syntax                         | SUCCESS as literal output; no second parse                                                       |
-| SEC-018 | Record text contains AI-directed instructions                | SUCCESS as clearly delimited untrusted context; no claim of complete prompt-injection prevention |
-| SEC-019 | Error occurs after sensitive values load                     | No prompt/value/stack trace is exposed in ordinary diagnostics                                   |
-| SEC-020 | Completed prompt could be logged                             | Forbidden; verification detects no prompt logging                                                |
-| SEC-021 | Completed prompt could enter cross-user cache                | Forbidden in version 1                                                                           |
-| SEC-022 | Elevated query is proposed to distinguish hidden from absent | Forbidden                                                                                        |
+| ID      | Scenario                                                     | Expected outcome                                                                                   |
+| ------- | ------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| SEC-001 | User lacks root-object read access                           | ACCESS_DENIED                                                                                      |
+| SEC-002 | User lacks root-field read access                            | ACCESS_DENIED                                                                                      |
+| SEC-003 | User lacks related-object read access                        | ACCESS_DENIED                                                                                      |
+| SEC-004 | User lacks selected related-field access                     | ACCESS_DENIED                                                                                      |
+| SEC-005 | User lacks access to a filter field                          | ACCESS_DENIED before source execution                                                              |
+| SEC-006 | User lacks access to a sort field                            | ACCESS_DENIED before source execution                                                              |
+| SEC-007 | Root record is hidden by sharing                             | ACCESS_DENIED                                                                                      |
+| SEC-008 | Related records are filtered by sharing/restriction rules    | SUCCESS with visible rows only; no hidden count disclosed                                          |
+| SEC-009 | Zero rows may mean hidden records exist                      | EMPTY with visible-scope wording only                                                              |
+| SEC-010 | Caller supplies Contact ID to Account template               | ACCESS_DENIED or CONFIG_INVALID request; no query proceeds                                         |
+| SEC-011 | Filter value contains quote and SOQL text                    | SUCCESS as a typed bind value; structure is unchanged                                              |
+| SEC-012 | Caller supplies object or field name as text                 | Rejected unless it matches a server-side described allowlist                                       |
+| SEC-013 | Query asks for SYSTEM_MODE                                   | DRAFT_ERROR                                                                                        |
+| SEC-014 | Query asks for FOR UPDATE or ALL ROWS                        | DRAFT_ERROR                                                                                        |
+| SEC-015 | Query contains DML keyword                                   | DRAFT_ERROR                                                                                        |
+| SEC-016 | Record text contains HTML or script                          | SUCCESS as inert plain text; nothing executes                                                      |
+| SEC-017 | Record text contains template syntax                         | SUCCESS as literal output; no second parse                                                         |
+| SEC-018 | Record text contains instructions aimed at a later provider  | SUCCESS as clearly marked record data; documentation does not promise that record text is harmless |
+| SEC-019 | Error occurs after sensitive values load                     | No prompt/value/stack trace is exposed in ordinary diagnostics                                     |
+| SEC-020 | Completed prompt could be logged                             | Forbidden; verification detects no prompt logging                                                  |
+| SEC-021 | Completed prompt could enter cross-user cache                | Forbidden in version 1                                                                             |
+| SEC-022 | Elevated query is proposed to distinguish hidden from absent | Forbidden                                                                                          |
 
 ## H. Limits, performance, and consistency scenarios
 
 | ID      | Scenario                                          | Expected outcome                                                                                        |
 | ------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| LIM-001 | Source explicitly requests five and returns five  | SUCCESS; intentional bounded subset                                                                     |
+| LIM-001 | Source explicitly requests five and returns five  | SUCCESS; intentional limited subset                                                                     |
 | LIM-002 | Unbounded match exceeds framework cap             | LIMIT_EXCEEDED using cap-plus-one detection                                                             |
 | LIM-003 | Total rows across sources exceed transaction plan | LIMIT_EXCEEDED before unsafe rendering                                                                  |
 | LIM-004 | Too many sources would exceed SOQL budget         | DRAFT_ERROR at publish or LIMIT_EXCEEDED before data access                                             |
@@ -204,7 +204,7 @@
 | REC-006 | Published source no longer sortable              | CONFIG_INVALID                                                  |
 | REC-007 | Template is deactivated                          | Runtime refuses new generation; history remains                 |
 | REC-008 | Draft fixes invalid published version            | New version must validate and preview before publication        |
-| REC-009 | Unexpected query/platform error                  | EXECUTION_ERROR with correlation ID and no prompt contents      |
+| REC-009 | Unexpected query/platform error                  | EXECUTION_ERROR with request ID and no prompt contents          |
 | REC-010 | Browser closes or resets                         | Client-side generated prompt and context are cleared            |
 
 ## J. Configuration usability scenarios
@@ -220,6 +220,6 @@
 | UX-007 | Draft has errors                             | Draft saves; Publish remains disabled with issue list                      |
 | UX-008 | Preview succeeds                             | Four areas show template, retrieved context summary, output, and findings  |
 | UX-009 | Preview has zero related rows                | Plain-language visible-record explanation is shown                         |
-| UX-010 | Access manifest has missing access           | Missing object/field is clearly marked without showing a value             |
+| UX-010 | Field-access list has missing access         | Missing object/field is clearly marked without showing a value             |
 | UX-011 | Automatic Id tiebreaker is added             | Information message explains it                                            |
 | UX-012 | Warning is acknowledged                      | Publication records that validation completed; warnings remain inspectable |

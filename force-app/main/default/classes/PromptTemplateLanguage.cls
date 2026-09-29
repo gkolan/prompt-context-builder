@@ -21,15 +21,15 @@ public with sharing class PromptTemplateLanguage {
     '^([A-Za-z][A-Za-z0-9_]*)\\.([A-Za-z][A-Za-z0-9_]*(?:\\.[A-Za-z][A-Za-z0-9_]*)*)$'
   );
   private static final Pattern EACH_BLOCK = Pattern.compile(
-    '(?s)\\{!#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as="([A-Za-z][A-Za-z0-9_]*)"\\}' +
-    '((?:(?!\\{!#(?:each|if)\\s).)*?)\\{!/each\\}'
+    '(?s)\\{!\\s*#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as\\s*=\\s*"([A-Za-z][A-Za-z0-9_]*)"\\s*\\}' +
+    '((?:(?!\\{!\\s*#(?:each|if)\\s).)*?)\\{!\\s*/each\\s*\\}'
   );
   private static final Pattern IF_BLOCK = Pattern.compile(
-    '(?s)\\{!#if\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\.hasRecords\\}' +
-    '((?:(?!\\{!#(?:each|if)\\s).)*?)\\{!/if\\}'
+    '(?s)\\{!\\s*#if\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\.hasRecords\\s*\\}' +
+    '((?:(?!\\{!\\s*#(?:each|if)\\s).)*?)\\{!\\s*/if\\s*\\}'
   );
   private static final Pattern EACH_DEPENDENCY = Pattern.compile(
-    '(?s)\\{!#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as="([A-Za-z][A-Za-z0-9_]*)"\\}(.*?)\\{!/each\\}'
+    '(?s)\\{!\\s*#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as\\s*=\\s*"([A-Za-z][A-Za-z0-9_]*)"\\s*\\}(.*?)\\{!\\s*/each\\s*\\}'
   );
   private static final Pattern OPTION_PATTERN = Pattern.compile(
     '([A-Za-z][A-Za-z0-9_]*)="([^"]*)"'
@@ -39,6 +39,12 @@ public with sharing class PromptTemplateLanguage {
     'lower',
     'percent'
   };
+  private static final Set<String> RESERVED_LOCAL_NAMES = new Set<String>{
+    'record',
+    'related',
+    'aggregate'
+  };
+  private static final String LITERAL_TOKEN_OPEN = '\uE000PCB_LITERAL_OPEN\uE001';
 
   /**
    * Validates token shape, block balance, and configured aliases.
@@ -73,7 +79,7 @@ public with sharing class PromptTemplateLanguage {
     Set<String> fields = new Set<String>();
     Matcher tokens = TOKEN_PATTERN.matcher(templateBody ?? '');
     while (tokens.find()) {
-      String core = getTokenCore(tokens.group(1));
+      String core = getTokenCore(tokens.group(1).trim());
       Matcher recordMatcher = RECORD_TOKEN.matcher(core);
       if (recordMatcher.matches()) {
         fields.add(recordMatcher.group(1));
@@ -94,7 +100,7 @@ public with sharing class PromptTemplateLanguage {
     Matcher tokens = TOKEN_PATTERN.matcher(templateBody ?? '');
     while (tokens.find()) {
       Matcher relatedMatcher = RELATED_TOKEN.matcher(
-        getTokenCore(tokens.group(1))
+        getTokenCore(tokens.group(1).trim())
       );
       if (relatedMatcher.matches()) {
         addDependency(
@@ -112,7 +118,7 @@ public with sharing class PromptTemplateLanguage {
       Matcher bodyTokens = TOKEN_PATTERN.matcher(eachBlocks.group(3));
       while (bodyTokens.find()) {
         Matcher localMatcher = LOCAL_TOKEN.matcher(
-          getTokenCore(bodyTokens.group(1))
+          getTokenCore(bodyTokens.group(1).trim())
         );
         if (localMatcher.matches() && localMatcher.group(1) == variable) {
           addDependency(fieldsByAlias, alias, localMatcher.group(2));
@@ -155,12 +161,14 @@ public with sharing class PromptTemplateLanguage {
       relatedByAlias,
       aggregateByAlias
     );
-    return replaceScalarTokens(
-      rendered,
-      rootRecord,
-      relatedByAlias,
-      aggregateByAlias,
-      new Map<String, SObject>()
+    return restoreLiteralMergeSyntax(
+      replaceScalarTokens(
+        rendered,
+        rootRecord,
+        relatedByAlias,
+        aggregateByAlias,
+        new Map<String, SObject>()
+      )
     );
   }
 
@@ -173,7 +181,7 @@ public with sharing class PromptTemplateLanguage {
     String rendered = templateBody;
     Integer iterations = 0;
     while (
-      (rendered.contains('{!#each ') || rendered.contains('{!#if ')) &&
+      containsBlockStart(rendered) &&
       iterations < PromptContextContract.MAX_BLOCK_ITERATIONS
     ) {
       iterations++;
@@ -218,12 +226,14 @@ public with sharing class PromptTemplateLanguage {
         rendered = rendered.replace(ifMatcher.group(0), replacement);
         continue;
       }
-      throw new PromptContextException(
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
         'A template block could not be rendered. Check its opening and closing tags.'
       );
     }
-    if (iterations == PromptContextContract.MAX_BLOCK_ITERATIONS) {
-      throw new PromptContextException(
+    if (containsBlockStart(rendered)) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
         'The template contains too many nested blocks.'
       );
     }
@@ -238,10 +248,10 @@ public with sharing class PromptTemplateLanguage {
     Map<String, SObject> localRecords
   ) {
     Matcher tokens = TOKEN_PATTERN.matcher(text ?? '');
-    String output = '';
+    List<String> output = new List<String>();
     Integer cursor = 0;
     while (tokens.find()) {
-      output += text.substring(cursor, tokens.start());
+      output.add(text.substring(cursor, tokens.start()));
       String tokenText = tokens.group(1).trim();
       String core = getTokenCore(tokenText);
       Object value;
@@ -276,15 +286,19 @@ public with sharing class PromptTemplateLanguage {
       } else {
         value = '';
       }
-      output += formatValue(
-        value,
-        getOption(tokenText, 'fallback'),
-        getOption(tokenText, 'format')
+      output.add(
+        protectLiteralMergeSyntax(
+          formatValue(
+            value,
+            getOption(tokenText, 'fallback'),
+            getOption(tokenText, 'format')
+          )
+        )
       );
       cursor = tokens.end();
     }
-    output += text.substring(cursor);
-    return output;
+    output.add(text.substring(cursor));
+    return String.join(output, '');
   }
 
   private static void validateBalancedBlocks(
@@ -341,19 +355,23 @@ public with sharing class PromptTemplateLanguage {
     Set<String> aliases,
     PromptContextDTO.ValidationResult result
   ) {
+    Set<String> declaredLocals = new Set<String>();
+    Matcher declaredEachBlocks = EACH_DEPENDENCY.matcher(templateBody);
+    while (declaredEachBlocks.find()) {
+      declaredLocals.add(declaredEachBlocks.group(2));
+    }
     Matcher tokens = TOKEN_PATTERN.matcher(templateBody);
     while (tokens.find()) {
       String tokenText = tokens.group(1).trim();
       String core = getTokenCore(tokenText);
       String alias;
-      Boolean valid =
-        RECORD_TOKEN.matcher(core).matches() ||
-        LOCAL_TOKEN.matcher(core).matches();
+      Matcher localMatcher = LOCAL_TOKEN.matcher(core);
+      Boolean valid = RECORD_TOKEN.matcher(core).matches();
       Matcher relatedMatcher = RELATED_TOKEN.matcher(core);
       Matcher countMatcher = RELATED_COUNT_TOKEN.matcher(core);
       Matcher aggregateMatcher = AGGREGATE_TOKEN.matcher(core);
       Matcher eachMatcher = Pattern.compile(
-          '^#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as="[A-Za-z][A-Za-z0-9_]*"$'
+          '^#each\\s+related\\.([A-Za-z][A-Za-z0-9_]*)\\s+as\\s*=\\s*"([A-Za-z][A-Za-z0-9_]*)"$'
         )
         .matcher(tokenText);
       Matcher ifMatcher = Pattern.compile(
@@ -372,6 +390,13 @@ public with sharing class PromptTemplateLanguage {
       } else if (eachMatcher.matches()) {
         valid = true;
         alias = eachMatcher.group(1);
+        if (RESERVED_LOCAL_NAMES.contains(eachMatcher.group(2).toLowerCase())) {
+          result.addError(
+            'RESERVED_LOCAL_NAME',
+            'Template body',
+            'Use a row alias other than record, related, or aggregate.'
+          );
+        }
       } else if (ifMatcher.matches()) {
         valid = true;
         alias = ifMatcher.group(1);
@@ -379,6 +404,10 @@ public with sharing class PromptTemplateLanguage {
         tokenText == 'else' ||
         tokenText == '/each' ||
         tokenText == '/if'
+      ) {
+        valid = true;
+      } else if (
+        localMatcher.matches() && declaredLocals.contains(localMatcher.group(1))
       ) {
         valid = true;
       }
@@ -469,6 +498,7 @@ public with sharing class PromptTemplateLanguage {
   }
 
   private static String getTokenCore(String tokenText) {
+    tokenText = tokenText.trim();
     Integer optionStart = tokenText.indexOf(' ');
     return optionStart < 0 ? tokenText : tokenText.substring(0, optionStart);
   }
@@ -480,14 +510,34 @@ public with sharing class PromptTemplateLanguage {
   }
 
   private static List<String> splitElse(String blockBody) {
-    Integer elseIndex = blockBody.indexOf('{!else}');
-    if (elseIndex < 0) {
+    Matcher elseMatcher = Pattern.compile('\\{!\\s*else\\s*\\}')
+      .matcher(blockBody);
+    if (!elseMatcher.find()) {
       return new List<String>{ blockBody };
     }
     return new List<String>{
-      blockBody.substring(0, elseIndex),
-      blockBody.substring(elseIndex + '{!else}'.length())
+      blockBody.substring(0, elseMatcher.start()),
+      blockBody.substring(elseMatcher.end())
     };
+  }
+
+  private static Boolean containsBlockStart(String text) {
+    Matcher tokens = TOKEN_PATTERN.matcher(text ?? '');
+    while (tokens.find()) {
+      String tokenText = tokens.group(1).trim();
+      if (tokenText.startsWith('#each ') || tokenText.startsWith('#if ')) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static String protectLiteralMergeSyntax(String value) {
+    return value == null ? '' : value.replace('{!', LITERAL_TOKEN_OPEN);
+  }
+
+  private static String restoreLiteralMergeSyntax(String value) {
+    return value == null ? null : value.replace(LITERAL_TOKEN_OPEN, '{!');
   }
 
   private static Object getPathValue(SObject record, String fieldPath) {

@@ -7,6 +7,8 @@ import getTemplateSummaryPage from "@salesforce/apex/PromptContextController.get
 import checkTemplateHealth from "@salesforce/apex/PromptContextController.checkTemplateHealth";
 import getTemplateVersions from "@salesforce/apex/PromptContextController.getTemplateVersions";
 import compareTemplateVersions from "@salesforce/apex/PromptContextController.compareTemplateVersions";
+import saveDraft from "@salesforce/apex/PromptContextController.saveDraft";
+import publishTemplate from "@salesforce/apex/PromptContextController.publish";
 
 jest.mock(
   "@salesforce/apex/PromptContextController.getObjectOptions",
@@ -54,6 +56,18 @@ jest.mock(
 );
 
 jest.mock(
+  "@salesforce/apex/PromptContextController.saveDraft",
+  () => ({ default: jest.fn() }),
+  { virtual: true }
+);
+
+jest.mock(
+  "@salesforce/apex/PromptContextController.publish",
+  () => ({ default: jest.fn() }),
+  { virtual: true }
+);
+
+jest.mock(
   "@salesforce/apex/PromptContextController.restoreTemplateVersion",
   () => ({ default: jest.fn() }),
   { virtual: true }
@@ -81,7 +95,7 @@ describe("c-prompt-template-builder", () => {
     getTemplateVersions.mockResolvedValue([]);
   });
 
-  it("renders the four-step setup path", async () => {
+  it("renders the five-step setup path", async () => {
     getTemplateSummaryPage.mockResolvedValue({ items: [], hasMore: false });
     const element = createElement("c-prompt-template-builder", {
       is: PromptTemplateBuilder
@@ -97,13 +111,63 @@ describe("c-prompt-template-builder", () => {
       "1. Template basics",
       "2. Prompt and merge fields",
       "3. Related data",
-      "4. Validate, preview, and publish"
+      "4. Salesforce Files",
+      "5. Validate, preview, and publish"
     ]);
     expect(
       [...element.shadowRoot.querySelectorAll("lightning-button")].map(
         (button) => button.label
       )
     ).toContain("Insert current record field");
+  });
+
+  it("keeps calculated values out of the returned-record budget", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: "a01000000000001", name: "Budget", status: "Draft" }],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    getTemplate.mockResolvedValue({
+      id: "a01000000000001",
+      name: "Budget",
+      rootObject: "Account",
+      templateBody: "Budget",
+      status: "Draft",
+      sources: [
+        {
+          referenceName: "contacts",
+          resultMode: "RECORDS",
+          maxRows: 25,
+          active: true
+        },
+        {
+          referenceName: "contact_count",
+          resultMode: "AGGREGATE",
+          maxRows: 50,
+          active: true
+        }
+      ]
+    });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+
+    const picker = [
+      ...element.shadowRoot.querySelectorAll("lightning-combobox")
+    ].find((combobox) => combobox.label === "Open a template");
+    picker.dispatchEvent(
+      new CustomEvent("change", {
+        detail: { value: "a01000000000001" }
+      })
+    );
+    await flushPromises();
+    await flushPromises();
+
+    expect(
+      element.shadowRoot.querySelector(".source-budget").textContent
+    ).toContain("up to 25 returned records · 1 calculated value");
   });
 
   it("adds a guided related data set", async () => {
@@ -142,7 +206,7 @@ describe("c-prompt-template-builder", () => {
       ...element.shadowRoot.querySelectorAll("lightning-combobox")
     ].find((combobox) => combobox.label === "Records to include");
     expect(scope.options).toEqual([
-      { label: "Related to current record", value: "RELATED" },
+      { label: "Match a current record field", value: "RELATED" },
       { label: "Reference records", value: "REFERENCE" }
     ]);
     expect(element.shadowRoot.textContent).toContain(
@@ -371,6 +435,53 @@ describe("c-prompt-template-builder", () => {
     ).toBe("Beta");
   });
 
+  it("restores the picker when unsaved changes block a template switch", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [
+        { id: "a01000000000001", name: "Alpha", status: "Draft" },
+        { id: "a01000000000002", name: "Beta", status: "Draft" }
+      ],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    getTemplate.mockResolvedValue({
+      id: "a01000000000001",
+      name: "Alpha",
+      rootObject: "Account",
+      templateBody: "{!record.Name}",
+      status: "Draft",
+      version: 0,
+      sources: []
+    });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+
+    const picker = [
+      ...element.shadowRoot.querySelectorAll("lightning-combobox")
+    ].find((combobox) => combobox.label === "Open a template");
+    picker.dispatchEvent(
+      new CustomEvent("change", { detail: { value: "a01000000000001" } })
+    );
+    await flushPromises();
+    await flushPromises();
+    const body = [
+      ...element.shadowRoot.querySelectorAll("lightning-textarea")
+    ].find((textarea) => textarea.label === "Template body");
+    body.value = "Unsaved {!record.Name}";
+    body.dispatchEvent(new CustomEvent("change"));
+
+    picker.value = "a01000000000002";
+    picker.dispatchEvent(
+      new CustomEvent("change", { detail: { value: "a01000000000002" } })
+    );
+
+    expect(picker.value).toBe("a01000000000001");
+    expect(getTemplate).toHaveBeenCalledTimes(1);
+  });
+
   it("loads the next template page with the server cursor", async () => {
     getTemplateSummaryPage
       .mockResolvedValueOnce({
@@ -555,5 +666,71 @@ describe("c-prompt-template-builder", () => {
       "Data set contacts changed."
     );
     expect(element.shadowRoot.textContent).toContain("Scheduled setup check");
+  });
+
+  it("saves unsaved editor changes before publishing", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: "a01000000000001", name: "Account", status: "Published" }],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    getTemplate.mockResolvedValue({
+      id: "a01000000000001",
+      developerKey: "account",
+      name: "Account",
+      rootObject: "Account",
+      templateBody: "Old body {!record.Name}",
+      status: "Published",
+      version: 1,
+      sources: []
+    });
+    saveDraft.mockImplementation(({ configJson }) =>
+      Promise.resolve(JSON.parse(configJson))
+    );
+    publishTemplate.mockResolvedValue({
+      prompt: "New body Acme",
+      templateVersion: 2,
+      fingerprint: "new-fingerprint",
+      messages: [],
+      accessManifest: { items: [], warnings: [] }
+    });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+
+    const templatePicker = [
+      ...element.shadowRoot.querySelectorAll("lightning-combobox")
+    ].find((combobox) => combobox.label === "Open a template");
+    templatePicker.dispatchEvent(
+      new CustomEvent("change", { detail: { value: "a01000000000001" } })
+    );
+    await flushPromises();
+    await flushPromises();
+
+    const body = [
+      ...element.shadowRoot.querySelectorAll("lightning-textarea")
+    ].find((textarea) => textarea.label === "Template body");
+    body.value = "New body {!record.Name}";
+    body.dispatchEvent(new CustomEvent("change"));
+    element.shadowRoot.querySelector("lightning-record-picker").dispatchEvent(
+      new CustomEvent("change", {
+        detail: { recordId: "001000000000001AAA" }
+      })
+    );
+    [...element.shadowRoot.querySelectorAll("lightning-button")]
+      .find((button) => button.label === "Publish")
+      .click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(saveDraft).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(saveDraft.mock.calls[0][0].configJson).templateBody).toBe(
+      "New body {!record.Name}"
+    );
+    expect(saveDraft.mock.invocationCallOrder[0]).toBeLessThan(
+      publishTemplate.mock.invocationCallOrder[0]
+    );
   });
 });

@@ -1,8 +1,8 @@
 # Start with Prompt Context Builder
 
 Use Prompt Context Builder when a Salesforce user needs a repeatable block of record context that
-they can review and copy into an AI tool or another process. The product retrieves only configured
-Salesforce data and returns plain text; it does not send that text to a model.
+they can review, return to Apex, or save for an approved later process. The product retrieves only
+configured Salesforce data and does not send the prepared input to an external service.
 
 ## What an administrator configures
 
@@ -18,6 +18,11 @@ set can include:
 Administrators choose fields, filters, sorting, and limits in Prompt Builder. The builder creates
 the Salesforce searches from those choices.
 
+A template can also allow Salesforce Files linked directly to the current record. The running user
+chooses up to five eligible current versions, or the template can require all eligible files. The
+package stores their exact version details with the prepared input; it does not read or store file
+contents.
+
 ## Lifecycle
 
 1. Create or edit a Draft template.
@@ -30,6 +35,7 @@ the Salesforce searches from those choices.
 ## Choose the next guide
 
 - Administrator: [Create and publish a template](../step-by-step-guide/README.md).
+- File-enabled template owner: [Allow Salesforce Files](../build-templates/README.md#allow-salesforce-files).
 - Record-page owner: [Configure Prompt Generator](../lightning-record-page/README.md).
 - Flow or Apex developer: [Developer guides](../developer-guides/README.md).
 - Security reviewer: [Security and data access](../architecture/security-and-data-access.md).

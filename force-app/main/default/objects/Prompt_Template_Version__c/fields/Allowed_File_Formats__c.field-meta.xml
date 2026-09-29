@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Allowed_File_Formats__c</fullName>
+    <description
+  >Preserves the lowercase document formats approved for this published prompt version.</description>
+    <inlineHelpText
+  >This published list must remain within the package and Provider Profile formats.</inlineHelpText>
+    <label>Allowed File Formats</label>
+    <length>255</length>
+    <type>Text</type>
+</CustomField>

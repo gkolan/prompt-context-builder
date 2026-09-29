@@ -5,18 +5,20 @@ private class PromptTemplateHealthQueueableTest {
   static void setupTestData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
-      Account accountRecord = PromptContextTestDataFactory.createAccount(true);
-      PromptContextTestDataFactory.createContacts(accountRecord.Id, true);
+      Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
       PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(
         PromptContextTestDataFactory.createTwoSourceConfig()
       );
-      PromptTemplateService.publish(saved.id, accountRecord.Id);
+      PromptTemplateService.publish(saved.id, rootRecord.Id);
     }
   }
 
   @isTest
   static void shouldStoreValueFreeHealth_WhenPublishedSnapshotIsValid() {
-    User configurator = [SELECT Id FROM User WHERE Alias = 'pcbtest' LIMIT 1];
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
       Test.startTest();
       System.enqueueJob(new PromptTemplateHealthQueueable());
@@ -30,6 +32,7 @@ private class PromptTemplateHealthQueueableTest {
           Last_Health_Codes__c,
           Last_Health_Version__c
         FROM Prompt_Template__c
+        WHERE Status__c = 'Published'
         LIMIT 1
       ];
       Assert.areEqual(

@@ -131,6 +131,8 @@ public with sharing class PromptContextDTO {
     @AuraEnabled
     public Id id { get; set; }
     @AuraEnabled
+    public Id publishedVersionId { get; set; }
+    @AuraEnabled
     public String developerKey { get; set; }
     @AuraEnabled
     public String name { get; set; }
@@ -161,6 +163,18 @@ public with sharing class PromptContextDTO {
     @AuraEnabled
     public Integer lastHealthVersion { get; set; }
     @AuraEnabled
+    public String fileInputMode { get; set; }
+    @AuraEnabled
+    public Integer maxFiles { get; set; }
+    @AuraEnabled
+    public Boolean requireAtLeastOneFile { get; set; }
+    @AuraEnabled
+    public String allowedFileFormats { get; set; }
+    @AuraEnabled
+    public String providerProfileKey { get; set; }
+    @AuraEnabled
+    public Boolean fileCitationsEnabled { get; set; }
+    @AuraEnabled
     public List<SourceConfig> sources { get; set; }
 
     /** Creates a draft template with an empty source list. */
@@ -170,6 +184,9 @@ public with sharing class PromptContextDTO {
       version = 0;
       syntaxVersion = PromptContextContract.SYNTAX_VERSION;
       contractVersion = PromptContextContract.CONTRACT_VERSION;
+      fileInputMode = 'DISABLED';
+      requireAtLeastOneFile = false;
+      fileCitationsEnabled = false;
     }
   }
 
@@ -255,6 +272,8 @@ public with sharing class PromptContextDTO {
     public List<Message> messages { get; set; }
     @AuraEnabled
     public AccessManifest accessManifest { get; set; }
+    @AuraEnabled
+    public String selectedFilesJson { get; set; }
 
     /** Creates an empty result that contains no partial prompt. */
     public PromptResult() {
@@ -315,9 +334,46 @@ public with sharing class PromptContextDTO {
     public String description { get; set; }
     @AuraEnabled
     public Integer version { get; set; }
+    @AuraEnabled
+    public String fileInputMode { get; set; }
+    @AuraEnabled
+    public Integer maxFiles { get; set; }
+    @AuraEnabled
+    public Boolean requireAtLeastOneFile { get; set; }
+    @AuraEnabled
+    public String allowedFileFormats { get; set; }
 
     /** Creates an empty choice for JSON serialization. */
     public TemplateChoice() {
+    }
+  }
+
+  /** One current Salesforce File choice shown on a record page. */
+  public class FileChoice {
+    @AuraEnabled
+    public Id contentVersionId { get; set; }
+    @AuraEnabled
+    public String label { get; set; }
+    @AuraEnabled
+    public String fileFormat { get; set; }
+    @AuraEnabled
+    public Integer sizeInBytes { get; set; }
+  }
+
+  /** One limited page of current Salesforce Files. */
+  public class FileChoicePage {
+    @AuraEnabled
+    public List<FileChoice> items { get; set; }
+    @AuraEnabled
+    public Boolean hasMore { get; set; }
+    @AuraEnabled
+    public String nextTitle { get; set; }
+    @AuraEnabled
+    public Id nextId { get; set; }
+
+    public FileChoicePage() {
+      items = new List<FileChoice>();
+      hasMore = false;
     }
   }
 

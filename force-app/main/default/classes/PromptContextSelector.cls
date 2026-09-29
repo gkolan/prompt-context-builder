@@ -45,7 +45,7 @@ public inherited sharing class PromptContextSelector {
     Integer queryLimit = pageSize + 1;
     String normalizedSearch = String.isBlank(searchText)
       ? null
-      : '%' + searchText.trim() + '%';
+      : '%' + escapeLikeValue(searchText.trim()) + '%';
     Boolean hasCursor = !String.isBlank(afterName) && afterId != null;
     if (normalizedSearch == null && !hasCursor) {
       return [
@@ -130,6 +130,10 @@ public inherited sharing class PromptContextSelector {
     ];
   }
 
+  private static String escapeLikeValue(String value) {
+    return value.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_');
+  }
+
   /**
    * Returns one visible template.
    * @param templateId Template record Id
@@ -154,7 +158,13 @@ public inherited sharing class PromptContextSelector {
         Last_Health_Status__c,
         Last_Health_Checked_At__c,
         Last_Health_Codes__c,
-        Last_Health_Version__c
+        Last_Health_Version__c,
+        File_Input_Mode__c,
+        Maximum_Files__c,
+        Require_File__c,
+        Allowed_File_Formats__c,
+        Provider_Profile_Key__c,
+        File_Citations_Enabled__c
       FROM Prompt_Template__c
       WHERE Id = :templateId
       WITH USER_MODE
@@ -186,7 +196,13 @@ public inherited sharing class PromptContextSelector {
         Last_Health_Status__c,
         Last_Health_Checked_At__c,
         Last_Health_Codes__c,
-        Last_Health_Version__c
+        Last_Health_Version__c,
+        File_Input_Mode__c,
+        Maximum_Files__c,
+        Require_File__c,
+        Allowed_File_Formats__c,
+        Provider_Profile_Key__c,
+        File_Citations_Enabled__c
       FROM Prompt_Template__c
       WHERE Developer_Key__c IN :developerKeys
       WITH USER_MODE
@@ -209,7 +225,16 @@ public inherited sharing class PromptContextSelector {
       return new List<Prompt_Template__c>();
     }
     return [
-      SELECT Id, Name, Description__c, Version__c
+      SELECT
+        Id,
+        Name,
+        Description__c,
+        Version__c,
+        File_Input_Mode__c,
+        Maximum_Files__c,
+        Require_File__c,
+        Allowed_File_Formats__c,
+        Provider_Profile_Key__c
       FROM Prompt_Template__c
       WHERE Root_Object__c = :rootObject AND Status__c = 'Published'
       WITH USER_MODE
@@ -305,7 +330,13 @@ public inherited sharing class PromptContextSelector {
         Root_Object__c,
         Template_Body__c,
         Fingerprint__c,
-        Published_At__c
+        Published_At__c,
+        File_Input_Mode__c,
+        Maximum_Files__c,
+        Require_File__c,
+        Allowed_File_Formats__c,
+        Provider_Profile_Key__c,
+        File_Citations_Enabled__c
       FROM Prompt_Template_Version__c
       WHERE
         Prompt_Template__c = :templateId
@@ -314,7 +345,8 @@ public inherited sharing class PromptContextSelector {
       LIMIT 2
     ];
     if (versions.size() > 1) {
-      throw new PromptContextException(
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.TEMPLATE_VERSION_AMBIGUOUS,
         'The published template version is ambiguous. Contact your Salesforce administrator.'
       );
     }
@@ -339,7 +371,13 @@ public inherited sharing class PromptContextSelector {
         Root_Object__c,
         Template_Body__c,
         Fingerprint__c,
-        Published_At__c
+        Published_At__c,
+        File_Input_Mode__c,
+        Maximum_Files__c,
+        Require_File__c,
+        Allowed_File_Formats__c,
+        Provider_Profile_Key__c,
+        File_Citations_Enabled__c
       FROM Prompt_Template_Version__c
       WHERE Prompt_Template__c = :templateId
       WITH USER_MODE

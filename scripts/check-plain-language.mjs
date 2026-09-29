@@ -7,7 +7,8 @@ const visibleSourceFiles = [
   "force-app/main/default/lwc/promptTemplateBuilder/promptTemplateBuilder.js",
   "force-app/main/default/lwc/promptGenerator/promptGenerator.html",
   "force-app/main/default/customLabels/CustomLabels.labels-meta.xml",
-  "force-app/main/default/classes/PromptContextApi.cls",
+  "force-app/main/default/classes/PromptContextInputApi.cls",
+  "force-app/main/default/classes/PromptContextInputLogService.cls",
   "force-app/main/default/classes/PromptContextSchema.cls",
   "force-app/main/default/classes/PromptContextService.cls",
   "force-app/main/default/classes/PromptContextSourceStrategies.cls",
@@ -114,6 +115,29 @@ const unclearCommentPhrases = [
   "schema-health",
   "snapshot"
 ];
+const prohibitedProductWriting = [
+  ["CUSTOM_SINK", /\bcustom_sink\b/i],
+  ["sink", /\bsinks?\b/i],
+  ["envelope", /\benvelopes?\b/i],
+  ["disposition", /\bdispositions?\b/i],
+  ["canonical", /\bcanonical\b/i],
+  ["adapter", /\badapters?\b/i],
+  ["idempotency", /\bidempotenc\w*\b/i],
+  ["payload", /\bpayloads?\b/i],
+  ["correlation", /\bcorrelation\b/i],
+  ["bounded", /\bbounded\b/i],
+  ["atomic", /\batomic\w*\b/i],
+  ["canary", /\bcanary\b/i],
+  ["keyset", /\bkeyset\b/i],
+  ["fail closed", /\bfails? closed\b/i],
+  ["loudly", /\bloudly\b/i],
+  ["AI", /\bai\b/i],
+  ["LLM", /\bllms?\b/i],
+  ["language model", /\blanguage models?\b/i],
+  ["model call", /\bmodel calls?\b/i],
+  ["model response", /\bmodel responses?\b/i],
+  ["model invocation", /\bmodel invocations?\b/i]
+];
 const metadataTextPattern =
   /<(description|errorMessage|inlineHelpText|label|pluralLabel)\b[^>]*>\s*([\s\S]*?)\s*<\/\1>/g;
 
@@ -178,7 +202,23 @@ for (const relativeFile of customerDocumentationFiles) {
   }
 }
 
-for (const relativeFile of filesBelow("force-app/main/default", [".cls", ".js"])) {
+const productWritingFiles = [
+  ...filesBelow("docs", [".md"]),
+  ...filesBelow("specs/prompt-context-builder", [".md"])
+];
+for (const relativeFile of productWritingFiles) {
+  const source = fs.readFileSync(path.join(workspace, relativeFile), "utf8");
+  for (const [term, pattern] of prohibitedProductWriting) {
+    if (pattern.test(source)) {
+      failures.push(`${relativeFile}: replace product-writing term "${term}"`);
+    }
+  }
+}
+
+for (const relativeFile of filesBelow("force-app/main/default", [
+  ".cls",
+  ".js"
+])) {
   const source = fs.readFileSync(path.join(workspace, relativeFile), "utf8");
   const comments = [
     ...(source.match(/\/\*\*[\s\S]*?\*\//g) ?? []),
@@ -191,7 +231,9 @@ for (const relativeFile of filesBelow("force-app/main/default", [".cls", ".js"])
     }
   }
   if (/[\u2013\u2014]/u.test(comments)) {
-    failures.push(`${relativeFile}: replace en or em dashes in source comments`);
+    failures.push(
+      `${relativeFile}: replace en or em dashes in source comments`
+    );
   }
 }
 

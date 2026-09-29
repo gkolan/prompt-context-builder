@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Maximum_Files__c</fullName>
+    <description
+  >Preserves the maximum Salesforce File count approved for this published prompt version.</description>
+    <inlineHelpText
+  >This published value cannot exceed five. Requests over the limit fail without omitting files.</inlineHelpText>
+    <label>Maximum Files</label>
+    <precision>1</precision>
+    <scale>0</scale>
+    <type>Number</type>
+</CustomField>

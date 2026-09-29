@@ -85,6 +85,8 @@ configuration, security, record-page, Flow, or Apex journey.
 ## Verify the upgraded environment
 
 1. Confirm existing Draft, Published, and Inactive templates still load.
+   Existing records with a blank File Input Mode are treated as **Disabled**; no file is selected or
+   sent until an author saves and publishes explicit file settings.
 2. Confirm published version signatures and version history remain present.
 3. Run template health checks and investigate every new error.
 4. Preview a representative template against a readable record.

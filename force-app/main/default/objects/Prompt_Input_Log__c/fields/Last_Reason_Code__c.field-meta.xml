@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Last_Reason_Code__c</fullName>
+    <description
+  >Stores the stable reason code for the most recent processing failure without saving exception text or customer data.</description>
+    <inlineHelpText
+  >Use this code with the administrator guide when a saved input cannot be processed.</inlineHelpText>
+    <label>Last Reason Code</label>
+    <length>80</length>
+    <type>Text</type>
+</CustomField>

@@ -11,5 +11,5 @@ Use these pages for exact product contracts:
 - [Flow and Apex contract](../developer-guides/README.md)
 - [Data model](../architecture/data-model.md)
 
-The executable owners are `PromptContextContract`, `PromptContextReasonCodes`, the two Permission
-Set metadata files, and the custom-object metadata under `force-app/main/default/objects`.
+The executable owners are `PromptContextContract`, `PromptContextReasonCodes`, the Permission Set
+metadata files, and the custom-object metadata under `force-app/main/default/objects`.

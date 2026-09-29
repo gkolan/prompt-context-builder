@@ -1,16 +1,20 @@
 # Use Prompt Context Builder from Flow or Apex
 
-The public action is **Build Record Context Prompt**. It accepts an ordered request collection and
-returns one response per request. Identify a published template with either its Salesforce record
-Id or stable automation key, and always supply a Record Id.
+The public action is **Prepare Record Prompt Input**. It accepts an ordered request collection and
+returns one result per request. Identify a published template with either its Salesforce record Id
+or stable automation key, always supply a Record Id, and choose whether to return or save the
+prepared input.
 
 ## Flow
 
-1. Assign **Prompt Context Generate** to the person whose access the Flow uses.
-2. In Flow Builder, add **Action → Build Record Context Prompt**.
-3. Set **Record Id** and one of **Published Template Id** or **Template Automation Key**.
-4. Branch on `success` before reading `prompt`.
-5. Handle `reasonCode`, inspect `warningCodes`, and retain `correlationId` for support.
+1. Assign **Prompt Context Generate** to the person whose access the Flow uses. Also assign
+   **Prompt Context Save Input** when the Flow saves a Prompt Input Log.
+2. In Flow Builder, add **Action → Prepare Record Prompt Input**.
+3. Set **Record Id**, **Delivery Choice**, and one of **Published Template Id** or **Template
+   Automation Key**.
+4. When **Delivery Choice** is `SAVE_TO_LOG`, supply a stable **Request Key** for that unit of work.
+5. Branch on `success` before reading `prompt` or `inputLogId`.
+6. Handle `reasonCode`, inspect `warningCodes`, and retain `correlationId` for support.
 
 Flow runs in the current transaction. A collection can contain at most 200 requests, no more than
 10 distinct templates, and at most 1,000,000 prompt characters in successful responses.
@@ -18,30 +22,37 @@ Flow runs in the current transaction. A collection can contain at most 200 reque
 ## Apex
 
 ```apex
-PromptContextApi.Request request = new PromptContextApi.Request();
+PromptContextInputApi.Request request = new PromptContextInputApi.Request();
 request.templateDeveloperKey = 'account_contact_context';
 request.recordId = accountId;
+request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
 
-List<PromptContextApi.Response> responses = PromptContextApi.build(
-  new List<PromptContextApi.Request>{ request }
+List<PromptContextInputApi.Result> responses = PromptContextInputApi.prepare(
+  new List<PromptContextInputApi.Request>{ request }
 );
 
-PromptContextApi.Response response = responses[0];
+PromptContextInputApi.Result response = responses[0];
 if (response.success) {
   String prompt = response.prompt;
-  if (!String.isBlank(response.warningCodes)) {
-    System.debug(
-      LoggingLevel.WARN,
-      response.warningCodes + ': ' + response.warningMessage
-    );
-  }
-} else {
-  System.debug(LoggingLevel.WARN, response.reasonCode + ': ' + response.message);
 }
 ```
 
-The returned `correlationId` identifies this result for diagnostics. Do not log `prompt` in
-production merely because it was returned to Apex.
+For `SAVE_TO_LOG`, set `request.deliveryChoice = PromptContextInputApi.SAVE_TO_LOG` and provide a
+caller-generated `request.requestKey`. A successful result contains `inputLogId`; its `prompt` is
+cleared if the save fails. The same user, Request Key, and prepared input safely reuse the original
+log. Reusing that key for different input fails with `REQUEST_KEY_CONFLICT`.
+
+The returned `correlationId` identifies this result for diagnostics. Do not log `prompt`, Request
+Keys, or customer values in production.
+
+For a file-enabled published template, assign **Prompt Context Send Files** and provide exact current
+Salesforce File version IDs in `request.selectedContentVersionIds`. A successful result returns the
+server-built `selectedFilesJson`. Callers cannot provide their own file JSON. The same managed value
+is stored when Delivery Choice is `SAVE_TO_LOG`.
+
+The file list contains metadata only. `PromptContextInputApi` does not read file bodies or call an
+external service. Code that chooses `RETURN_TO_APEX` owns any later approved action. Code that chooses
+`SAVE_TO_LOG` can use `PromptContextInputLifecycle` to claim and update saved work.
 
 `warningCodes` is a comma-separated list of stable codes. A successful response may carry warnings
 when a configured source limit or the combined prompt row limit bounds the returned context.
@@ -49,8 +60,11 @@ when a configured source limit or the combined prompt row limit bounds the retur
 ## Bulk and asynchronous callers
 
 Before choosing a Batch scope, load the published configuration and call
-`PromptContextResourcePlanner.plan(config)`. Its `safeRecordCount` accounts for the framework's
-query and row use. Leave additional capacity for the caller's own queries, DML, and callouts.
+`PromptContextResourcePlanner.plan(config)`. Its `safeRecordCount` accounts for grouped record
+queries, the candidate and calculation queries used by calculated sources, file queries, and row
+use. `groupedQueryCount` is the number of framework queries planned for the collection, and
+`plannedRowsPerRecord` is the conservative per-record row estimate. Leave additional capacity for
+the caller's own queries, DML, and callouts.
 
 Queueable, Batch, and Scheduled Apex do not elevate record access. The executing user still needs
 generation capability and read access to every required customer object and field.

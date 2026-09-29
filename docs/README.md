@@ -2,7 +2,9 @@
 
 Prompt Context Builder assembles plain-text prompt context from a Salesforce record and explicitly
 configured data sets. Salesforce sharing still controls which records are available. The product
-does not call an AI model, save generated prompts, or update customer records.
+does not send data to an external provider or update customer records. A Flow or Apex caller can
+return prepared text and selected Salesforce File details directly or explicitly save them in a
+private Prompt Input Log. File contents remain in Salesforce.
 
 ## New here? Follow these steps
 
@@ -33,7 +35,9 @@ does not call an AI model, save generated prompts, or update customer records.
 | [Architecture](./architecture/README.md)                   | Understand execution, data, security, and trust boundaries           |
 | [Reference](./reference/README.md)                         | Look up syntax, limits, permissions, result codes, and API contracts |
 | [Contributing](./contributing/README.md)                   | Change and verify the source or documentation                        |
+| [Change safety](./contributing/change-safety-playbook.md)  | Apply test, validation, deployment, recovery, and evidence rules     |
 | [Quality gates](./quality-gates/README.md)                 | See the evidence required before a change is ready                   |
+| [UI screenshots](./screenshots/README.md)                  | Review current browser evidence, history, and capture policy         |
 
 ## Important behavior
 

@@ -26,9 +26,14 @@ private class PromptContextSchemaTest {
       PromptContextSchema.requireReadableObject('Does_Not_Exist__c');
       Assert.fail('An invalid object must be rejected.');
     } catch (PromptContextException exceptionValue) {
+      Assert.areEqual(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        exceptionValue.reasonCode,
+        'The stable reason should identify invalid setup.'
+      );
       Assert.isTrue(
-        exceptionValue.getMessage().contains('does not exist'),
-        'The error should identify the invalid object.'
+        exceptionValue.getMessage().contains('was not found'),
+        'The message should explain that the Salesforce object was not found.'
       );
     }
     Test.stopTest();
@@ -46,6 +51,19 @@ private class PromptContextSchemaTest {
       fields.size() > 0,
       'Readable Account fields should be available to the builder.'
     );
+  }
+
+  @isTest
+  static void shouldReturnAStableReasonForPolymorphicRelationships() {
+    try {
+      PromptContextSchema.requireReadableFieldPath('Task', 'What.Name');
+      Assert.fail('A polymorphic relationship must be rejected.');
+    } catch (PromptContextException expected) {
+      Assert.areEqual(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        expected.reasonCode
+      );
+    }
   }
 
   @isTest

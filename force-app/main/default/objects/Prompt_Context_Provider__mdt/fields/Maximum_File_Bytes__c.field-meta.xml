@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Maximum_File_Bytes__c</fullName>
+    <description
+  >Maximum bytes allowed for one file by the approved service and model.</description>
+    <fieldManageability>DeveloperControlled</fieldManageability>
+    <label>Maximum File Bytes</label>
+    <precision>8</precision>
+    <scale>0</scale>
+    <type>Number</type>
+</CustomField>

@@ -13,10 +13,23 @@ public with sharing class PromptContextContract {
   public static final Integer MAX_SORTS_PER_SOURCE = 3;
   public static final Integer MAX_ROWS_PER_SOURCE = 50;
   public static final Integer MAX_ROWS_PER_PROMPT = 200;
+  public static final Integer MAX_AGGREGATE_INPUT_ROWS = 1000;
   public static final Integer MAX_TEMPLATE_CHARACTERS = 20000;
   public static final Integer MAX_PROMPT_CHARACTERS = 20000;
   public static final Integer MAX_BLOCK_ITERATIONS = 100;
   public static final Integer MAX_RELATIONSHIP_DEPTH = 5;
+  public static final Integer MAX_SELECTED_FILES = 5;
+  public static final Integer PROVIDER_REVIEW_MAX_AGE_DAYS = 90;
+  public static final Integer MAX_FILE_BYTES = 4500000;
+  public static final Integer MAX_TOTAL_FILE_BYTES = 22500000;
+  public static final Integer MAX_LINKED_FILES_INSPECTED = 500;
+  public static final Integer FILE_PICKER_PAGE_SIZE = 50;
+  public static final Integer DEFAULT_INPUT_RETENTION_DAYS = 30;
+  public static final Integer INPUT_PROCESSING_MINUTES = 10;
+  public static final Integer INPUT_RETRY_MINUTES = 15;
+  public static final Integer MAX_INPUT_DELIVERY_ATTEMPTS = 3;
+  public static final Integer MAX_INPUTS_PER_WORKER = 25;
+  public static final String INPUT_FORMAT_VERSION = '1';
 
   public static final Integer MAX_RECORDS_PER_REQUEST = 200;
   public static final Integer MAX_FLOW_GROUPS = 10;

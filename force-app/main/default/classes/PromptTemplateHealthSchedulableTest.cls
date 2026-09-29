@@ -8,10 +8,11 @@ private class PromptTemplateHealthSchedulableTest {
 
   @isTest
   static void shouldRegisterDailyJob_WhenConfiguratorSchedulesIt() {
-    User configurator = [SELECT Id FROM User WHERE Alias = 'pcbtest' LIMIT 1];
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
       Test.startTest();
       String jobId = PromptTemplateHealthSchedulable.scheduleDaily();
+      String repeatedJobId = PromptTemplateHealthSchedulable.scheduleDaily();
       CronTrigger scheduled = [
         SELECT CronExpression, State
         FROM CronTrigger
@@ -23,6 +24,11 @@ private class PromptTemplateHealthSchedulableTest {
         'The documented daily schedule should be registered.'
       );
       Assert.areEqual('WAITING', scheduled.State, 'The job should be waiting.');
+      Assert.areEqual(
+        jobId,
+        repeatedJobId,
+        'Scheduling twice should reuse the active daily job.'
+      );
       Test.stopTest();
     }
   }

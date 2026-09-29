@@ -8,6 +8,35 @@ Never create or delete a scratch org without explicit authorization for that spe
 Reuse a purpose-specific project org when one is available and authorized. Package creation and
 promotion are release-owner decisions.
 
+## Mandatory session guidance
+
+For any Apex, Salesforce metadata, Apex-test, org-validation, or deployment work, read
+[Change safety playbook](docs/contributing/change-safety-playbook.md) before acting. It is the owner
+page for test isolation, deterministic fixtures, Code Analyzer review, approved-org validation,
+source conflicts, Scheduled Apex recovery, deployment sequencing, and evidence language.
+
+Apply these rules in every repository session:
+
+- Inspect `git status --short` before editing and preserve unexplained user changes.
+- Apex tests must not perform DML on `Account`, `Contact`, or `User`. In-memory standard records are
+  allowed for schema, parser, and rendering behavior. Persist package-owned fixtures only when the
+  test requires database behavior.
+- Do not use `SeeAllData=true`, profile display names, or org-existing business data as test setup.
+- Test queries must identify records by semantic keys or states. Do not use an unqualified
+  `LIMIT 1` when more than one semantic record can exist; add `ORDER BY` when order matters.
+- Run Code Analyzer for Apex or metadata changes. Review serious and changed-surface findings; do
+  not equate a severity count with proof that no defect exists.
+- Run `npm run ci:gates`, then validate Apex or metadata against an identified approved org. Local
+  gates are not Salesforce compilation or deployment evidence.
+- A successful check-only deployment is validation, not deployment, and does not authorize
+  overwriting org-side changes.
+- On source conflicts, stop, narrow and inspect the conflict, and obtain explicit user approval
+  before `--ignore-conflicts`, source-tracking reset, or any equivalent overwrite.
+- Before changing a class used by Scheduled Apex, inventory the exact jobs. Restore and verify every
+  temporarily paused or aborted job after success or failure.
+- Never claim universal org compatibility. State the tested org shape, controlled dependencies,
+  and unverified variants.
+
 ## Regression-first development
 
 Every bug fix must leave an executable guard:
@@ -36,6 +65,12 @@ source-reviewed, or locally tested behavior as deployed, browser-verified, or pa
 Read [Documentation standard](docs/quality-gates/documentation-standard.md) before creating or
 substantively revising a user-facing page.
 
+For UI documentation, also read the [Screenshot evidence procedure](docs/screenshots/README.md).
+Every image must be inventoried in `docs/screenshots/manifest.json`, visually inspected for secrets
+and stale content, and labeled as local, deployed-org, or package evidence. Run
+`npm run check:screenshots`; never use a screenshot to imply that undeployed workspace changes are
+browser-verified.
+
 ## Where things live
 
 | Need                           | Location                                                      |
@@ -43,7 +78,7 @@ substantively revising a user-facing page.
 | Product documentation          | `docs/README.md`                                              |
 | Exact limits                   | `force-app/main/default/classes/PromptContextContract.cls`    |
 | Stable result codes            | `force-app/main/default/classes/PromptContextReasonCodes.cls` |
-| Flow and Apex boundary         | `force-app/main/default/classes/PromptContextApi.cls`         |
+| Flow and Apex boundary         | `force-app/main/default/classes/PromptContextInputApi.cls`    |
 | Security authorization         | `force-app/main/default/classes/PromptContextAccess.cls`      |
 | Record-page components         | `force-app/main/default/lwc`                                  |
 | Apex tests                     | `force-app/main/default/classes/*Test.cls`                    |
@@ -53,3 +88,7 @@ substantively revising a user-facing page.
 | Permission boundary gate       | `scripts/check-permission-contract.mjs`                       |
 | LWC coverage completeness      | `scripts/check-lwc-coverage.mjs`                              |
 | Static-analysis configuration  | `code-analyzer.yml`                                           |
+| Change-safety owner page       | `docs/contributing/change-safety-playbook.md`                 |
+| Apex test-isolation gate       | `scripts/check-test-data-isolation.mjs`                       |
+| Screenshot evidence and policy | `docs/screenshots/README.md` and `manifest.json`              |
+| Screenshot contract gate       | `scripts/check-screenshot-contract.mjs`                       |

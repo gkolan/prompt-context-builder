@@ -2,6 +2,8 @@
  * Checks prompt text, Salesforce objects and fields, user access, and size limits.
  */
 public with sharing class PromptContextValidator {
+  @TestVisible
+  private static Boolean multiCurrencyOverride;
   private static final Pattern REFERENCE_NAME = Pattern.compile(
     '^[A-Za-z][A-Za-z0-9_]*$'
   );
@@ -73,6 +75,7 @@ public with sharing class PromptContextValidator {
       );
     }
     validateRoot(config, result);
+    validateFileSettings(config, result);
     Map<String, PromptContextDTO.SourceConfig> activeSources = validateSources(
       config,
       result
@@ -87,6 +90,22 @@ public with sharing class PromptContextValidator {
     validateSourceTokenModes(config.templateBody, activeSources, result);
     validateDependencies(config, activeSources, result);
     return result;
+  }
+
+  private static void validateFileSettings(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.ValidationResult result
+  ) {
+    try {
+      PromptContextFilePolicy.validateConfiguration(config);
+    } catch (PromptContextException exceptionValue) {
+      result.addError(
+        exceptionValue.reasonCode ??
+          PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'Salesforce Files',
+        exceptionValue.getMessage()
+      );
+    }
   }
 
   private static void validateRoot(
@@ -146,6 +165,7 @@ public with sharing class PromptContextValidator {
       }
       if (
         !String.isBlank(source.referenceName) &&
+        REFERENCE_NAME.matcher(source.referenceName).matches() &&
         !containsAliasIgnoreCase(activeSources, source.referenceName)
       ) {
         activeSources.put(source.referenceName, source);
@@ -237,7 +257,7 @@ public with sharing class PromptContextValidator {
       String.isBlank(source.correlationField)
     ) {
       result.addError(
-        'MISSING_CORRELATION_FIELD',
+        'MISSING_MATCH_FIELD',
         location,
         'Choose the related record field that matches the current record.'
       );
@@ -300,7 +320,7 @@ public with sharing class PromptContextValidator {
         );
         if (!correlationDescription.isFilterable()) {
           result.addError(
-            'CORRELATION_NOT_FILTERABLE',
+            'MATCH_FIELD_NOT_FILTERABLE',
             location,
             'Salesforce cannot filter on the related record match field.'
           );
@@ -317,9 +337,22 @@ public with sharing class PromptContextValidator {
             )
           ) {
             result.addError(
-              'INCOMPATIBLE_CORRELATION_TYPES',
+              'MATCH_FIELD_TYPES_DIFFER',
               location,
               'The current record field and related record match field use different field types.'
+            );
+          } else if (
+            !areReferenceTargetsCompatible(
+              rootObject,
+              source.relatedObject,
+              rootDescription,
+              correlationDescription
+            )
+          ) {
+            result.addError(
+              'MATCH_REFERENCE_TARGETS_DIFFER',
+              location,
+              'The current record field and related record match field reference different Salesforce objects.'
             );
           }
         }
@@ -357,6 +390,17 @@ public with sharing class PromptContextValidator {
             'The chosen calculation is not supported for that field type.'
           );
         }
+        if (
+          aggregateType == Schema.DisplayType.Currency &&
+          isMultiCurrencyOrganization() &&
+          !hasMandatoryCurrencyBoundary(source)
+        ) {
+          result.addError(
+            PromptContextReasonCodes.MISSING_CURRENCY_BOUNDARY,
+            location,
+            'Add a required Currency ISO Code equals rule before using this Currency calculation.'
+          );
+        }
       }
       for (
         PromptContextDTO.FilterRule filter : source.filters ??
@@ -385,6 +429,26 @@ public with sharing class PromptContextValidator {
                 filter.fieldName +
                 '.'
             );
+          } else if (
+            filter.operator != 'IS_NULL' &&
+            filter.operator != 'NOT_NULL' &&
+            !String.isBlank(filter.value)
+          ) {
+            try {
+              PromptContextQuery.convertValue(
+                source.relatedObject,
+                filter.fieldName,
+                filter.value
+              );
+            } catch (PromptContextException exceptionValue) {
+              result.addError(
+                PromptContextReasonCodes.INVALID_CONFIGURATION,
+                location,
+                'The filter value for ' +
+                  filter.fieldName +
+                  ' does not match its Salesforce field type.'
+              );
+            }
           }
         }
       }
@@ -570,7 +634,86 @@ public with sharing class PromptContextValidator {
       Schema.DisplayType.Reference,
       Schema.DisplayType.String
     };
-    return idTypes.contains(rootType) && idTypes.contains(relatedType);
+    if (idTypes.contains(rootType) && idTypes.contains(relatedType)) {
+      return true;
+    }
+    Set<Schema.DisplayType> textTypes = new Set<Schema.DisplayType>{
+      Schema.DisplayType.Email,
+      Schema.DisplayType.Phone,
+      Schema.DisplayType.Picklist,
+      Schema.DisplayType.String,
+      Schema.DisplayType.TextArea,
+      Schema.DisplayType.Url
+    };
+    return textTypes.contains(rootType) && textTypes.contains(relatedType);
+  }
+
+  private static Boolean areReferenceTargetsCompatible(
+    String rootObject,
+    String relatedObject,
+    Schema.DescribeFieldResult rootField,
+    Schema.DescribeFieldResult relatedField
+  ) {
+    String rootTarget = referenceTarget(rootObject, rootField);
+    String relatedTarget = referenceTarget(relatedObject, relatedField);
+    if (rootTarget == '__POLYMORPHIC__' || relatedTarget == '__POLYMORPHIC__') {
+      return false;
+    }
+    return rootTarget == null ||
+      relatedTarget == null ||
+      rootTarget.equalsIgnoreCase(relatedTarget);
+  }
+
+  private static String referenceTarget(
+    String owningObject,
+    Schema.DescribeFieldResult fieldDescription
+  ) {
+    if (fieldDescription.getType() == Schema.DisplayType.Id) {
+      return owningObject;
+    }
+    if (fieldDescription.getType() != Schema.DisplayType.Reference) {
+      return null;
+    }
+    List<Schema.SObjectType> targets = fieldDescription.getReferenceTo();
+    return targets.size() == 1
+      ? PromptContextSchemaCache.describeObject(targets[0]).getName()
+      : '__POLYMORPHIC__';
+  }
+
+  private static Boolean isMultiCurrencyOrganization() {
+    return multiCurrencyOverride == null
+      ? UserInfo.isMultiCurrencyOrganization()
+      : multiCurrencyOverride;
+  }
+
+  @TestVisible
+  private static Boolean hasMandatoryCurrencyBoundary(
+    PromptContextDTO.SourceConfig source
+  ) {
+    Set<String> groups = new Set<String>();
+    Boolean hasBoundary = false;
+    for (
+      PromptContextDTO.FilterRule filter : source.filters ??
+        new List<PromptContextDTO.FilterRule>()
+    ) {
+      String groupName = String.isBlank(filter?.groupName)
+        ? 'default'
+        : filter.groupName.toLowerCase();
+      groups.add(groupName);
+      if (
+        filter != null &&
+        filter.fieldName != null &&
+        filter.fieldName.equalsIgnoreCase('CurrencyIsoCode') &&
+        filter.operator == 'EQ' &&
+        Pattern.matches('^[A-Z]{3}$', filter.value ?? '')
+      ) {
+        hasBoundary = true;
+      }
+    }
+    if (!hasBoundary) {
+      return false;
+    }
+    return source.filterGroupJoin != 'OR' || groups.size() <= 1;
   }
 
   private static void validateFilters(
@@ -611,7 +754,7 @@ public with sharing class PromptContextValidator {
       } else if (
         filter.operator != 'IS_NULL' &&
         filter.operator != 'NOT_NULL' &&
-        filter.value == null
+        String.isBlank(filter.value)
       ) {
         result.addError(
           'MISSING_FILTER_VALUE',
@@ -673,10 +816,11 @@ public with sharing class PromptContextValidator {
     Map<String, PromptContextDTO.SourceConfig> activeSources,
     PromptContextDTO.ValidationResult result
   ) {
+    String templateBody = config.templateBody ?? '';
     if (!String.isBlank(config.rootObject)) {
       for (
         String fieldPath : PromptTemplateLanguage.getRootFieldPaths(
-          config.templateBody
+          templateBody
         )
       ) {
         try {
@@ -695,7 +839,7 @@ public with sharing class PromptContextValidator {
     }
 
     Map<String, Set<String>> relatedDependencies = PromptTemplateLanguage.getRelatedFieldPaths(
-      config.templateBody
+      templateBody
     );
     for (String alias : relatedDependencies.keySet()) {
       PromptContextDTO.SourceConfig source = activeSources.get(alias);
@@ -722,8 +866,14 @@ public with sharing class PromptContextValidator {
     for (String alias : activeSources.keySet()) {
       if (
         !relatedDependencies.containsKey(alias) &&
-        !config.templateBody.contains('related.' + alias + '.') &&
-        !config.templateBody.contains('aggregate.' + alias + '.value')
+        !Pattern.compile(
+            '\\{!\\s*(?:#(?:each|if)\\s+)?related\\.' +
+              alias +
+              '(?:\\.|\\[|\\s)'
+          )
+          .matcher(templateBody)
+          .find() &&
+        !templateBody.contains('aggregate.' + alias + '.value')
       ) {
         result.addWarning(
           'UNUSED_SOURCE',

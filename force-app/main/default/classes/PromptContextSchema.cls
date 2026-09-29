@@ -204,7 +204,8 @@ public with sharing class PromptContextSchema {
       }
       List<Schema.SObjectType> referenceTypes = relationshipDescription.getReferenceTo();
       if (referenceTypes.size() != 1) {
-        throw new PromptContextException(
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.INVALID_CONFIGURATION,
           'Relationship ' + segment + ' must reference one object type.'
         );
       }

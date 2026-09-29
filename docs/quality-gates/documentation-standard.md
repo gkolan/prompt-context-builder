@@ -45,3 +45,8 @@ navigation in the same change.
 Run `npm run check:docs` and `npm run prettier:verify`. Then read each changed page in rendered
 order and confirm a junior Salesforce administrator or developer can complete the task without
 guessing. Passing a link or formatting check does not verify a technical claim.
+
+For UI images, follow the [screenshot evidence procedure](../screenshots/README.md), update the
+manifest, inspect the pixels for secrets and stale labels, and run `npm run check:screenshots`.
+State whether the capture proves a deployed source org, an installed package, or only a local
+rendering. Do not use one category as evidence for another.

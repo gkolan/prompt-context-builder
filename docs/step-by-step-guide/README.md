@@ -50,6 +50,11 @@ Add one data set:
 The reference name appears in the inserted field code. It is separate from the object name and lets
 two data sets include Contact records with different filters or sorting.
 
+![Contact data set using current-record field matching](../screenshots/prompt-builder-related-data-current.png)
+
+The screenshot is browser evidence from the approved scratch-org baseline captured on September
+26, 2026. It does not claim that every current workspace change is deployed.
+
 ## 3. Validate and preview
 
 Validate the Draft, then preview it with the chosen Account. A successful preview shows the
@@ -62,8 +67,9 @@ limit or security check.
 ## 4. Publish
 
 Publish only after preview succeeds. Publishing creates a fixed version and records its version
-signature. Later edits occur in a Draft and do not change the published version used by existing
-automation.
+signature. Saving later edits changes the editable settings. A live template keeps its Published
+status, and generation continues to use the latest fixed version until the edits are previewed and
+published as a new version.
 
 ## 5. Verify positive and negative outcomes
 

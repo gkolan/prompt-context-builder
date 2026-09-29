@@ -38,7 +38,7 @@ const NULLS_OPTIONS = [
 ];
 
 const SOURCE_MODES = [
-  { label: "Related to current record", value: "RELATED" },
+  { label: "Match a current record field", value: "RELATED" },
   { label: "Reference records", value: "REFERENCE" }
 ];
 const RESULT_MODES = [
@@ -56,6 +56,12 @@ const AGGREGATE_OPERATIONS = [
 const FILTER_GROUP_JOINS = [
   { label: "Every group must match (AND)", value: "AND" },
   { label: "Any group may match (OR)", value: "OR" }
+];
+
+const FILE_INPUT_MODES = [
+  { label: "Do not include Salesforce Files", value: "DISABLED" },
+  { label: "Let the user choose Files", value: "USER_SELECT" },
+  { label: "Include all eligible Files", value: "ALL_ELIGIBLE" }
 ];
 
 const TEMPLATE_PAGE_SIZE = 50;
@@ -113,6 +119,12 @@ function newConfig() {
     templateBody: "",
     status: "Draft",
     version: 0,
+    fileInputMode: "DISABLED",
+    maxFiles: null,
+    requireAtLeastOneFile: false,
+    allowedFileFormats: "",
+    providerProfileKey: "",
+    fileCitationsEnabled: false,
     sources: []
   };
 }
@@ -156,6 +168,7 @@ export default class PromptTemplateBuilder extends LightningElement {
   resultModeOptions = RESULT_MODES;
   aggregateOperationOptions = AGGREGATE_OPERATIONS;
   filterGroupJoinOptions = FILTER_GROUP_JOINS;
+  fileInputModeOptions = FILE_INPUT_MODES;
   syntaxExamples = [
     { key: "root", label: "Current record field", syntax: "{!record.Name}" },
     {
@@ -219,6 +232,10 @@ export default class PromptTemplateBuilder extends LightningElement {
 
   get hasSources() {
     return this.config.sources.length > 0;
+  }
+
+  get filesEnabled() {
+    return this.config.fileInputMode !== "DISABLED";
   }
 
   get hasMessages() {
@@ -356,13 +373,15 @@ export default class PromptTemplateBuilder extends LightningElement {
     const activeSources = this.config.sources.filter(
       (source) => source.active !== false
     );
-    const requestedRows = activeSources.reduce(
-      (total, source) =>
-        total +
-        (source.resultMode === "AGGREGATE" ? 1 : Number(source.maxRows) || 0),
+    const recordSources = activeSources.filter(
+      (source) => source.resultMode !== "AGGREGATE"
+    );
+    const aggregateSources = activeSources.length - recordSources.length;
+    const requestedRows = recordSources.reduce(
+      (total, source) => total + (Number(source.maxRows) || 0),
       0
     );
-    return `${activeSources.length} data set${activeSources.length === 1 ? "" : "s"} included · up to ${requestedRows} records · 200 records allowed per template`;
+    return `${activeSources.length} data set${activeSources.length === 1 ? "" : "s"} included · up to ${requestedRows} returned records · ${aggregateSources} calculated value${aggregateSources === 1 ? "" : "s"} · 200 returned records allowed per template`;
   }
 
   async refreshTemplates(reset = true) {
@@ -471,6 +490,7 @@ export default class PromptTemplateBuilder extends LightningElement {
     const requestId = ++this.templateRequestId;
     const requestedTemplateId = event.detail.value;
     if (this.isDirty && requestedTemplateId !== this.selectedTemplateId) {
+      event.target.value = this.selectedTemplateId;
       this.toast(
         "Unsaved changes",
         "Save the draft or use Discard changes before opening another template.",
@@ -532,6 +552,16 @@ export default class PromptTemplateBuilder extends LightningElement {
       this.rootMergeField = "";
       this.sampleRecordId = "";
       this.loadRootFields();
+    }
+    if (field === "fileInputMode" && value === "DISABLED") {
+      this.config = {
+        ...this.config,
+        maxFiles: null,
+        requireAtLeastOneFile: false,
+        allowedFileFormats: "",
+        providerProfileKey: "",
+        fileCitationsEnabled: false
+      };
     }
   }
 
@@ -641,7 +671,13 @@ export default class PromptTemplateBuilder extends LightningElement {
   }
 
   addSource() {
-    const sourceNumber = this.config.sources.length + 1;
+    const usedReferenceNames = new Set(
+      this.config.sources.map((source) => source.referenceName)
+    );
+    let sourceNumber = this.config.sources.length + 1;
+    while (usedReferenceNames.has(`related_records_${sourceNumber}`)) {
+      sourceNumber += 1;
+    }
     const source = this.decorateSourceView({
       clientKey: `source-${++this.keySequence}`,
       referenceName: `related_records_${sourceNumber}`,
@@ -945,7 +981,7 @@ export default class PromptTemplateBuilder extends LightningElement {
       return;
     }
     await this.runAction(async () => {
-      if (!this.config.id) {
+      if (!this.config.id || this.isDirty) {
         const saved = await saveDraft({
           configJson: JSON.stringify(this.toServerConfig())
         });
@@ -1144,7 +1180,7 @@ export default class PromptTemplateBuilder extends LightningElement {
     const scopeText =
       sourceMode === "REFERENCE"
         ? "visible reference records"
-        : `records where ${source.correlationField || "related field"} matches current record ${source.rootField || "field"}`;
+        : `records where ${source.correlationField || "source match field"} equals current record ${source.rootField || "match field"}`;
     return {
       ...source,
       sourceMode,
@@ -1175,7 +1211,7 @@ export default class PromptTemplateBuilder extends LightningElement {
       modeHelp:
         sourceMode === "REFERENCE"
           ? "Independent of the current record. Sharing, field access, filters, sorting, and limits still apply."
-          : "Restricted by matching a queried-object field to a field on the current record.",
+          : "Salesforce matches a field on this object to a field on the current record. The objects do not need a lookup relationship.",
       querySummary: isAggregate
         ? `${source.relatedObject || "Choose an object"}: ${scopeText}; ${filterText}; one ${source.aggregateOperation || "calculated"} value.`
         : `${source.relatedObject || "Choose an object"}: ${scopeText}; ${filterText}; ${sortText}; limit ${source.maxRows || 10}.`

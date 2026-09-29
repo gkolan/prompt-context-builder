@@ -25,6 +25,10 @@ authorized that operation.
 
 ## Before opening a pull request
 
+Read the repository
+[change safety playbook](../docs/contributing/change-safety-playbook.md) before Apex, metadata,
+test-fixture, validation, or deployment work.
+
 1. Reproduce behavior changes with a focused regression test before implementing the fix.
 2. Run the focused test against the broken implementation and confirm the expected failure.
 3. Apply the smallest complete fix and keep the regression test.
@@ -41,6 +45,10 @@ authorized that operation.
 7. For Apex or metadata changes, run a validation deployment and `RunLocalTests` in an approved
    Salesforce org. Never create or delete a scratch org without the release owner's authorization.
 8. Record local, org, browser, and package evidence separately in the pull request.
+9. For test changes, confirm there is no `Account`, `Contact`, or `User` DML and no fixture query
+   that relies on an unqualified `LIMIT 1`.
+10. For deployment work, report source conflicts explicitly and obtain approval before bypassing
+    conflict protection. Restore and verify Scheduled Apex changed for the deployment.
 
 ## Open the pull request
 

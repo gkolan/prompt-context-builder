@@ -38,7 +38,7 @@ public with sharing class PromptContextController {
   }
 
   /** Returns one limited template catalog page in a consistent Name and Id order. */
-  @AuraEnabled(cacheable=true)
+  @AuraEnabled
   public static PromptContextDTO.TemplateSummaryPage getTemplateSummaryPage(
     String searchText,
     Integer pageSize,
@@ -64,7 +64,7 @@ public with sharing class PromptContextController {
    * @param templateId Template Id
    * @return Complete editable template configuration
    */
-  @AuraEnabled(cacheable=true)
+  @AuraEnabled
   public static PromptContextDTO.TemplateConfig getTemplate(Id templateId) {
     try {
       PromptContextAccess.requireConfigure();
@@ -100,7 +100,7 @@ public with sharing class PromptContextController {
   }
 
   /** Returns fixed published versions, newest first. */
-  @AuraEnabled(cacheable=true)
+  @AuraEnabled
   public static List<PromptContextDTO.VersionSummary> getTemplateVersions(
     Id templateId
   ) {
@@ -117,7 +117,7 @@ public with sharing class PromptContextController {
   }
 
   /** Returns a limited comparison of two fixed versions without record values. */
-  @AuraEnabled(cacheable=true)
+  @AuraEnabled
   public static PromptContextDTO.VersionComparison compareTemplateVersions(
     Id templateId,
     Integer fromVersion,
@@ -286,6 +286,39 @@ public with sharing class PromptContextController {
     }
   }
 
+  /** Returns eligible Salesforce Files directly linked to the current record. */
+  @AuraEnabled
+  public static PromptContextDTO.FileChoicePage getEligibleFiles(
+    Id templateId,
+    Id recordId,
+    String afterTitle,
+    Id afterId
+  ) {
+    try {
+      PromptContextAccess.requireGenerate();
+      PromptContextDTO.TemplateConfig header = PromptTemplateService.getTemplate(
+        templateId
+      );
+      if (header.status != 'Published') {
+        throw new PromptContextException(
+          'Only a published template can list Salesforce Files.'
+        );
+      }
+      return PromptContextFilePolicy.getFileChoices(
+        PromptTemplateService.getPublishedConfig(header),
+        recordId,
+        afterTitle,
+        afterId
+      );
+    } catch (PromptContextAccess.AuthorizationException exceptionValue) {
+      throw safeException(Label.PCB_Access_Denied);
+    } catch (PromptContextException exceptionValue) {
+      throw safeException(exceptionValue.getMessage());
+    } catch (Exception exceptionValue) {
+      throw safeException(Label.PCB_Generation_Failed);
+    }
+  }
+
   /**
    * @param templateId Published template Id
    * @param recordId Current Salesforce record Id
@@ -294,72 +327,63 @@ public with sharing class PromptContextController {
   @AuraEnabled
   public static PromptContextDTO.PromptResult generatePrompt(
     Id templateId,
-    Id recordId
+    Id recordId,
+    List<Id> selectedContentVersionIds
   ) {
     Long startedAtMilliseconds = Datetime.now().getTime();
-    String correlationId = PromptContextTrace.newCorrelationId();
     try {
-      PromptContextAccess.requireGenerate();
-      PromptContextDTO.PromptResult result = PromptTemplateService.generatePublished(
-        templateId,
-        recordId
-      );
-      publishMetric(
-        templateId,
-        result.templateVersion,
-        PromptContextReasonCodes.SUCCESS,
-        correlationId,
-        startedAtMilliseconds
-      );
+      PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+      request.templateId = templateId;
+      request.recordId = recordId;
+      request.selectedContentVersionIds = selectedContentVersionIds;
+      PromptContextPreparationService.Response response = PromptContextPreparationService.execute(
+        new List<PromptContextPreparationService.Request>{ request },
+        'LWC'
+      )[0];
+      if (!response.success) {
+        throw safeException(response.message);
+      }
+      PromptContextDTO.PromptResult result = new PromptContextDTO.PromptResult();
+      result.prompt = response.prompt;
+      result.contractVersion = response.contractVersion;
+      result.syntaxVersion = response.syntaxVersion;
+      result.fingerprint = response.fingerprint;
+      result.templateVersion = response.templateVersion;
+      result.sourceRecordCounts = response.sourceRecordCounts;
+      result.messages = response.messages;
+      result.accessManifest = response.accessManifest;
+      result.selectedFilesJson = response.selectedFilesJson;
       return result;
+    } catch (AuraHandledException exceptionValue) {
+      throw exceptionValue;
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
-      publishMetric(
+      publishControllerFailureMetric(
         templateId,
-        null,
         PromptContextReasonCodes.NOT_AUTHORIZED,
-        correlationId,
         startedAtMilliseconds
       );
       throw safeException(Label.PCB_Access_Denied);
-    } catch (PromptContextException exceptionValue) {
-      publishMetric(
-        templateId,
-        null,
-        exceptionValue.reasonCode ??
-          PromptContextReasonCodes.INVALID_CONFIGURATION,
-        correlationId,
-        startedAtMilliseconds
-      );
-      throw safeException(exceptionValue.getMessage());
     } catch (Exception exceptionValue) {
-      publishMetric(
+      publishControllerFailureMetric(
         templateId,
-        null,
         PromptContextReasonCodes.UNEXPECTED_ERROR,
-        correlationId,
         startedAtMilliseconds
       );
       throw safeException(Label.PCB_Generation_Failed);
     }
   }
 
-  private static void publishMetric(
+  private static void publishControllerFailureMetric(
     Id templateId,
-    Integer templateVersion,
-    String outcomeCode,
-    String correlationId,
+    String reasonCode,
     Long startedAtMilliseconds
   ) {
-    if (templateId == null) {
-      return;
-    }
     PromptContextMetrics.Signal signal = new PromptContextMetrics.Signal();
     signal.channel = 'LWC';
-    signal.outcomeCode = outcomeCode;
+    signal.outcomeCode = reasonCode;
     signal.startedAtMilliseconds = startedAtMilliseconds;
     signal.templateId = templateId;
-    signal.templateVersion = templateVersion;
-    signal.correlationId = correlationId;
+    signal.correlationId = PromptContextTrace.newCorrelationId();
     PromptContextMetrics.publishOne(signal);
   }
 

@@ -10,9 +10,20 @@
     >true</enabled></classAccesses>
     <classAccesses><apexClass>PromptContextException</apexClass><enabled
     >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextFilePolicy</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextFileSelector</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextBulkService</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextProviderSettings</apexClass><enabled
+    >true</enabled></classAccesses>
     <classAccesses><apexClass>PromptContextQuery</apexClass><enabled
     >true</enabled></classAccesses>
-    <classAccesses><apexClass>PromptContextApi</apexClass><enabled
+    <classAccesses><apexClass>PromptContextInputApi</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass
+    >PromptContextPreparationService</apexClass><enabled
     >true</enabled></classAccesses>
     <classAccesses><apexClass>PromptContextResourcePlanner</apexClass><enabled
     >true</enabled></classAccesses>
@@ -33,6 +44,9 @@
     <classAccesses><apexClass>PromptContextService</apexClass><enabled
     >true</enabled></classAccesses>
     <classAccesses><apexClass>PromptContextValidator</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass
+    >PromptContextValidationMessages</apexClass><enabled
     >true</enabled></classAccesses>
     <classAccesses><apexClass>PromptContextReasonCodes</apexClass><enabled
     >true</enabled></classAccesses>
@@ -63,6 +77,21 @@
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Version__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.Maximum_Files__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.Require_File__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.Allowed_File_Formats__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.Provider_Profile_Key__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.File_Citations_Enabled__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Last_Health_Checked_At__c</field><readable
@@ -108,6 +137,21 @@
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Template_Version__c.Template_Body__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template_Version__c.Maximum_Files__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template_Version__c.Require_File__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template_Version__c.Allowed_File_Formats__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template_Version__c.Provider_Profile_Key__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Template_Version__c.File_Citations_Enabled__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Context_Source_Version__c.Active__c</field><readable

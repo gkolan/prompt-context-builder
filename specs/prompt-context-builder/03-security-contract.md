@@ -27,8 +27,8 @@ being selected. This is assistance, not the final enforcement point.
 
 ### Publishing
 
-The server validates schema existence, field types, relationships, source correlation, projection,
-order, limits, template syntax, and the complete access manifest. A successful publish proves the
+The server validates schema existence, field types, relationships, source matching, projection,
+order, limits, template syntax, and the complete field-access list. A successful publish proves the
 configuration is structurally valid at that time. It does not promise that every future runner has
 the required access.
 
@@ -42,7 +42,7 @@ Every generation request revalidates the published version and enforces the runn
 - restriction rules;
 - scoping rules;
 - relationship visibility; and
-- permission to every field used in SELECT, correlation, filters, sorting, grouping, or aggregate
+- permission to every field used in SELECT, matching, filters, sorting, grouping, or aggregate
   expressions.
 
 ## 4. Explicit user-mode access
@@ -52,28 +52,34 @@ Every generation request revalidates the published version and enforces the runn
 - Apex classes that access records explicitly retain sharing.
 - Dynamic SOQL uses typed bind maps and `AccessLevel.USER_MODE` or an equivalently explicit
   user-mode query contract.
-- No fallback system-mode query is permitted.
+- No fallback system-mode customer-data query is permitted. The only non-customer-data recovery
+  query uses an exact user-scoped Prompt Input Log request-key hash after a duplicate user-mode
+  insert, selects only the record Id and verification fields, and requires the digest to match.
 - No elevated count is permitted to distinguish absent rows from hidden rows.
+
+Immutable template and source version snapshots are package-owned configuration records. After the
+caller passes configuration authorization, schema validation, and preview, publication inserts those
+snapshots in system mode so authors do not receive direct Create access to the immutable objects.
 
 Record Health Check applies the same boundary in its security and data-access design. Its query
 preparation also rejects elevated or unsafe clauses in the user-mode SOQL template implementation.
 
-## 5. Access manifest
+## 5. Field-access list
 
-Compilation produces an exact manifest containing:
+Compilation produces an exact field-access list containing:
 
 - root object and selected fields;
 - every parent relationship segment and terminal field;
 - each related source object;
-- correlation fields on both sides;
+- matching fields on both sides;
 - output fields;
 - filter fields;
 - sort and null-order fields;
 - group fields; and
 - aggregate operand fields.
 
-Preview shows the manifest in plain language and tests the current user's access. Runtime uses the
-same compiled manifest, preventing validation and execution from drifting.
+Preview shows the field-access list in plain language and tests the current user's access. Runtime uses the
+same compiled field-access list, preventing validation and execution from drifting.
 
 ## 6. Required field behavior
 
@@ -94,7 +100,7 @@ recovery mechanisms.
 If `Security.stripInaccessible()` is used as defense in depth:
 
 1. inspect the returned removed-field map;
-2. compare it with the compiled access manifest;
+2. compare it with the saved field-access list;
 3. abort if any required field was removed; and
 4. render only the returned sanitized records after the comparison.
 
@@ -123,7 +129,7 @@ Forbidden behaviors:
 - Sort direction is fixed to `ASC` or `DESC`.
 - Null ordering comes from a fixed supported list.
 - Limits are validated numeric values.
-- Correlation is generated separately and always ANDed with optional filters.
+- Matching is generated separately and always ANDed with optional filters.
 - `SYSTEM_MODE`, `FOR UPDATE`, `ALL ROWS`, DML keywords, and unsupported clauses are rejected.
 - Query-result tokens are prohibited on query surfaces; only root-record bind references are
   supported.
@@ -243,7 +249,7 @@ Description: {!record.Description}
 ```
 
 This is defense in depth, not a claim that delimiters eliminate downstream model prompt injection.
-The current product does not call a model.
+The current product does not send data to an external provider.
 
 ## 17. Audit and lifecycle
 
@@ -282,4 +288,4 @@ Security is not accepted until automated verification proves:
   and scoping enforcement.
 - Dynamic values use bind variables and do not use query concatenation.
 - Record Health Check's fail-closed merge validation, projection proof, deterministic ordering,
-  bounded output, and visible-scope semantics are the reusable local reference patterns.
+  limited output, and visible-scope semantics are the reusable local reference patterns.

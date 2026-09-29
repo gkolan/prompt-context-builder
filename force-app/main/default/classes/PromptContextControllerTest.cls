@@ -7,8 +7,10 @@ private class PromptContextControllerTest {
   static void setupTestData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
-      Account accountRecord = PromptContextTestDataFactory.createAccount(true);
-      PromptContextTestDataFactory.createContacts(accountRecord.Id, true);
+      Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
     }
   }
 
@@ -16,7 +18,7 @@ private class PromptContextControllerTest {
   static void shouldCompleteLifecycle_WhenConfigurationIsValid() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
       PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
 
       Test.startTest();
@@ -35,11 +37,12 @@ private class PromptContextControllerTest {
         accountRecord.Id
       );
       List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
-        'Account'
+        'Prompt_Template__c'
       );
       PromptContextDTO.PromptResult generated = PromptContextController.generatePrompt(
         saved.id,
-        accountRecord.Id
+        accountRecord.Id,
+        null
       );
       PromptContextDTO.TemplateSummaryPage templatePage = PromptContextController.getTemplateSummaryPage(
         null,
@@ -101,9 +104,9 @@ private class PromptContextControllerTest {
         'Publishing should save each independently configured data set version.'
       );
       Assert.areEqual(
-        1,
+        2,
         templatePage.items.size(),
-        'The builder should reload its saved template.'
+        'The builder should reload the saved template and package-owned root fixture.'
       );
       Assert.areEqual(
         saved.id,
@@ -117,7 +120,7 @@ private class PromptContextControllerTest {
   static void shouldExcludeTemplate_WhenRootObjectDoesNotMatch() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
@@ -125,7 +128,7 @@ private class PromptContextControllerTest {
 
       Test.startTest();
       List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
-        'Contact'
+        'Prompt_Context_Source__c'
       );
       Test.stopTest();
 
@@ -138,10 +141,41 @@ private class PromptContextControllerTest {
   }
 
   @isTest
+  static void shouldExposeProviderLoweredFileLimit() {
+    User configurator = getConfigurator();
+    System.runAs(configurator) {
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
+      PromptContextProviderSettings.useForTest('Approved_Bedrock');
+      PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+      config.fileInputMode = 'USER_SELECT';
+      config.maxFiles = 5;
+      config.allowedFileFormats = 'pdf,txt';
+      config.providerProfileKey = 'Approved_Bedrock';
+      PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
+        JSON.serialize(config)
+      );
+      PromptContextController.publish(saved.id, accountRecord.Id);
+      PromptContextProviderSettings.settingsForTest
+        .get('Approved_Bedrock')
+        .maximumFiles = 2;
+
+      List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
+        'Prompt_Template__c'
+      );
+
+      Assert.areEqual(
+        2,
+        choices[0].maxFiles,
+        'The record page should enforce the current provider limit.'
+      );
+    }
+  }
+
+  @isTest
   static void shouldRemovePublishedChoice_WhenTemplateIsDeactivated() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
@@ -152,7 +186,7 @@ private class PromptContextControllerTest {
         saved.id
       );
       List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
-        'Account'
+        'Prompt_Template__c'
       );
       Test.stopTest();
 
@@ -233,11 +267,12 @@ private class PromptContextControllerTest {
 
       Assert.areEqual(2, firstPage.items.size());
       Assert.isTrue(firstPage.hasMore);
-      Assert.areEqual('Alpha', firstPage.items[0].name);
-      Assert.areEqual('Beta', firstPage.items[1].name);
-      Assert.areEqual(1, secondPage.items.size());
+      Assert.areEqual('Acme Research', firstPage.items[0].name);
+      Assert.areEqual('Alpha', firstPage.items[1].name);
+      Assert.areEqual(2, secondPage.items.size());
       Assert.isFalse(secondPage.hasMore);
-      Assert.areEqual('Gamma', secondPage.items[0].name);
+      Assert.areEqual('Beta', secondPage.items[0].name);
+      Assert.areEqual('Gamma', secondPage.items[1].name);
       Assert.areEqual(1, searchPage.items.size());
       Assert.areEqual('Beta', searchPage.items[0].name);
     }
@@ -247,7 +282,7 @@ private class PromptContextControllerTest {
   static void shouldRejectChangesToPublishedSnapshots() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
@@ -376,6 +411,85 @@ private class PromptContextControllerTest {
     assertAuraError('GENERATE');
   }
 
+  @isTest
+  static void shouldReturnSafeError_WhenHealthJsonIsMalformed() {
+    assertAuraError('HEALTH_JSON');
+  }
+
+  @isTest
+  static void shouldReturnSafeError_WhenVersionTemplateIsMissing() {
+    assertAuraError('VERSIONS');
+  }
+
+  @isTest
+  static void shouldReturnAccessDeniedFromEveryControllerBoundary() {
+    PromptContextAccess.setConfigureForTest(false);
+    PromptContextAccess.setGenerateForTest(false);
+    for (
+      String action : new List<String>{
+        'OBJECTS',
+        'FIELDS',
+        'PAGE',
+        'TEMPLATE',
+        'HEALTH',
+        'VERSIONS',
+        'COMPARE',
+        'RESTORE',
+        'SAVE',
+        'VALIDATE',
+        'PREVIEW',
+        'PUBLISH',
+        'DEACTIVATE',
+        'PUBLISHED',
+        'FILES',
+        'GENERATE'
+      }
+    ) {
+      assertControllerAccessDenied(action);
+    }
+  }
+
+  private static void assertControllerAccessDenied(String action) {
+    try {
+      if (action == 'OBJECTS') {
+        PromptContextController.getObjectOptions();
+      } else if (action == 'FIELDS') {
+        PromptContextController.getFieldOptions('Account');
+      } else if (action == 'PAGE') {
+        PromptContextController.getTemplateSummaryPage(null, 10, null, null);
+      } else if (action == 'TEMPLATE') {
+        PromptContextController.getTemplate(null);
+      } else if (action == 'HEALTH') {
+        PromptContextController.checkTemplateHealth(null);
+      } else if (action == 'VERSIONS') {
+        PromptContextController.getTemplateVersions(null);
+      } else if (action == 'COMPARE') {
+        PromptContextController.compareTemplateVersions(null, 1, 2);
+      } else if (action == 'RESTORE') {
+        PromptContextController.restoreTemplateVersion(null, 1);
+      } else if (action == 'SAVE') {
+        PromptContextController.saveDraft(null);
+      } else if (action == 'VALIDATE') {
+        PromptContextController.validateConfig(null);
+      } else if (action == 'PREVIEW') {
+        PromptContextController.preview(null, null);
+      } else if (action == 'PUBLISH') {
+        PromptContextController.publish(null, null);
+      } else if (action == 'DEACTIVATE') {
+        PromptContextController.deactivateTemplate(null);
+      } else if (action == 'PUBLISHED') {
+        PromptContextController.getPublishedTemplates('Account');
+      } else if (action == 'FILES') {
+        PromptContextController.getEligibleFiles(null, null, null, null);
+      } else if (action == 'GENERATE') {
+        PromptContextController.generatePrompt(null, null, null);
+      }
+      Assert.fail(action + ' should require the matching permission.');
+    } catch (AuraHandledException exceptionValue) {
+      Assert.isNotNull(exceptionValue);
+    }
+  }
+
   private static void assertAuraError(String action) {
     PromptContextAccess.setConfigureForTest(true);
     PromptContextAccess.setGenerateForTest(true);
@@ -405,7 +519,11 @@ private class PromptContextControllerTest {
       } else if (action == 'PUBLISHED') {
         PromptContextController.getPublishedTemplates('Missing_Object__c');
       } else if (action == 'GENERATE') {
-        PromptContextController.generatePrompt(null, null);
+        PromptContextController.generatePrompt(null, null, null);
+      } else if (action == 'HEALTH_JSON') {
+        PromptContextController.checkTemplateHealth('{bad json');
+      } else if (action == 'VERSIONS') {
+        PromptContextController.getTemplateVersions(null);
       }
       Assert.fail('The invalid request should return a safe error.');
     } catch (AuraHandledException exceptionValue) {
@@ -418,6 +536,6 @@ private class PromptContextControllerTest {
   }
 
   private static User getConfigurator() {
-    return [SELECT Id FROM User WHERE Alias = 'pcbtest' LIMIT 1];
+    return PromptContextTestDataFactory.createConfiguratorUser();
   }
 }

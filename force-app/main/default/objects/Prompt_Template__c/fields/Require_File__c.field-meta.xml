@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Require_File__c</fullName>
+    <defaultValue>false</defaultValue>
+    <description
+  >Requires at least one eligible Salesforce File before the prompt can continue.</description>
+    <inlineHelpText
+  >Select this only when the prompt must have a file. A request with no eligible file fails clearly.</inlineHelpText>
+    <label>Require a File</label>
+    <type>Checkbox</type>
+</CustomField>

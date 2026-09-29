@@ -5,8 +5,10 @@ private class PromptTemplateGovernanceServiceTest {
   static void setupTestData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {
-      Account accountRecord = PromptContextTestDataFactory.createAccount(true);
-      PromptContextTestDataFactory.createContacts(accountRecord.Id, true);
+      Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
     }
   }
 
@@ -15,6 +17,18 @@ private class PromptTemplateGovernanceServiceTest {
     User configurator = getConfigurator();
     System.runAs(configurator) {
       PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();
+      config.rootObject = 'Account';
+      config.templateBody =
+        'Account: {!record.Name}\n' +
+        '{!#each related.recent_contacts as="row"}{!row.LastName}: {!row.Email};{!/each}';
+      config.sources.remove(1);
+      PromptContextDTO.SourceConfig source = config.sources[0];
+      source.relatedObject = 'Contact';
+      source.rootField = 'Id';
+      source.correlationField = 'AccountId';
+      source.selectedFields = new List<String>{ 'LastName', 'Email' };
+      source.filters[0].fieldName = 'Email';
+      source.sorts[0].fieldName = 'LastName';
 
       Test.startTest();
       PromptContextDTO.TemplateHealth health = PromptContextController.checkTemplateHealth(
@@ -46,7 +60,7 @@ private class PromptTemplateGovernanceServiceTest {
   static void shouldCompareAndRestoreImmutableVersion_AsEditableDraft() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
-      Account accountRecord = [SELECT Id FROM Account LIMIT 1];
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
@@ -87,9 +101,9 @@ private class PromptTemplateGovernanceServiceTest {
         'Template and source changes should both be reported.'
       );
       Assert.areEqual(
-        'Draft',
+        'Published',
         restored.status,
-        'Rollback should create editable draft state.'
+        'Restoring editable settings must not take the current publication offline.'
       );
       Assert.isFalse(
         restored.templateBody.contains('Version two marker'),
@@ -132,7 +146,32 @@ private class PromptTemplateGovernanceServiceTest {
     }
   }
 
+  @isTest
+  static void shouldReportNoChangesForEquivalentPublications() {
+    User configurator = getConfigurator();
+    System.runAs(configurator) {
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
+      PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(
+        PromptContextTestDataFactory.createTwoSourceConfig()
+      );
+      PromptTemplateService.publish(saved.id, accountRecord.Id);
+      PromptTemplateService.publish(saved.id, accountRecord.Id);
+
+      PromptContextDTO.VersionComparison comparison = PromptTemplateGovernanceService.compareVersions(
+        saved.id,
+        1,
+        2
+      );
+
+      Assert.areEqual(
+        new List<String>{ 'No configuration differences were found.' },
+        comparison.changes,
+        'Publication record identities and version numbers are not configuration changes.'
+      );
+    }
+  }
+
   private static User getConfigurator() {
-    return [SELECT Id FROM User WHERE Alias = 'pcbtest' LIMIT 1];
+    return PromptContextTestDataFactory.createConfiguratorUser();
   }
 }

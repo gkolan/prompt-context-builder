@@ -68,24 +68,94 @@ public with sharing class PromptContextQuery {
     );
   }
 
+  /** Builds one limited query for all match values in a bulk request. */
+  public static Plan buildBulk(
+    PromptContextDTO.SourceConfig source,
+    Object correlationValues,
+    String templateBody,
+    Integer queryLimit
+  ) {
+    Set<String> fields = selectedFields(source, templateBody);
+    fields.add(source.correlationField);
+    List<String> canonicalFields = canonicalFields(
+      source.relatedObject,
+      fields
+    );
+    Map<String, Object> binds = new Map<String, Object>{
+      'correlationValues' => correlationValues,
+      'rowLimit' => queryLimit
+    };
+    String correlationField = PromptContextSchema.requireReadableFieldPath(
+      source.relatedObject,
+      source.correlationField
+    );
+    List<String> conditions = new List<String>{
+      correlationField + ' IN :correlationValues'
+    };
+    conditions.addAll(buildFilterConditions(source, binds));
+    return new Plan(
+      'SELECT ' +
+        String.join(canonicalFields, ', ') +
+        ' FROM ' +
+        source.relatedObject +
+        ' WHERE ' +
+        String.join(conditions, ' AND ') +
+        ' ORDER BY ' +
+        correlationField +
+        ' ASC, ' +
+        buildOrderByClauses(source) +
+        ' LIMIT :rowLimit',
+      binds
+    );
+  }
+
+  /** Builds one grouped aggregate query for all match values in a bulk request. */
+  public static Plan buildAggregateBulk(
+    PromptContextDTO.SourceConfig source,
+    Object correlationValues,
+    Set<Id> aggregateRecordIds
+  ) {
+    String correlationField = PromptContextSchema.requireReadableFieldPath(
+      source.relatedObject,
+      source.correlationField
+    );
+    String expression = aggregateExpression(source);
+    Map<String, Object> binds = new Map<String, Object>{
+      'correlationValues' => correlationValues,
+      'aggregateRecordIds' => aggregateRecordIds
+    };
+    List<String> conditions = new List<String>{
+      correlationField + ' IN :correlationValues',
+      'Id IN :aggregateRecordIds'
+    };
+    conditions.addAll(buildFilterConditions(source, binds));
+    return new Plan(
+      'SELECT ' +
+        correlationField +
+        ' groupKey, ' +
+        expression +
+        ' metric FROM ' +
+        source.relatedObject +
+        ' WHERE ' +
+        String.join(conditions, ' AND ') +
+        ' GROUP BY ' +
+        correlationField,
+      binds
+    );
+  }
+
   /** Builds one limited calculated value from the same safe data set settings. */
   public static Plan buildAggregate(
     PromptContextDTO.SourceConfig source,
-    Object correlationValue
+    Object correlationValue,
+    Set<Id> aggregateRecordIds
   ) {
-    String operation = source.aggregateOperation;
-    String expression;
-    if (operation == 'COUNT') {
-      expression = 'COUNT(Id)';
-    } else {
-      String fieldName = PromptContextSchema.requireReadableFieldPath(
-        source.relatedObject,
-        source.aggregateField
-      );
-      expression = operation + '(' + fieldName + ')';
-    }
-    Map<String, Object> binds = new Map<String, Object>();
+    String expression = aggregateExpression(source);
+    Map<String, Object> binds = new Map<String, Object>{
+      'aggregateRecordIds' => aggregateRecordIds
+    };
     List<String> conditions = buildConditions(source, correlationValue, binds);
+    conditions.add('Id IN :aggregateRecordIds');
     return new Plan(
       'SELECT ' +
         expression +
@@ -96,6 +166,103 @@ public with sharing class PromptContextQuery {
           : ' WHERE ' + String.join(conditions, ' AND ')),
       binds
     );
+  }
+
+  /** Selects a limited Id set before one calculated value can scan matching records. */
+  public static Plan buildAggregateCandidates(
+    PromptContextDTO.SourceConfig source,
+    Object correlationValue,
+    Integer queryLimit
+  ) {
+    Map<String, Object> binds = new Map<String, Object>{
+      'rowLimit' => queryLimit
+    };
+    List<String> conditions = buildConditions(source, correlationValue, binds);
+    return new Plan(
+      'SELECT Id FROM ' +
+        source.relatedObject +
+        (conditions.isEmpty()
+          ? ''
+          : ' WHERE ' + String.join(conditions, ' AND ')) +
+        ' ORDER BY Id LIMIT :rowLimit',
+      binds
+    );
+  }
+
+  /** Selects a limited grouped Id set before bulk calculations run. */
+  public static Plan buildAggregateBulkCandidates(
+    PromptContextDTO.SourceConfig source,
+    Object correlationValues,
+    Integer queryLimit
+  ) {
+    String correlationField = PromptContextSchema.requireReadableFieldPath(
+      source.relatedObject,
+      source.correlationField
+    );
+    Map<String, Object> binds = new Map<String, Object>{
+      'correlationValues' => correlationValues,
+      'rowLimit' => queryLimit
+    };
+    List<String> conditions = new List<String>{
+      correlationField + ' IN :correlationValues'
+    };
+    conditions.addAll(buildFilterConditions(source, binds));
+    return new Plan(
+      'SELECT Id, ' +
+        correlationField +
+        ' FROM ' +
+        source.relatedObject +
+        ' WHERE ' +
+        String.join(conditions, ' AND ') +
+        ' ORDER BY ' +
+        correlationField +
+        ' ASC, Id ASC LIMIT :rowLimit',
+      binds
+    );
+  }
+
+  private static String aggregateExpression(
+    PromptContextDTO.SourceConfig source
+  ) {
+    if (source.aggregateOperation == 'COUNT') {
+      return 'COUNT(Id)';
+    }
+    return source.aggregateOperation +
+      '(' +
+      PromptContextSchema.requireReadableFieldPath(
+        source.relatedObject,
+        source.aggregateField
+      ) +
+      ')';
+  }
+
+  private static Set<String> selectedFields(
+    PromptContextDTO.SourceConfig source,
+    String templateBody
+  ) {
+    Set<String> fields = new Set<String>{ 'Id' };
+    fields.addAll(source.selectedFields ?? new List<String>());
+    Map<String, Set<String>> dependencies = PromptTemplateLanguage.getRelatedFieldPaths(
+      templateBody
+    );
+    if (dependencies.containsKey(source.referenceName)) {
+      fields.addAll(dependencies.get(source.referenceName));
+    }
+    return fields;
+  }
+
+  private static List<String> canonicalFields(
+    String objectName,
+    Set<String> fields
+  ) {
+    List<String> values = new List<String>();
+    for (String fieldPath : fields) {
+      values.add(
+        PromptContextSchema.requireReadableFieldPath(objectName, fieldPath)
+      );
+    }
+    values.sort();
+    return values;
   }
 
   private static List<String> buildConditions(
@@ -112,6 +279,15 @@ public with sharing class PromptContextQuery {
       binds.put('correlationValue', correlationValue);
       conditions.add(correlationField + ' = :correlationValue');
     }
+    conditions.addAll(buildFilterConditions(source, binds));
+    return conditions;
+  }
+
+  private static List<String> buildFilterConditions(
+    PromptContextDTO.SourceConfig source,
+    Map<String, Object> binds
+  ) {
+    List<String> conditions = new List<String>();
     Integer filterIndex = 0;
     Map<String, List<String>> conditionsByGroup = new Map<String, List<String>>();
     List<String> groupOrder = new List<String>();
@@ -189,6 +365,12 @@ public with sharing class PromptContextQuery {
   }
 
   private static String buildOrderBy(PromptContextDTO.SourceConfig source) {
+    return ' ORDER BY ' + buildOrderByClauses(source);
+  }
+
+  private static String buildOrderByClauses(
+    PromptContextDTO.SourceConfig source
+  ) {
     List<String> clauses = new List<String>();
     Boolean sortsById = false;
     for (
@@ -212,10 +394,11 @@ public with sharing class PromptContextQuery {
     if (!sortsById) {
       clauses.add('Id ASC');
     }
-    return ' ORDER BY ' + String.join(clauses, ', ');
+    return String.join(clauses, ', ');
   }
 
-  private static Object convertValue(
+  @TestVisible
+  public static Object convertValue(
     String objectApiName,
     String fieldPath,
     String value
@@ -227,13 +410,19 @@ public with sharing class PromptContextQuery {
       .getType();
     try {
       if (fieldType == Schema.DisplayType.Boolean) {
+        if (value != 'true' && value != 'false') {
+          throw new PromptContextException();
+        }
         return Boolean.valueOf(value);
       }
       if (fieldType == Schema.DisplayType.Date) {
         return Date.valueOf(value);
       }
       if (fieldType == Schema.DisplayType.Datetime) {
-        return Datetime.valueOf(value.replace('T', ' ').replace('Z', ''));
+        return (Datetime) JSON.deserialize(
+          JSON.serialize(value),
+          Datetime.class
+        );
       }
       if (
         fieldType == Schema.DisplayType.Currency ||

@@ -10,6 +10,21 @@ not grant customer-record access. Salesforce record reads use the running user's
 sharing-aware Apex, so object access, field access, sharing, restriction rules, and scoping rules
 remain effective.
 
+Saving prepared input is a separate authorization boundary. It requires Prompt Context Save Input,
+uses user-mode DML, and writes to a private Prompt Input Log. A missing permission fails the request;
+it is never treated as an ordinary blank value.
+
+Two narrow package-owned operations use system mode without reading customer records: publication
+creates immutable version snapshots after configuration authorization and validation, and an
+idempotent save may recover an exact user-scoped request-key collision after user-mode insert fails.
+The collision path reads only the log Id, hashed request key, and verification digest, and returns a
+match only after the digest agrees. Neither exception can widen prompt data access.
+
+Selecting Salesforce Files is another separate boundary. It requires Prompt Context Send Files.
+File discovery and confirmation read only versions the running user can access and require a direct
+`ContentDocumentLink` to the current record. The selected list pins exact version IDs, order, format,
+size, version number, and last-modified time. It never stores file contents.
+
 ## Safe Salesforce searches
 
 - Objects, fields, and relationships must exist in Salesforce and be available to the running user.
@@ -18,13 +33,26 @@ remain effective.
 - The current-record match is always required alongside optional filter groups.
 - Administrators never write Salesforce queries (SOQL).
 - Each data set and the complete request have firm record and character limits.
+- Field-value matching can use a field such as Industry without a Salesforce lookup relationship.
+  The current-record field and source field must have compatible Salesforce data types.
 
 ## Stop safely when access is missing
 
-A readable blank value can remain blank or use fallback text. A required field that is unavailable
+A readable blank value can remain blank or use configured fallback text. A required field that is unavailable
 or no longer exists is different: generation stops. Errors, measurements, and troubleshooting
 details exclude customer values and prompt content. Completed text is never treated as a new field
 instruction or active HTML.
+
+## Files and external delivery
+
+The package fails the complete request when file permission, direct-link access, a user selection,
+size, format, or approved service settings do not pass. A user-selected request never silently drops
+files. **All eligible** deterministically selects the first eligible current versions up to the
+effective template/provider limit.
+
+The current source does not read file bodies, upload to AWS, or call Amazon Bedrock. Before an
+organization adds that later process, its security owner must approve the AWS account, region,
+encryption, scanning, retention, cleanup, model, Named Credential, and allowed file classifications.
 
 ## Reference data warning
 
