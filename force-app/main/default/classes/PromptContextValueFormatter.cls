@@ -123,12 +123,14 @@ public with sharing class PromptContextValueFormatter {
     FieldInfo field,
     String currencyCode
   ) {
-    String text = (value instanceof Decimal)
-      ? ((Decimal) value).toPlainString()
-      : Decimal.valueOf((Double) value).toPlainString();
+    Decimal amount = (value instanceof Decimal)
+      ? (Decimal) value
+      : Decimal.valueOf((Double) value);
     if (field == null) {
-      return text;
+      // Calculated values have no field scale; print 180, not 180.0.
+      return amount.stripTrailingZeros().toPlainString();
     }
+    String text = amount.toPlainString();
     if (field.type == Schema.DisplayType.Percent) {
       return text + '%';
     }

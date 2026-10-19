@@ -44,6 +44,10 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- Fixed four failures found by the realistic scenario suite: a huge row index no longer raises a
+  platform error, more than 100 blocks is now a named validation error instead of a generation-time
+  failure, `maxLength` no longer splits an emoji, and calculated values print `180` instead of
+  `180.0`.
 - Prompt Generator now clears an auto-selected template and generated output when refreshed
   template choices no longer contain that template or when template loading fails.
 - Prompt Generator now ignores a completed generation response after the user changes templates,

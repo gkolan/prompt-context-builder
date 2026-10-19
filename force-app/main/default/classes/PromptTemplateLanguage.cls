@@ -235,7 +235,7 @@ public with sharing class PromptTemplateLanguage {
         getTokenCore(tokens.group(1).trim())
       );
       if (relatedMatcher.matches()) {
-        Integer index = Integer.valueOf(relatedMatcher.group(2));
+        Integer index = rowIndex(relatedMatcher.group(2));
         String alias = relatedMatcher.group(1);
         if (!highest.containsKey(alias) || highest.get(alias) < index) {
           highest.put(alias, index);
@@ -339,7 +339,7 @@ public with sharing class PromptTemplateLanguage {
         target = getPathTarget(rootRecord, recordMatcher.group(1));
       } else if (relatedMatcher.matches()) {
         List<SObject> records = relatedByAlias.get(relatedMatcher.group(1));
-        Integer rowIndex = Integer.valueOf(relatedMatcher.group(2));
+        Integer rowIndex = rowIndex(relatedMatcher.group(2));
         target = records != null &&
           rowIndex < records.size()
           ? getPathTarget(records[rowIndex], relatedMatcher.group(3))
@@ -387,9 +387,22 @@ public with sharing class PromptTemplateLanguage {
     PromptContextDTO.ValidationResult result
   ) {
     List<String> stack = new List<String>();
+    Integer blockCount = 0;
     Matcher tokens = TOKEN_PATTERN.matcher(templateBody);
     while (tokens.find()) {
       String tokenText = tokens.group(1).trim();
+      if (tokenText.startsWith('#each ') || tokenText.startsWith('#if ')) {
+        blockCount++;
+        if (blockCount == PromptContextContract.MAX_BLOCK_ITERATIONS + 1) {
+          result.addError(
+            'TOO_MANY_BLOCKS',
+            'Template body',
+            'Use no more than ' +
+              PromptContextContract.MAX_BLOCK_ITERATIONS +
+              ' each and if blocks in one template.'
+          );
+        }
+      }
       if (tokenText.startsWith('#each ')) {
         if (stack.contains('each')) {
           result.addError(
@@ -753,7 +766,21 @@ public with sharing class PromptTemplateLanguage {
       return text;
     }
     truncatedDuringRender = true;
-    return text.substring(0, maxLength) + TRUNCATION_MARKER;
+    Integer cut = maxLength;
+    // Never keep only the first half of a two-unit character such as an emoji.
+    if (isHighSurrogate(text.charAt(cut - 1))) {
+      cut--;
+    }
+    return text.substring(0, cut) + TRUNCATION_MARKER;
+  }
+
+  private static Boolean isHighSurrogate(Integer codeUnit) {
+    return codeUnit >= 55296 && codeUnit <= 56319;
+  }
+
+  /** Reads a row index; any index too large to be an Integer can never match a row. */
+  private static Integer rowIndex(String digits) {
+    return digits.length() > 9 ? 2147483647 : Integer.valueOf(digits);
   }
 
   private static Integer parseMaxLength(String value) {

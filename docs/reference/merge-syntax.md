@@ -40,7 +40,7 @@ block. `if` blocks may be nested, and `else` belongs to the nearest compatible o
 - `format="upper"`, `format="lower"`, and `format="percent"` are supported. In syntax version 2 a
   Percent field already prints `%`, and `format="percent"` does not add a second one.
 - `maxLength="n"` keeps the first `n` characters, from 1 to 20,000, and adds `…` when it shortens
-  the value. It also applies to fallback text. The response then carries the `FIELD_TRUNCATED`
+  the value. It never splits an emoji or other two-part character. It also applies to fallback text. The response then carries the `FIELD_TRUNCATED`
   warning. Use it on long text such as a Description so one large record cannot push the whole
   prompt past the 20,000-character limit.
 - Unknown, repeated, unquoted, malformed, or inapplicable attributes are validation errors.
@@ -81,7 +81,7 @@ stored version, so republishing is the only way a live template changes its outp
 | Row index past limit  | Always prints its fallback                    | Rejected with `INDEX_OUT_OF_RANGE`                 |
 
 In a multi-currency org, each currency value prints the record's own `CurrencyIsoCode`. Calculated
-values print as plain numbers; the required currency rule on a calculated data set names their
+values print as plain numbers without trailing zeros, so a sum prints `180`; the required currency rule on a calculated data set names their
 currency. A picklist value that is no longer defined prints as stored.
 
 To adopt version 2, open the template, preview it, review the changed output, and publish. Version
@@ -94,6 +94,9 @@ comparison lists `Syntax version changed.` for that publication.
 | `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill | Use an index below the data set's maximum records          |
 | `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly               | Use parts such as `BillingCity` or `Location__Latitude__s` |
 | `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000          | Correct the number                                         |
+
+Every syntax version also rejects more than 100 `each` and `if` blocks with `TOO_MANY_BLOCKS`
+before publication. A row index too large to fill, such as `[99999999999]`, prints its fallback.
 
 ## Customer text inside prompts
 

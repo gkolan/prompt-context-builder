@@ -275,6 +275,59 @@ private class PromptTemplateSyntaxVersionTest {
     );
   }
 
+  @isTest
+  static void shouldTreatAHugeRowIndexAsAnEmptyRowInEveryVersion() {
+    String body = '{!related.rows[99999999999].Name fallback="none"}';
+    Map<String, List<SObject>> related = new Map<String, List<SObject>>{
+      'rows' => new List<SObject>{ new Prompt_Template__c(Name = 'Only') }
+    };
+
+    for (Integer version : new List<Integer>{ V1, V2 }) {
+      Assert.areEqual(
+        'none',
+        PromptTemplateLanguage.render(
+            body,
+            new Prompt_Template__c(),
+            related,
+            new Map<String, Object>(),
+            version
+          )
+          .text,
+        'Version ' + version + ' must not crash on a huge index.'
+      );
+    }
+  }
+
+  @isTest
+  static void shouldAllowExactlyTheMaximumNumberOfBlocks() {
+    String block = '{!#if related.rows.hasRecords}x{!/if}';
+    PromptContextDTO.ValidationResult atLimit = PromptTemplateLanguage.validateSyntax(
+      block.repeat(PromptContextContract.MAX_BLOCK_ITERATIONS),
+      new Set<String>{ 'rows' }
+    );
+    PromptContextDTO.ValidationResult overLimit = PromptTemplateLanguage.validateSyntax(
+      block.repeat(PromptContextContract.MAX_BLOCK_ITERATIONS + 1),
+      new Set<String>{ 'rows' }
+    );
+
+    Assert.isTrue(atLimit.isValid, 'The limit itself is allowed.');
+    Assert.isTrue(hasCode(overLimit.messages, 'TOO_MANY_BLOCKS'));
+    Assert.areEqual(
+      'x'.repeat(PromptContextContract.MAX_BLOCK_ITERATIONS),
+      PromptTemplateLanguage.render(
+          block.repeat(PromptContextContract.MAX_BLOCK_ITERATIONS),
+          new Prompt_Template__c(),
+          new Map<String, List<SObject>>{
+            'rows' => new List<SObject>{ new Prompt_Template__c() }
+          },
+          new Map<String, Object>(),
+          V2
+        )
+        .text,
+      'A template at the block limit must also render.'
+    );
+  }
+
   private static String renderText(
     String body,
     SObject rootRecord,
