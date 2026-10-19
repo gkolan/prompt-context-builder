@@ -858,4 +858,108 @@ private class PromptContextScenarioTest {
         queries
     );
   }
+
+  @isTest
+  static void shouldApplyEachTemplatesOwnRulesInOneMixedBulkCall() {
+    grantAll();
+    Id v2Template = insertPublication('mixed_v2', 2);
+    Id v1Template = insertPublication('mixed_v1', 1);
+    Id mainId = rootId(MAIN);
+    List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>();
+    for (
+      String key : new List<String>{
+        'mixed_v2',
+        'mixed_v1',
+        'mixed_v2',
+        'mixed_v1'
+      }
+    ) {
+      PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+      request.templateDeveloperKey = key;
+      request.recordId = mainId;
+      request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
+      requests.add(request);
+    }
+
+    Test.startTest();
+    List<PromptContextInputApi.Result> results = PromptContextInputApi.prepareForFlow(
+      requests
+    );
+    Test.stopTest();
+
+    Assert.areEqual('Mode: User Selects Files', results[0].prompt);
+    Assert.areEqual('Mode: USER_SELECT', results[1].prompt);
+    Assert.areEqual(
+      results[0].prompt,
+      results[2].prompt,
+      'A later group must not inherit another template\'s rules.'
+    );
+    Assert.areEqual(results[1].prompt, results[3].prompt);
+    Assert.areEqual(2, results[0].syntaxVersion);
+    Assert.areEqual(1, results[1].syntaxVersion);
+    Assert.isNotNull(v2Template);
+    Assert.isNotNull(v1Template);
+  }
+
+  @isTest
+  static void shouldRefuseMoreThanTenTemplatesInOneTransaction() {
+    grantAll();
+    Id mainId = rootId(MAIN);
+    List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>();
+    for (
+      Integer index = 0; index <= PromptContextContract.MAX_FLOW_GROUPS; index++
+    ) {
+      insertPublication('many_' + index, 2);
+      PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+      request.templateDeveloperKey = 'many_' + index;
+      request.recordId = mainId;
+      request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
+      requests.add(request);
+    }
+
+    List<PromptContextInputApi.Result> results = PromptContextInputApi.prepareForFlow(
+      requests
+    );
+
+    for (PromptContextInputApi.Result result : results) {
+      Assert.areEqual(
+        PromptContextReasonCodes.FLOW_GROUP_LIMIT_EXCEEDED,
+        result.reasonCode
+      );
+      Assert.isNull(result.prompt);
+    }
+  }
+
+  /** Inserts a published template and its fixed version directly, with a chosen syntax version. */
+  private static Id insertPublication(
+    String developerKey,
+    Integer syntaxVersion
+  ) {
+    String body = 'Mode: {!record.File_Input_Mode__c}';
+    Datetime publishedAt = Datetime.newInstanceGmt(2026, 9, 1, 0, 0, 0);
+    Prompt_Template__c templateRecord = new Prompt_Template__c(
+      Name = developerKey,
+      Developer_Key__c = developerKey,
+      Root_Object__c = 'Prompt_Template__c',
+      Template_Body__c = body,
+      Status__c = 'Published',
+      Version__c = 1,
+      Published_At__c = publishedAt,
+      File_Input_Mode__c = 'DISABLED'
+    );
+    insert templateRecord;
+    insert new Prompt_Template_Version__c(
+      Prompt_Template__c = templateRecord.Id,
+      Version_Key__c = developerKey + ':1',
+      Version_Number__c = 1,
+      Syntax_Version__c = syntaxVersion,
+      Contract_Version__c = PromptContextContract.CONTRACT_VERSION,
+      Root_Object__c = 'Prompt_Template__c',
+      Template_Body__c = body,
+      Fingerprint__c = developerKey,
+      Published_At__c = publishedAt,
+      File_Input_Mode__c = 'DISABLED'
+    );
+    return templateRecord.Id;
+  }
 }

@@ -318,7 +318,7 @@ private class PromptContextBulkServiceTest {
     Map<String, Object> expectedFirst = new Map<String, Object>{
       'COUNT' => 3,
       'SUM' => Decimal.valueOf(6),
-      'AVG' => Decimal.valueOf(3),
+      'AVG' => (Object) Double.valueOf(3),
       'MIN' => Decimal.valueOf(1),
       'MAX' => Decimal.valueOf(5)
     };

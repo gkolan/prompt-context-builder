@@ -197,6 +197,51 @@ private class PromptContextFormulaFieldTest {
     }
   }
 
+  @isTest
+  static void shouldAverageTheSameWayOnTheRecordPageAndInBulk() {
+    PromptContextAccess.setConfigureForTest(true);
+    PromptContextAccess.setGenerateForTest(true);
+    System.runAs(new User(Id = UserInfo.getUserId())) {
+      Id otherId = rootId('formula_other');
+      insert new List<Prompt_Context_Source__c>{
+        child(otherId, 'One', 1),
+        child(otherId, 'Two', 1),
+        child(otherId, 'Three', 2)
+      };
+      PromptContextDTO.TemplateConfig config = config(
+        'Avg={!aggregate.a.value}'
+      );
+      PromptContextDTO.SourceConfig average = aggregate(
+        'a',
+        'AVG',
+        'Sequence__c'
+      );
+      average.correlationField = 'Test_Parent_Key__c';
+      average.rootField = 'Developer_Key__c';
+      config.sources.add(average);
+      config.developerKey = 'formula_bulk';
+      PromptTemplateService.publish(
+        PromptTemplateService.saveDraft(config).id,
+        otherId
+      );
+
+      Test.startTest();
+      String single = PromptContextService.generate(config, otherId).prompt;
+      String bulkPrompt = PromptContextInputApi.prepare(
+          new List<PromptContextInputApi.Request>{ request(otherId) }
+        )[0]
+        .prompt;
+      Test.stopTest();
+
+      Assert.areEqual(
+        single,
+        bulkPrompt,
+        'A repeating average must print identically on the record page and in Flow.'
+      );
+      Assert.isTrue(single.startsWith('Avg=1.333'), single);
+    }
+  }
+
   // ---------- Helpers ----------
 
   private static Prompt_Context_Source__c child(

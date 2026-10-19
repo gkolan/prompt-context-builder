@@ -349,7 +349,10 @@ public with sharing class PromptContextBulkService {
       for (Object value : values) {
         total += (Decimal) value;
       }
-      return operation == 'SUM' ? total : total / values.size();
+      // SOQL AVG returns a double, so divide the same way to print identical digits.
+      return operation == 'SUM'
+        ? (Object) total
+        : (Object) (total.doubleValue() / values.size());
     }
     Object selected = values[0];
     for (Object value : values) {

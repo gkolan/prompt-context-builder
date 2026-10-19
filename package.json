@@ -28,6 +28,7 @@
     "check:namespace-fixtures": "node scripts/check-namespace-fixtures.mjs",
     "check:test-data-isolation": "node scripts/check-test-data-isolation.mjs",
     "check:apex-surface": "node scripts/check-apex-surface.mjs",
+    "scan:sfge": "node scripts/scan-sfge.mjs",
     "demo:setup-source": "sf apex run --file scripts/apex/seedVerificationTemplates.apex",
     "demo:verify-source": "sf apex run --file scripts/apex/verifyVerificationTemplates.apex",
     "prettier": "prettier --write \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",

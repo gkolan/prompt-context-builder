@@ -37,6 +37,12 @@ without an explicit `AccessLevel`, DML statements, or an entry class that neithe
 `PromptContextAccess.require*()` nor delegates to an approved class that does. See
 [Security and data access](../architecture/security-and-data-access.md).
 
+`npm run scan:sfge` runs Salesforce Graph Engine, the path-based field and object security analyzer,
+on a temporary copy of the production Apex. Graph Engine cannot parse `??` inside a for-each header,
+so the copy drops only that fallback. The scan fails when the engine reports an error or any
+unreviewed production finding, so an engine crash cannot pass as a clean scan. It needs Java and is
+not part of `ci:gates`; run it before release and after changing data access.
+
 The agent-guidance gate verifies that `AGENTS.md` retains the mandatory session link and that the
 [change safety playbook](../contributing/change-safety-playbook.md) remains connected to contributor
 and quality documentation. Repository-aware agents receive `AGENTS.md` at session start; the linked

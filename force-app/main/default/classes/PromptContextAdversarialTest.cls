@@ -14,6 +14,13 @@ private class PromptContextAdversarialTest {
 
   @isTest
   static void shouldNameEveryMisconfiguration() {
+    PromptContextDTO.ValidationResult baseline = PromptContextValidator.validate(
+      baseConfig()
+    );
+    Assert.isTrue(
+      baseline.isValid,
+      'Each case must start from a valid template: ' + codes(baseline.messages)
+    );
     Map<String, String> failures = new Map<String, String>();
     for (MisconfiguredCase item : misconfiguredCases()) {
       PromptContextDTO.TemplateConfig config = baseConfig();
@@ -35,6 +42,20 @@ private class PromptContextAdversarialTest {
         failures.put(
           item.label,
           'expected ' + item.expectedCode + ' but got ' + codes(result.messages)
+        );
+      } else if (
+        item.expectedCode == PromptContextReasonCodes.INVALID_CONFIGURATION &&
+        String.isNotBlank(item.mention) &&
+        !hasCodeMentioning(result.messages, item.expectedCode, item.mention)
+      ) {
+        // A generic code must come from the changed setting, not an unrelated problem.
+        failures.put(
+          item.label,
+          item.expectedCode +
+            ' did not name ' +
+            item.mention +
+            ': ' +
+            JSON.serialize(result.messages)
         );
       }
     }
@@ -255,6 +276,7 @@ private class PromptContextAdversarialTest {
   private abstract class MisconfiguredCase {
     String label;
     String expectedCode;
+    String mention;
     public abstract void apply(PromptContextDTO.TemplateConfig config);
   }
 
@@ -272,6 +294,9 @@ private class PromptContextAdversarialTest {
       this.expectedCode = expectedCode;
       this.property = property;
       this.value = value;
+      if (property == 'relatedObject' && value != null) {
+        this.mention = (String) value;
+      }
     }
 
     public override void apply(PromptContextDTO.TemplateConfig config) {
@@ -296,6 +321,13 @@ private class PromptContextAdversarialTest {
       this.label = label;
       this.expectedCode = expectedCode;
       this.body = body;
+      Matcher field = Pattern.compile(
+          'record\\.([A-Za-z_.]+__c|CreatedBy[A-Za-z_.]*)'
+        )
+        .matcher(body);
+      if (field.find()) {
+        this.mention = field.group(1);
+      }
     }
 
     public override void apply(PromptContextDTO.TemplateConfig config) {
@@ -323,6 +355,7 @@ private class PromptContextAdversarialTest {
       this.operator = operator;
       this.value = value;
       this.logic = logic;
+      this.mention = logic == null ? fieldName : null;
     }
 
     public override void apply(PromptContextDTO.TemplateConfig config) {
@@ -761,6 +794,19 @@ private class PromptContextAdversarialTest {
   ) {
     for (PromptContextDTO.Message message : messages) {
       if (message.code == code) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static Boolean hasCodeMentioning(
+    List<PromptContextDTO.Message> messages,
+    String code,
+    String text
+  ) {
+    for (PromptContextDTO.Message message : messages) {
+      if (message.code == code && (message.text ?? '').contains(text)) {
         return true;
       }
     }

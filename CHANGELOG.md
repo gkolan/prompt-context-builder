@@ -44,6 +44,11 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- Flow and Batch averages over a formula match field now print the same digits as the record page.
+- Added `npm run scan:sfge`, which runs Graph Engine field-security analysis on a parse-compatible copy
+  and fails on engine errors. The misconfiguration matrix now requires a valid baseline and that
+  generic codes name the changed setting; new tests cover mixed v1 and v2 templates in one bulk call
+  and the ten-template limit.
 - A query Salesforce refuses, such as ContentDocumentLink without an Id filter or a non-selective
   query on a very large object, now returns `QUERY_NOT_SUPPORTED` instead of an unexpected error.
 - External, big, and Knowledge article objects are no longer offered and are refused in syntax
