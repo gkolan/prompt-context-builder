@@ -27,6 +27,14 @@ production `Test.isRunningTest()` branch, query or DML without an explicit acces
 class that does not call `PromptContextAccess`. The gate is a source scan. It does not replace
 Apex tests or security review.
 
+Access failures stop the request without a partial prompt. People without the Prompt Context
+Diagnostics permission see only the generic access message, so a failure never tells them which
+object or field is hidden. Troubleshooting users see the exact name.
+
+Formula fields are checked more strictly than Salesforce checks them. Under syntax version 2, every
+field a formula uses must be readable by the running person, so a formula cannot reveal a hidden
+value. See [Formula fields](../reference/merge-syntax.md#formula-fields).
+
 Selecting Salesforce Files is another separate boundary. It requires Prompt Context Send Files.
 File discovery and confirmation read only versions the running user can access and require a direct
 `ContentDocumentLink` to the current record. The selected list pins exact version IDs, order, format,

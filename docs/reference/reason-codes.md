@@ -37,7 +37,7 @@ prompt. Neighboring valid items can still succeed. A successful limited result k
 | `INVALID_CONFIGURATION`       | Prompt text, Salesforce setup, or data set settings are invalid  | Validate and republish the template                                     |
 | `RECORD_NOT_ACCESSIBLE`       | Current record is absent, mismatched, or not visible             | Check the Record Id and sharing                                         |
 | `OBJECT_NOT_ACCESSIBLE`       | A required object is not readable                                | Grant intended object access or remove the source                       |
-| `FIELD_NOT_ACCESSIBLE`        | A required field is not readable                                 | Grant intended field access or remove the field                         |
+| `FIELD_NOT_ACCESSIBLE`        | A required field, or a field a formula uses, is not readable     | Grant intended field access or remove the field                         |
 | `INVALID_MATCH_VALUE`         | A current-record value cannot use the source match field type    | Choose compatible Salesforce fields or correct the record value         |
 | `MISSING_CURRENCY_BOUNDARY`   | A multi-currency calculation lacks one required ISO code         | Add a required Currency ISO Code equals rule                            |
 | `TRANSACTION_BUDGET_EXCEEDED` | Available Salesforce processing capacity is insufficient         | Reduce scope or use Batch Apex                                          |
@@ -45,6 +45,7 @@ prompt. Neighboring valid items can still succeed. A successful limited result k
 | `FLOW_PAYLOAD_LIMIT_EXCEEDED` | Successful prompts exceed the response budget                    | Reduce scope or use Batch Apex                                          |
 | `PROMPT_TOO_LONG`             | Completed prompt exceeds 20,000 characters                       | Reduce template or data set size, or add `maxLength` to long fields     |
 | `DRAFT_CHANGED`               | Someone saved the draft after the editor loaded it               | Reload the template, then reapply the edits                             |
+| `FORMULA_INPUT_NOT_VERIFIED`  | A formula field's inputs cannot be checked for access            | Use one-type relationships or a stored field                            |
 | `UNEXPECTED_ERROR`            | An unexpected failure occurred                                   | Keep the request ID and ask an administrator to investigate             |
 
 ## Successful prompt warning codes

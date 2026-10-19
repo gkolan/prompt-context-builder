@@ -90,7 +90,9 @@ longer allows new Process Builder processes; build new automation in Flow. Neith
 a Process Builder process is exercised by an automated test, because Apex tests cannot run a screen
 or create a process.
 
-`PromptContextFlowRuntimeTest` and its two test-only Flows live in `integration-tests/flow-runtime`,
-outside the package. Include that directory when validating against an org; it is never packaged.
+`PromptContextFlowRuntimeTest` and its two test-only Flows live in `integration-tests/flow-runtime`;
+`PromptContextFormulaFieldTest`, its test-only formula fields, and its permission set live in
+`integration-tests/formula-fixtures`. Include both directories when validating against an org; neither
+is packaged.
 
 See [Reason codes](../reference/reason-codes.md) and [Limits](../reference/limits.md).

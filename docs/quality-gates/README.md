@@ -31,7 +31,8 @@ subscriber validation rules, flows, or triggers on those org-owned records.
 
 The Apex security-surface gate (`check:apex-surface`) fails when production Apex declares an
 unreviewed `without sharing` class or changes the reviewed `SYSTEM_MODE` count. It also fails on a
-production `Test.isRunningTest()` branch, inline SOQL without `WITH USER_MODE`, Database calls
+production `Test.isRunningTest()` branch, an Apex reserved word used as a variable name in any class
+including `integration-tests`, inline SOQL without `WITH USER_MODE`, Database calls
 without an explicit `AccessLevel`, DML statements, or an entry class that neither calls
 `PromptContextAccess.require*()` nor delegates to an approved class that does. See
 [Security and data access](../architecture/security-and-data-access.md).

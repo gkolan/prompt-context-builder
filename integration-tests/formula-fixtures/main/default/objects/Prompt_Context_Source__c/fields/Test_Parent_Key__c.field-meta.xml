@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Test_Parent_Key__c</fullName>
+    <description
+  >Test-only fixture: formula match field that Salesforce cannot group by.</description>
+    <label>Test Parent Key</label>
+    <formula>Prompt_Template__r.Developer_Key__c</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

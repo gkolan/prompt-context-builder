@@ -44,6 +44,15 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- Formula fields: syntax version 2 requires read access to every field a formula uses, fails closed
+  for polymorphic formulas, refuses calculations on fields Salesforce marks as not calculable
+  (`AGGREGATE_FIELD_NOT_SUPPORTED`), and calculates in Apex when a formula match field cannot be
+  grouped, so Flow and Batch match the record page.
+- Rich text and formula links keep their address as `text (url)`, images keep their alternative
+  text, and unsafe link schemes are dropped.
+- Access failures no longer name the hidden object or field to people without diagnostics access.
+- `check:apex-surface` now rejects Apex reserved words used as variable names, including in
+  `integration-tests`.
 - Fixed four failures found by the realistic scenario suite: a huge row index no longer raises a
   platform error, more than 100 blocks is now a named validation error instead of a generation-time
   failure, `maxLength` no longer splits an emoji, and calculated values print `180` instead of

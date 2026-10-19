@@ -222,9 +222,18 @@ public with sharing class PromptContextQuery {
       correlationField + ' IN :correlationValues'
     };
     conditions.addAll(buildFilterConditions(source, binds));
+    String calculatedField = source.aggregateOperation == 'COUNT' ||
+      String.isBlank(source.aggregateField)
+      ? ''
+      : ', ' +
+        PromptContextSchema.requireReadableFieldPath(
+          source.relatedObject,
+          source.aggregateField
+        );
     return new Plan(
       'SELECT Id, ' +
         correlationField +
+        calculatedField +
         ' FROM ' +
         source.relatedObject +
         ' WHERE ' +

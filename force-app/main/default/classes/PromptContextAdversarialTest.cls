@@ -192,6 +192,64 @@ private class PromptContextAdversarialTest {
     }
   }
 
+  @isTest
+  static void shouldHideWhichFieldIsHiddenFromUsersWithoutDiagnostics() {
+    PromptContextException hidden = PromptContextException.withReason(
+      PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
+      'Field Salary__c is not readable.'
+    );
+    PromptContextException configuration = PromptContextException.withReason(
+      PromptContextReasonCodes.INVALID_CONFIGURATION,
+      'Choose AND or OR.'
+    );
+
+    PromptContextAccess.setDiagnosticsForTest(false);
+    String ordinary = PromptContextTrace.safeMessage(hidden);
+    String ordinaryConfiguration = PromptContextTrace.safeMessage(
+      configuration
+    );
+    PromptContextAccess.setDiagnosticsForTest(true);
+    String troubleshooter = PromptContextTrace.safeMessage(hidden);
+
+    Assert.areEqual(Label.PCB_Access_Denied, ordinary);
+    Assert.isFalse(ordinary.contains('Salary__c'));
+    Assert.areEqual('Choose AND or OR.', ordinaryConfiguration);
+    Assert.areEqual(
+      'Field Salary__c is not readable.',
+      troubleshooter,
+      'Troubleshooting users still see the exact field.'
+    );
+  }
+
+  @isTest
+  static void shouldFindEveryRecordFieldAFormulaReads() {
+    Assert.areEqual(
+      new Set<String>{
+        'Name',
+        'Status__c',
+        'Account.Owner.Email',
+        'Amount',
+        'CloseDate'
+      },
+      PromptContextFormulaAccess.references(
+        '/* Amount_Old__c is ignored */ IF(ISPICKVAL(Status__c, "Closed Won"), ' +
+          'Name & " " & Account.Owner.Email & TEXT( Amount ), ' +
+          '"Not Name__c" & \'x\' & $User.Email & $Label.Greeting & TEXT(CloseDate) & ' +
+          'TODAY() + 1.5e3 + TRUE)'
+      )
+    );
+    try {
+      PromptContextFormulaAccess.references('Owner:User.FirstName');
+      Assert.fail('A polymorphic formula cannot be verified.');
+    } catch (PromptContextException expected) {
+      Assert.areEqual('FORMULA_INPUT_NOT_VERIFIED', expected.reasonCode);
+    }
+    Assert.isTrue(
+      PromptContextFormulaAccess.references('"a:b" & Name').contains('Name'),
+      'A colon inside text is not a relationship.'
+    );
+  }
+
   // ---------- Case tables ----------
 
   private abstract class MisconfiguredCase {

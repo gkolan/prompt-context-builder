@@ -134,6 +134,57 @@ public with sharing class PromptContextValidator {
         result
       );
     }
+    requireReadableFormulaInputs(
+      config.rootObject,
+      PromptTemplateLanguage.getRootFieldPaths(templateBody),
+      'Template body',
+      result
+    );
+    for (String alias : activeSources.keySet()) {
+      PromptContextDTO.SourceConfig source = activeSources.get(alias);
+      Set<String> paths = new Set<String>(
+        source.selectedFields ?? new List<String>()
+      );
+      paths.addAll(relatedDependencies.get(alias) ?? new Set<String>());
+      for (
+        PromptContextDTO.FilterRule filter : source.filters ??
+          new List<PromptContextDTO.FilterRule>()
+      ) {
+        if (String.isNotBlank(filter?.fieldName)) {
+          paths.add(filter.fieldName);
+        }
+      }
+      for (
+        PromptContextDTO.SortRule sortRule : source.sorts ??
+          new List<PromptContextDTO.SortRule>()
+      ) {
+        if (String.isNotBlank(sortRule?.fieldName)) {
+          paths.add(sortRule.fieldName);
+        }
+      }
+      if (String.isNotBlank(source.aggregateField)) {
+        paths.add(source.aggregateField);
+      }
+      if (String.isNotBlank(source.correlationField)) {
+        paths.add(source.correlationField);
+      }
+      requireReadableFormulaInputs(
+        source.relatedObject,
+        paths,
+        'Data set ' + alias,
+        result
+      );
+      if (
+        source.sourceMode != 'REFERENCE' && String.isNotBlank(source.rootField)
+      ) {
+        requireReadableFormulaInputs(
+          config.rootObject,
+          new Set<String>{ source.rootField },
+          'Data set ' + alias,
+          result
+        );
+      }
+    }
     Map<String, Integer> highestIndexes = PromptTemplateLanguage.getHighestRelatedIndexes(
       templateBody
     );
@@ -155,6 +206,34 @@ public with sharing class PromptContextValidator {
             source.maxRows +
             ' records. Indexes start at 0.'
         );
+      }
+    }
+  }
+
+  private static void requireReadableFormulaInputs(
+    String objectApiName,
+    Set<String> fieldPaths,
+    String location,
+    PromptContextDTO.ValidationResult result
+  ) {
+    if (String.isBlank(objectApiName)) {
+      return;
+    }
+    for (String fieldPath : fieldPaths) {
+      try {
+        PromptContextFormulaAccess.requireReadableInputs(
+          objectApiName,
+          fieldPath
+        );
+      } catch (PromptContextException exceptionValue) {
+        if (String.isNotBlank(exceptionValue.reasonCode)) {
+          result.addError(
+            exceptionValue.reasonCode,
+            location,
+            exceptionValue.getMessage()
+          );
+        }
+        // A path without a reason is missing or unreadable; the access checks report it.
       }
     }
   }
@@ -490,6 +569,16 @@ public with sharing class PromptContextValidator {
             'AGGREGATE_TYPE_MISMATCH',
             location,
             'The chosen calculation is not supported for that field type.'
+          );
+        } else if (!aggregateDescription.isAggregatable()) {
+          result.addError(
+            'AGGREGATE_FIELD_NOT_SUPPORTED',
+            location,
+            'Salesforce cannot calculate ' +
+              source.aggregateOperation +
+              ' on ' +
+              source.aggregateField +
+              '. Choose a field that Salesforce can calculate.'
           );
         }
         if (

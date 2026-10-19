@@ -258,7 +258,10 @@ public with sharing class PromptContextBulkService {
     requireAggregateCapacity(candidates);
     Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
     Map<String, Object> aggregateByKey = new Map<String, Object>();
-    if (!candidateIds.isEmpty()) {
+    if (!isGroupableMatch(source)) {
+      // Salesforce cannot GROUP BY this match field, so calculate from the rows already read.
+      aggregateByKey = calculateByKey(source, candidates);
+    } else if (!candidateIds.isEmpty()) {
       PromptContextQuery.Plan plan = PromptContextQuery.buildAggregateBulk(
         source,
         requireTypedValues(source, valueByKey.values()),
@@ -282,6 +285,91 @@ public with sharing class PromptContextBulkService {
       runtime.aggregateByAlias.put(source.referenceName, aggregateValue);
       runtime.countsByAlias.put(source.referenceName, 1);
     }
+  }
+
+  private static Boolean isGroupableMatch(
+    PromptContextDTO.SourceConfig source
+  ) {
+    return PromptContextSchema.getTerminalFieldDescription(
+        source.relatedObject,
+        source.correlationField
+      )
+      .isGroupable();
+  }
+
+  /** Calculates COUNT, SUM, AVG, MIN, or MAX per match value with SOQL null semantics. */
+  @TestVisible
+  private static Map<String, Object> calculateByKey(
+    PromptContextDTO.SourceConfig source,
+    List<SObject> candidates
+  ) {
+    String correlationField = PromptContextSchema.requireReadableFieldPath(
+      source.relatedObject,
+      source.correlationField
+    );
+    String calculatedField = source.aggregateOperation == 'COUNT'
+      ? null
+      : PromptContextSchema.requireReadableFieldPath(
+          source.relatedObject,
+          source.aggregateField
+        );
+    Map<String, List<Object>> valuesByKey = new Map<String, List<Object>>();
+    Map<String, Integer> rowsByKey = new Map<String, Integer>();
+    for (SObject candidate : candidates) {
+      String key = matchKey(getPathValue(candidate, correlationField));
+      rowsByKey.put(key, (rowsByKey.get(key) ?? 0) + 1);
+      if (!valuesByKey.containsKey(key)) {
+        valuesByKey.put(key, new List<Object>());
+      }
+      Object value = calculatedField == null
+        ? null
+        : getPathValue(candidate, calculatedField);
+      if (value != null) {
+        valuesByKey.get(key).add(value);
+      }
+    }
+    Map<String, Object> resultByKey = new Map<String, Object>();
+    for (String key : rowsByKey.keySet()) {
+      resultByKey.put(
+        key,
+        source.aggregateOperation == 'COUNT'
+          ? rowsByKey.get(key)
+          : calculate(source.aggregateOperation, valuesByKey.get(key))
+      );
+    }
+    return resultByKey;
+  }
+
+  private static Object calculate(String operation, List<Object> values) {
+    if (values.isEmpty()) {
+      return null;
+    }
+    if (operation == 'SUM' || operation == 'AVG') {
+      Decimal total = 0;
+      for (Object value : values) {
+        total += (Decimal) value;
+      }
+      return operation == 'SUM' ? total : total / values.size();
+    }
+    Object selected = values[0];
+    for (Object value : values) {
+      if (
+        operation == 'MIN' ? isLess(value, selected) : isLess(selected, value)
+      ) {
+        selected = value;
+      }
+    }
+    return selected;
+  }
+
+  private static Boolean isLess(Object left, Object right) {
+    if (left instanceof Date) {
+      return (Date) left < (Date) right;
+    }
+    if (left instanceof Datetime) {
+      return (Datetime) left < (Datetime) right;
+    }
+    return (Decimal) left < (Decimal) right;
   }
 
   private static void loadReferenceSource(

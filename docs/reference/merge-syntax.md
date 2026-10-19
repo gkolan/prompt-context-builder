@@ -71,6 +71,7 @@ stored version, so republishing is the only way a live template changes its outp
 | Picklist              | API value, such as `Closed_Won`               | Label in the running person's language             |
 | Multi-select picklist | API values joined by `;`                      | Labels joined by `; `                              |
 | Rich text             | Stored HTML markup                            | Plain text with line breaks; lists start with `- ` |
+| Links and images      | Stored HTML markup                            | `text (https://…)` and `[Image: alt text]`         |
 | Date                  | Running person's locale format                | `2026-10-19`                                       |
 | Date/Time             | Running person's locale and time zone         | UTC ISO 8601, such as `2026-10-19T15:04:05Z`       |
 | Time                  | Stored value with milliseconds                | `15:04:05`                                         |
@@ -94,9 +95,31 @@ comparison lists `Syntax version changed.` for that publication.
 | `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill | Use an index below the data set's maximum records          |
 | `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly               | Use parts such as `BillingCity` or `Location__Latitude__s` |
 | `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000          | Correct the number                                         |
+| `FIELD_NOT_ACCESSIBLE`         | A formula field uses a field the running person cannot read | Grant read access to the formula inputs or remove it       |
+| `FORMULA_INPUT_NOT_VERIFIED`   | A formula's inputs cannot be checked, such as `Owner:User`  | Use one-type relationships or a stored field               |
 
 Every syntax version also rejects more than 100 `each` and `if` blocks with `TOO_MANY_BLOCKS`
 before publication. A row index too large to fill, such as `[99999999999]`, prints its fallback.
+
+## Formula fields
+
+A formula field prints its calculated value and follows its return type, so a currency formula
+prints like a currency field. Formulas can read other formulas, including across relationships.
+
+Salesforce lets anyone who can read a formula field see its value, even when the formula uses a
+field they cannot read. Syntax version 2 is stricter: before reading a formula field, Prompt
+Context Builder checks every field the formula uses, and every formula those fields use, up to ten
+formulas deep. If the running person cannot read one of them, the prompt stops with
+`FIELD_NOT_ACCESSIBLE`. Global values such as `$User` are not record fields and are not checked.
+Formulas that use a relationship to more than one object type, such as `Owner:User.FirstName`,
+cannot be checked and stop with `FORMULA_INPUT_NOT_VERIFIED`. The same rule applies to formula
+fields used in filters, sorting, calculations, and matching.
+
+Number, currency, percent, and date formulas can be calculated. A field that Salesforce marks as
+unable to be calculated is refused before publishing with `AGGREGATE_FIELD_NOT_SUPPORTED`. A formula
+can also be the match field of a calculated data set. Salesforce cannot group records by a formula,
+so Flow and Batch calculate from the matching records in Apex and return the same value as the
+record page.
 
 ## Customer text inside prompts
 

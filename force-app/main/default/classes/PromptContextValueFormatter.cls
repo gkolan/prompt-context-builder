@@ -13,6 +13,18 @@ public with sharing class PromptContextValueFormatter {
     '(?is)<(script|style)[^>]*>.*?</\\1\\s*>'
   );
   private static final Pattern HTML_TAG = Pattern.compile('<[^>]*>');
+  private static final Pattern HTML_LINK = Pattern.compile(
+    '(?is)<a\\b[^>]*?href\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')[^>]*>(.*?)</a\\s*>'
+  );
+  private static final Pattern HTML_IMAGE = Pattern.compile(
+    '(?is)<img\\b[^>]*>'
+  );
+  private static final Pattern HTML_ALT = Pattern.compile(
+    '(?is)\\balt\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')'
+  );
+  private static final Pattern SAFE_LINK = Pattern.compile(
+    '(?i)^(?:https?://|mailto:|/)\\S*$'
+  );
   private static final Pattern EXTRA_BLANK_LINES = Pattern.compile(
     '\\n[ \\t]*\\n(?:[ \\t]*\\n)+'
   );
@@ -110,12 +122,59 @@ public with sharing class PromptContextValueFormatter {
       return null;
     }
     String text = HTML_HIDDEN.matcher(html).replaceAll('');
+    text = replaceLinks(text);
+    text = replaceImages(text);
     text = HTML_LIST_ITEM.matcher(text).replaceAll('\n- ');
     text = HTML_BREAK.matcher(text).replaceAll('\n');
     text = HTML_TAG.matcher(text).replaceAll('');
     text = text.unescapeHtml4().replace(' ', ' ').replace('\r\n', '\n');
     text = EXTRA_BLANK_LINES.matcher(text).replaceAll('\n\n');
     return text.trim();
+  }
+
+  /** Keeps link text and adds a web or mail address the model can read; drops unsafe schemes. */
+  private static String replaceLinks(String html) {
+    Matcher links = HTML_LINK.matcher(html);
+    List<String> parts = new List<String>();
+    Integer cursor = 0;
+    while (links.find()) {
+      parts.add(html.substring(cursor, links.start()));
+      String href = (links.group(1) ?? links.group(2) ?? '')
+        .unescapeHtml4()
+        .trim();
+      String label = HTML_TAG.matcher(links.group(3)).replaceAll('').trim();
+      Boolean safe = SAFE_LINK.matcher(href).matches();
+      if (!safe || href == label.unescapeHtml4()) {
+        parts.add(label);
+      } else if (String.isBlank(label)) {
+        parts.add(href.escapeHtml4());
+      } else {
+        parts.add(label + ' (' + href.escapeHtml4() + ')');
+      }
+      cursor = links.end();
+    }
+    parts.add(html.substring(cursor));
+    return String.join(parts, '');
+  }
+
+  /** Replaces an image with its alternative text so the description is not lost. */
+  private static String replaceImages(String html) {
+    Matcher images = HTML_IMAGE.matcher(html);
+    List<String> parts = new List<String>();
+    Integer cursor = 0;
+    while (images.find()) {
+      parts.add(html.substring(cursor, images.start()));
+      Matcher alt = HTML_ALT.matcher(images.group(0));
+      if (alt.find()) {
+        String altText = alt.group(1) ?? alt.group(2) ?? '';
+        if (String.isNotBlank(altText)) {
+          parts.add('[Image: ' + altText.trim() + ']');
+        }
+      }
+      cursor = images.end();
+    }
+    parts.add(html.substring(cursor));
+    return String.join(parts, '');
   }
 
   private static String formatNumber(

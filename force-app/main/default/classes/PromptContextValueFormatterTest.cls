@@ -183,4 +183,29 @@ private class PromptContextValueFormatterTest {
       'Version 1 prints the bare stored number.'
     );
   }
+
+  @isTest
+  static void shouldKeepLinkAddressesAndImageDescriptions() {
+    PromptContextValueFormatter.FieldInfo richText = new PromptContextValueFormatter.FieldInfo(
+      Schema.DisplayType.TextArea,
+      true
+    );
+    Map<String, String> cases = new Map<String, String>{
+      '<a href="https://example.com/a?x=1&amp;y=2" target="_blank">Open case</a>' => 'Open case (https://example.com/a?x=1&y=2)',
+      '<a href=\'mailto:help@example.com\'>Email us</a>' => 'Email us (mailto:help@example.com)',
+      '<a href="https://example.com">https://example.com</a>' => 'https://example.com',
+      '<a href="javascript:alert(1)">Click</a>' => 'Click',
+      '<a href="/lightning/r/Case/500/view"><b>Case</b></a>' => 'Case (/lightning/r/Case/500/view)',
+      '<img src="https://example.com/logo.png" alt="Company logo" border="0"/>' => '[Image: Company logo]',
+      '<img src="https://example.com/pixel.gif">' => '',
+      'Before <a href="https://a.example">A</a> and <a href="https://b.example">B</a>' => 'Before A (https://a.example) and B (https://b.example)'
+    };
+    for (String html : cases.keySet()) {
+      Assert.areEqual(
+        cases.get(html),
+        PromptContextValueFormatter.format(html, richText, null, V2),
+        'Unexpected text for ' + html
+      );
+    }
+  }
 }

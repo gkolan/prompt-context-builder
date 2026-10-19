@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Test_Link__c</fullName>
+    <description>Test-only fixture: HYPERLINK formula.</description>
+    <label>Test Link</label>
+    <formula
+  >HYPERLINK(&quot;https://example.com/t/&quot; &amp; Developer_Key__c, Name)</formula>
+    <formulaTreatBlanksAs>BlankAsBlank</formulaTreatBlanksAs>
+    <type>Text</type>
+    <unique>false</unique>
+</CustomField>

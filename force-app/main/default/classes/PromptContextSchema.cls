@@ -282,6 +282,35 @@ public with sharing class PromptContextSchema {
     return fieldPaths;
   }
 
+  /**
+   * Returns the API name of the object that owns the last field in a path.
+   * @param objectApiName Starting object
+   * @param requestedPath Field path
+   * @return Owning object API name
+   */
+  public static String terminalObjectName(
+    String objectApiName,
+    String requestedPath
+  ) {
+    String canonicalPath = requireReadableFieldPath(
+      objectApiName,
+      requestedPath
+    );
+    List<String> segments = canonicalPath.split('\\.');
+    Schema.DescribeSObjectResult currentObject = requireReadableObject(
+      objectApiName
+    );
+    for (Integer index = 0; index < segments.size() - 1; index++) {
+      currentObject = PromptContextSchemaCache.describeObject(
+        PromptContextSchemaCache.describeField(
+            findRelationshipField(currentObject, segments[index])
+          )
+          .getReferenceTo()[0]
+      );
+    }
+    return currentObject.getName();
+  }
+
   public static Schema.DescribeFieldResult getTerminalFieldDescription(
     String objectApiName,
     String requestedPath

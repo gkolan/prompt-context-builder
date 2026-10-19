@@ -298,4 +298,52 @@ private class PromptContextBulkServiceTest {
     config.sources.add(source);
     return config;
   }
+
+  @isTest
+  static void shouldCalculateInApexWithSoqlNullRulesWhenTheMatchCannotBeGrouped() {
+    Id first = PromptContextTestDataFactory.missingRootRecordId();
+    Id second = Id.valueOf(String.valueOf(first).left(14) + '2');
+    List<SObject> rows = new List<SObject>{
+      new Prompt_Context_Source__c(Prompt_Template__c = first, Sequence__c = 5),
+      new Prompt_Context_Source__c(
+        Prompt_Template__c = first,
+        Sequence__c = null
+      ),
+      new Prompt_Context_Source__c(Prompt_Template__c = first, Sequence__c = 1),
+      new Prompt_Context_Source__c(
+        Prompt_Template__c = second,
+        Sequence__c = null
+      )
+    };
+    Map<String, Object> expectedFirst = new Map<String, Object>{
+      'COUNT' => 3,
+      'SUM' => Decimal.valueOf(6),
+      'AVG' => Decimal.valueOf(3),
+      'MIN' => Decimal.valueOf(1),
+      'MAX' => Decimal.valueOf(5)
+    };
+    for (String operation : expectedFirst.keySet()) {
+      PromptContextDTO.SourceConfig source = new PromptContextDTO.SourceConfig();
+      source.relatedObject = 'Prompt_Context_Source__c';
+      source.correlationField = 'Prompt_Template__c';
+      source.aggregateOperation = operation;
+      source.aggregateField = operation == 'COUNT' ? null : 'Sequence__c';
+
+      Map<String, Object> byKey = PromptContextBulkService.calculateByKey(
+        source,
+        rows
+      );
+
+      Assert.areEqual(
+        expectedFirst.get(operation),
+        byKey.get(PromptContextBulkService.matchKey(first)),
+        operation + ' must ignore blank values like SOQL does.'
+      );
+      Assert.areEqual(
+        operation == 'COUNT' ? (Object) 1 : null,
+        byKey.get(PromptContextBulkService.matchKey(second)),
+        operation + ' over only blank values follows SOQL.'
+      );
+    }
+  }
 }
