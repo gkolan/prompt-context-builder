@@ -28,6 +28,7 @@ public with sharing class PromptContextReasonCodes {
   public static final String NOT_AUTHORIZED = 'NOT_AUTHORIZED';
   public static final String TEMPLATE_NOT_FOUND = 'TEMPLATE_NOT_FOUND';
   public static final String DRAFT_CHANGED = 'DRAFT_CHANGED';
+  public static final String QUERY_NOT_SUPPORTED = 'QUERY_NOT_SUPPORTED';
   public static final String TEMPLATE_NOT_PUBLISHED = 'TEMPLATE_NOT_PUBLISHED';
   public static final String TEMPLATE_VERSION_AMBIGUOUS = 'TEMPLATE_VERSION_AMBIGUOUS';
   public static final String INVALID_CONFIGURATION = 'INVALID_CONFIGURATION';

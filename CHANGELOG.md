@@ -44,6 +44,12 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- A query Salesforce refuses, such as ContentDocumentLink without an Id filter or a non-selective
+  query on a very large object, now returns `QUERY_NOT_SUPPORTED` instead of an unexpected error.
+- External, big, and Knowledge article objects are no longer offered and are refused in syntax
+  version 2 (`OBJECT_KIND_NOT_SUPPORTED`).
+- Validation warns about unknown picklist filter values and filter values padded with spaces.
+- Syntax version 2 removes invisible control and text-direction characters from record values.
 - Formula fields: syntax version 2 requires read access to every field a formula uses, fails closed
   for polymorphic formulas, refuses calculations on fields Salesforce marks as not calculable
   (`AGGREGATE_FIELD_NOT_SUPPORTED`), and calculates in Apex when a formula match field cannot be

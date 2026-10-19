@@ -112,6 +112,14 @@ public with sharing class PromptContextValidator {
     PromptContextDTO.ValidationResult result
   ) {
     String templateBody = config.templateBody ?? '';
+    rejectUnsupportedObjectKind(config.rootObject, 'Salesforce object', result);
+    for (String alias : activeSources.keySet()) {
+      rejectUnsupportedObjectKind(
+        activeSources.get(alias).relatedObject,
+        'Data set ' + alias,
+        result
+      );
+    }
     rejectCompoundFields(
       config.rootObject,
       PromptTemplateLanguage.getRootFieldPaths(templateBody),
@@ -235,6 +243,30 @@ public with sharing class PromptContextValidator {
         }
         // A path without a reason is missing or unreadable; the access checks report it.
       }
+    }
+  }
+
+  /**
+   * External objects query through callouts, big objects need index-only filters, and Knowledge
+   * article versions need publication filters. None can be verified here, so they are refused.
+   */
+  private static void rejectUnsupportedObjectKind(
+    String objectApiName,
+    String location,
+    PromptContextDTO.ValidationResult result
+  ) {
+    String name = (objectApiName ?? '').toLowerCase();
+    if (
+      name.endsWith('__x') ||
+      name.endsWith('__b') ||
+      name.endsWith('__kav')
+    ) {
+      result.addError(
+        'OBJECT_KIND_NOT_SUPPORTED',
+        location,
+        objectApiName +
+        ' is an external, big, or Knowledge article object. Choose a standard or custom object.'
+      );
     }
   }
 
@@ -625,6 +657,7 @@ public with sharing class PromptContextValidator {
             filter.operator != 'NOT_NULL' &&
             !String.isBlank(filter.value)
           ) {
+            warnAboutFilterValue(filter, filterDescription, location, result);
             try {
               requireUsableFilterValue(source.relatedObject, filter);
             } catch (PromptContextException exceptionValue) {
@@ -788,6 +821,53 @@ public with sharing class PromptContextValidator {
           'Data set ' +
             alias +
             ' returns records. Use a record field, count, or repeat block.'
+        );
+      }
+    }
+  }
+
+  /** Warns about filter values that are valid but will silently match nothing. */
+  private static void warnAboutFilterValue(
+    PromptContextDTO.FilterRule filter,
+    Schema.DescribeFieldResult description,
+    String location,
+    PromptContextDTO.ValidationResult result
+  ) {
+    Boolean isList = filter.operator == 'IN' || filter.operator == 'NOT_IN';
+    List<String> values = isList
+      ? filter.value.split(',')
+      : new List<String>{ filter.value };
+    if (!isList && filter.value != filter.value.trim()) {
+      result.addWarning(
+        'FILTER_VALUE_WHITESPACE',
+        location,
+        'The value for ' +
+          filter.fieldName +
+          ' starts or ends with a space, so it only matches values that have the same spaces.'
+      );
+    }
+    if (
+      description.getType() != Schema.DisplayType.Picklist ||
+      (filter.operator != 'EQ' &&
+      filter.operator != 'NE' &&
+      !isList)
+    ) {
+      return;
+    }
+    Set<String> known = new Set<String>();
+    for (Schema.PicklistEntry entry : description.getPicklistValues()) {
+      known.add(entry.getValue().toLowerCase());
+    }
+    for (String value : values) {
+      if (!known.contains(value.trim().toLowerCase())) {
+        result.addWarning(
+          'UNKNOWN_PICKLIST_VALUE',
+          location,
+          '"' +
+            value.trim() +
+            '" is not a value of ' +
+            filter.fieldName +
+            '. Use the picklist API value; the filter will not match otherwise.'
         );
       }
     }

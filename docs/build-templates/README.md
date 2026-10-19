@@ -30,10 +30,19 @@ data sets omit that match and can include any matching records the person can ac
    - **Filter logic**: refer to filters by number, such as `1 AND (2 OR NOT 3)`. Logic replaces
      groups, every filter must appear in it, and mixing `AND` with `OR` requires parentheses.
 
+   Validation warns, without blocking, when a picklist filter value is not one of the field's values
+   (`UNKNOWN_PICKLIST_VALUE`) or when a value starts or ends with a space
+   (`FILTER_VALUE_WHITESPACE`). Both would otherwise match nothing.
+
    Relative dates use Salesforce date literals: `TODAY`, `YESTERDAY`, `TOMORROW`,
    `LAST_`/`THIS_`/`NEXT_` `WEEK`, `MONTH`, `QUARTER`, or `YEAR`, `LAST_90_DAYS`, `NEXT_90_DAYS`,
    and `LAST_N_`/`NEXT_N_`/`N_…_AGO` forms of `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, and `YEARS`
-   with `:n`. They follow the running person's time zone.
+   with `:n`. They follow the running person's time zone, so `TODAY` in a Batch job is the batch
+   user's day, not the record owner's.
+
+The object list leaves out external objects, big objects, Knowledge article versions, history,
+share, feed, and change-event objects. Salesforce restricts how those can be queried, and they cannot
+be verified here.
 
 5. Add up to three business sort fields. Salesforce uses `Id` last when records otherwise have the
    same order.

@@ -135,4 +135,29 @@ private class PromptTemplateDraftConflictTest {
       Assert.areEqual(2, resaved.draftRevision);
     }
   }
+
+  @isTest
+  static void shouldTreatATemplateSavedBeforeRevisionsExistedAsRevisionZero() {
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig created = PromptTemplateService.saveDraft(
+        PromptContextTestDataFactory.createTwoSourceConfig()
+      );
+      update new Prompt_Template__c(Id = created.id, Draft_Revision__c = null);
+
+      PromptContextDTO.TemplateConfig legacy = PromptTemplateService.getTemplate(
+        created.id
+      );
+      legacy.description = 'First edit after upgrade';
+      PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(
+        legacy
+      );
+
+      Assert.areEqual(0, legacy.draftRevision, 'A blank revision loads as 0.');
+      Assert.areEqual(
+        1,
+        saved.draftRevision,
+        'The first save after upgrade works.'
+      );
+    }
+  }
 }

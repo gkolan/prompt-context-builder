@@ -774,4 +774,88 @@ private class PromptContextAdversarialTest {
     }
     return String.join(values, ',');
   }
+
+  @isTest
+  static void shouldNameAQuerySalesforceRefusesInsteadOfAPlatformError() {
+    PromptContextDTO.TemplateConfig config = baseConfig();
+    config.sources.remove(1);
+    PromptContextDTO.SourceConfig links = config.sources[0];
+    links.referenceName = 'links';
+    links.sourceMode = 'REFERENCE';
+    links.relatedObject = 'ContentDocumentLink';
+    links.correlationField = null;
+    links.rootField = null;
+    links.selectedFields = new List<String>{ 'LinkedEntityId' };
+    links.filters.clear();
+    links.sorts.clear();
+    links.maxRows = 5;
+    config.templateBody = '{!related.links.count}';
+
+    try {
+      PromptContextService.generate(
+        config,
+        PromptContextTestDataFactory.selectRootRecord().Id
+      );
+      Assert.fail('Salesforce requires an Id filter on this object.');
+    } catch (PromptContextException expected) {
+      Assert.areEqual(
+        PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
+        expected.reasonCode,
+        expected.getMessage()
+      );
+    }
+  }
+
+  @isTest
+  static void shouldRefuseObjectKindsThatCannotBeVerified() {
+    for (
+      String objectName : new List<String>{
+        'Sales__x',
+        'Clicks__b',
+        'Faq__kav'
+      }
+    ) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.sources[0].relatedObject = objectName;
+      Assert.isTrue(
+        hasCode(
+          PromptContextValidator.validate(config).messages,
+          'OBJECT_KIND_NOT_SUPPORTED'
+        ),
+        objectName + ' must be refused.'
+      );
+    }
+  }
+
+  @isTest
+  static void shouldWarnAboutFilterValuesThatSilentlyMatchNothing() {
+    PromptContextDTO.TemplateConfig config = baseConfig();
+    config.sources[0].filters[0].fieldName = 'Source_Mode__c';
+    config.sources[0].filters[0].operator = 'IN';
+    config.sources[0].filters[0].value = 'related, Reference_Records';
+    config.sources[1].filters[0].value = 'Zulu ';
+
+    List<PromptContextDTO.Message> messages = PromptContextValidator.validate(
+        config
+      )
+      .messages;
+
+    Assert.isTrue(hasCode(messages, 'UNKNOWN_PICKLIST_VALUE'), codes(messages));
+    Assert.isTrue(
+      hasCode(messages, 'FILTER_VALUE_WHITESPACE'),
+      codes(messages)
+    );
+    Integer unknownCount = 0;
+    for (PromptContextDTO.Message message : messages) {
+      if (message.code == 'UNKNOWN_PICKLIST_VALUE') {
+        unknownCount++;
+        Assert.isTrue(message.text.contains('Reference_Records'), message.text);
+      }
+    }
+    Assert.areEqual(
+      1,
+      unknownCount,
+      'Picklist values match without regard to case; only the unknown value is named.'
+    );
+  }
 }

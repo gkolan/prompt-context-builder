@@ -66,20 +66,21 @@ matching records. Word fallback text accordingly, for example "No visible contac
 Each published version stores the syntax version it was published with. Generation always uses the
 stored version, so republishing is the only way a live template changes its output.
 
-| Value type            | Syntax version 1 (published before version 2) | Syntax version 2 (current)                         |
-| --------------------- | --------------------------------------------- | -------------------------------------------------- |
-| Picklist              | API value, such as `Closed_Won`               | Label in the running person's language             |
-| Multi-select picklist | API values joined by `;`                      | Labels joined by `; `                              |
-| Rich text             | Stored HTML markup                            | Plain text with line breaks; lists start with `- ` |
-| Links and images      | Stored HTML markup                            | `text (https://…)` and `[Image: alt text]`         |
-| Date                  | Running person's locale format                | `2026-10-19`                                       |
-| Date/Time             | Running person's locale and time zone         | UTC ISO 8601, such as `2026-10-19T15:04:05Z`       |
-| Time                  | Stored value with milliseconds                | `15:04:05`                                         |
-| Currency              | Bare number                                   | Number and ISO code, such as `2500.00 USD`         |
-| Percent               | Bare number                                   | Number with `%`                                    |
-| Other numbers         | Stored number                                 | Plain number, never scientific notation            |
-| Address or Location   | Accepted                                      | Rejected; use the individual parts                 |
-| Row index past limit  | Always prints its fallback                    | Rejected with `INDEX_OUT_OF_RANGE`                 |
+| Value type            | Syntax version 1 (published before version 2) | Syntax version 2 (current)                                                               |
+| --------------------- | --------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Picklist              | API value, such as `Closed_Won`               | Label in the running person's language                                                   |
+| Multi-select picklist | API values joined by `;`                      | Labels joined by `; `                                                                    |
+| Rich text             | Stored HTML markup                            | Plain text with line breaks; lists start with `- `                                       |
+| Links and images      | Stored HTML markup                            | `text (https://…)` and `[Image: alt text]`                                               |
+| Hidden characters     | Kept                                          | Control and text-direction characters removed; tabs, line breaks, and emoji joiners kept |
+| Date                  | Running person's locale format                | `2026-10-19`                                                                             |
+| Date/Time             | Running person's locale and time zone         | UTC ISO 8601, such as `2026-10-19T15:04:05Z`                                             |
+| Time                  | Stored value with milliseconds                | `15:04:05`                                                                               |
+| Currency              | Bare number                                   | Number and ISO code, such as `2500.00 USD`                                               |
+| Percent               | Bare number                                   | Number with `%`                                                                          |
+| Other numbers         | Stored number                                 | Plain number, never scientific notation                                                  |
+| Address or Location   | Accepted                                      | Rejected; use the individual parts                                                       |
+| Row index past limit  | Always prints its fallback                    | Rejected with `INDEX_OUT_OF_RANGE`                                                       |
 
 In a multi-currency org, each currency value prints the record's own `CurrencyIsoCode`. Calculated
 values print as plain numbers without trailing zeros, so a sum prints `180`; the required currency rule on a calculated data set names their
@@ -90,13 +91,14 @@ comparison lists `Syntax version changed.` for that publication.
 
 ## Authoring checks added in syntax version 2
 
-| Code                           | Cause                                                       | Fix                                                        |
-| ------------------------------ | ----------------------------------------------------------- | ---------------------------------------------------------- |
-| `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill | Use an index below the data set's maximum records          |
-| `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly               | Use parts such as `BillingCity` or `Location__Latitude__s` |
-| `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000          | Correct the number                                         |
-| `FIELD_NOT_ACCESSIBLE`         | A formula field uses a field the running person cannot read | Grant read access to the formula inputs or remove it       |
-| `FORMULA_INPUT_NOT_VERIFIED`   | A formula's inputs cannot be checked, such as `Owner:User`  | Use one-type relationships or a stored field               |
+| Code                           | Cause                                                                           | Fix                                                        |
+| ------------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill                     | Use an index below the data set's maximum records          |
+| `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly                                   | Use parts such as `BillingCity` or `Location__Latitude__s` |
+| `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000                              | Correct the number                                         |
+| `FIELD_NOT_ACCESSIBLE`         | A formula field uses a field the running person cannot read                     | Grant read access to the formula inputs or remove it       |
+| `FORMULA_INPUT_NOT_VERIFIED`   | A formula's inputs cannot be checked, such as `Owner:User`                      | Use one-type relationships or a stored field               |
+| `OBJECT_KIND_NOT_SUPPORTED`    | An external (`__x`), big (`__b`), or Knowledge article (`__kav`) object is used | Choose a standard or custom object                         |
 
 Every syntax version also rejects more than 100 `each` and `if` blocks with `TOO_MANY_BLOCKS`
 before publication. A row index too large to fill, such as `[99999999999]`, prints its fallback.

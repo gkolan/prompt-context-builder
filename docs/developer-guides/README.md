@@ -69,6 +69,13 @@ the caller's own queries, DML, and callouts.
 Queueable, Batch, and Scheduled Apex do not elevate record access. The executing user still needs
 generation capability and read access to every required customer object and field.
 
+Every entry point checks the user Salesforce runs the transaction as. A record-triggered Flow runs as
+the person who saved the record. Some automation runs as a different user, for example the
+Automated Process user for some event-driven Flows, or the user who scheduled a job. That user needs
+the Prompt Context Permission Sets and record access; otherwise the request returns
+`NOT_AUTHORIZED` or an access reason. Confirm the running user for each Flow type in the target org
+before relying on it.
+
 ## Supported invocation contexts
 
 Every context calls the same preparation service, so authorization, user-mode data access, limits,

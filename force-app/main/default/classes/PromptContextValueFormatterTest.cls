@@ -208,4 +208,22 @@ private class PromptContextValueFormatterTest {
       );
     }
   }
+
+  @isTest
+  static void shouldRemoveInvisibleControlAndDirectionCharacters() {
+    String hostile =
+      'Pay \u202Eexe.txt\u202C now\u0000\u0007' +
+      '\u2066x\u2069 tab\there\nline 👨\u200D👩\u200D👧';
+
+    Assert.areEqual(
+      'Pay exe.txt nowx tab\there\nline 👨\u200D👩\u200D👧',
+      PromptContextValueFormatter.format(hostile, null, null, V2),
+      'Hidden characters are removed; tabs, newlines, and emoji joiners stay.'
+    );
+    Assert.areEqual(
+      hostile,
+      PromptContextValueFormatter.format(hostile, null, null, V1),
+      'Version 1 output is frozen.'
+    );
+  }
 }

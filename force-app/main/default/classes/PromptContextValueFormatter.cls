@@ -13,6 +13,10 @@ public with sharing class PromptContextValueFormatter {
     '(?is)<(script|style)[^>]*>.*?</\\1\\s*>'
   );
   private static final Pattern HTML_TAG = Pattern.compile('<[^>]*>');
+  /** Invisible control and text-direction characters that can hide or reorder prompt text. */
+  private static final Pattern HIDDEN_CONTROLS = Pattern.compile(
+    '[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\u007F\\u202A-\\u202E\\u2066-\\u2069]'
+  );
   private static final Pattern HTML_LINK = Pattern.compile(
     '(?is)<a\\b[^>]*?href\\s*=\\s*(?:"([^"]*)"|\'([^\']*)\')[^>]*>(.*?)</a\\s*>'
   );
@@ -79,6 +83,15 @@ public with sharing class PromptContextValueFormatter {
     ) {
       return formatVersion1(value);
     }
+    return HIDDEN_CONTROLS.matcher(formatReadable(value, field, currencyCode))
+      .replaceAll('');
+  }
+
+  private static String formatReadable(
+    Object value,
+    FieldInfo field,
+    String currencyCode
+  ) {
     // Apex treats a Date as an instance of Datetime, so the Date check must come first.
     if (value instanceof Date) {
       return String.valueOf((Date) value);

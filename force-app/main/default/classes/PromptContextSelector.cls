@@ -323,7 +323,18 @@ public inherited sharing class PromptContextSelector {
     if (String.isBlank(soql)) {
       throw new PromptContextException('A record request is required.');
     }
-    return Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
+    try {
+      return Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
+    } catch (QueryException exceptionValue) {
+      // Some objects require special filters, and very large objects require selective filters.
+      // Report a named reason instead of a raw platform error.
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
+        'Salesforce refused a data set query. Some objects need special filters, and very large ' +
+          'objects need more selective filters. Preview the template to find the data set, then ' +
+          'add a filter or choose another object.'
+      );
+    }
   }
 
   /** Returns the exact fixed publication selected by a template header. */

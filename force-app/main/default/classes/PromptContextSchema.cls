@@ -55,13 +55,15 @@ public with sharing class PromptContextSchema {
     String apiName = description.getName();
     Boolean editableRecord =
       description.isCreateable() || description.isUpdateable();
-    Boolean supportedCustomRecord =
-      apiName.endsWith('__c') || apiName.endsWith('__x');
+    Boolean supportedCustomRecord = apiName.endsWith('__c');
     Boolean implementationDetail =
       apiName.endsWith('Feed') ||
       apiName.endsWith('History') ||
       apiName.endsWith('Share') ||
-      apiName.endsWith('ChangeEvent');
+      apiName.endsWith('ChangeEvent') ||
+      apiName.endsWith('__b') ||
+      apiName.endsWith('__kav') ||
+      apiName.endsWith('__x');
     return (editableRecord || supportedCustomRecord) && !implementationDetail;
   }
 

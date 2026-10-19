@@ -744,4 +744,118 @@ private class PromptContextScenarioTest {
       .inputLogId;
     return [SELECT Id FROM Prompt_Input_Log__c WHERE Id = :logId];
   }
+
+  @isTest
+  static void shouldStayWithinLimitsForTwoHundredRecordsWithFiveDataSets() {
+    grantAll();
+    PromptContextDTO.TemplateConfig config = config(
+      '{!record.Name maxLength="40"}\n' +
+        '{!#each related.a as="r"}{!r.Reference_Name__c}:{!r.Sequence__c};{!/each}\n' +
+        '{!#each related.b as="r"}{!r.Reference_Name__c};{!else}none{!/each}\n' +
+        'First {!related.c[0].Reference_Name__c fallback="-"} of {!related.c.count}\n' +
+        'Total {!aggregate.n.value} Sum {!aggregate.s.value fallback="0"}'
+    );
+    SourceBuilder a = records('a', 5, 'Sequence__c', 'DESC')
+      .withFilter('Active__c', 'EQ', 'true')
+      .withFilter('Sequence__c', 'LT', '4')
+      .withFilter('Reference_Name__c', 'STARTS_WITH', 'Stress');
+    a.source.filterLogic = '3 AND (1 AND 2)';
+    addSource(config, a);
+    addSource(
+      config,
+      records('b', 3, 'Reference_Name__c', 'ASC')
+        .withFilter('Sequence__c', 'IN', '0,2,4')
+    );
+    addSource(
+      config,
+      records('c', 1, 'Sequence__c', 'ASC')
+        .withFilter('CreatedDate', 'EQ', 'TODAY')
+    );
+    addSource(config, aggregate('n', 'COUNT', null));
+    addSource(
+      config,
+      aggregate('s', 'SUM', 'Sequence__c').withFilter('Active__c', 'EQ', 'true')
+    );
+    config.developerKey = 'scenario_stress';
+    PromptTemplateService.publish(
+      PromptTemplateService.saveDraft(config).id,
+      rootId(MAIN)
+    );
+    List<Prompt_Template__c> roots = PromptContextTestDataFactory.createRootRecords(
+      PromptContextContract.MAX_RECORDS_PER_REQUEST
+    );
+    List<Prompt_Context_Source__c> children = new List<Prompt_Context_Source__c>();
+    for (Prompt_Template__c root : roots) {
+      for (Integer index = 0; index < 5; index++) {
+        children.add(
+          new Prompt_Context_Source__c(
+            Prompt_Template__c = root.Id,
+            Reference_Name__c = 'Stress ' + index,
+            Related_Object__c = 'stress',
+            Max_Rows__c = 1,
+            Sequence__c = index,
+            Active__c = Math.mod(index, 2) == 0,
+            Source_Mode__c = 'RELATED',
+            Result_Mode__c = 'RECORDS',
+            Filter_Group_Join__c = 'AND'
+          )
+        );
+      }
+    }
+    insert children;
+    List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>();
+    for (Prompt_Template__c root : roots) {
+      PromptContextInputApi.Request request = new PromptContextInputApi.Request();
+      request.templateDeveloperKey = 'scenario_stress';
+      request.recordId = root.Id;
+      request.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
+      requests.add(request);
+    }
+
+    Test.startTest();
+    List<PromptContextInputApi.Result> results = PromptContextInputApi.prepareForFlow(
+      requests
+    );
+    Integer cpu = Limits.getCpuTime();
+    Integer heap = Limits.getHeapSize();
+    Integer queries = Limits.getQueries();
+    Test.stopTest();
+
+    Map<String, Integer> outcomes = new Map<String, Integer>();
+    for (PromptContextInputApi.Result result : results) {
+      outcomes.put(
+        result.reasonCode,
+        (outcomes.get(result.reasonCode) ?? 0) + 1
+      );
+    }
+    Assert.areEqual(
+      new Map<String, Integer>{ 'SUCCESS' => roots.size() },
+      outcomes,
+      'Every record must be prepared. cpu=' +
+        cpu +
+        ' heap=' +
+        heap +
+        ' queries=' +
+        queries
+    );
+    Assert.areEqual(
+      'Stress 2:2;Stress 0:0;',
+      results[0].prompt.split('\n')[1],
+      'Filter logic must hold for every record in bulk.'
+    );
+    Assert.isTrue(
+      results[0].prompt.endsWith('Total 5 Sum 6'),
+      results[0].prompt
+    );
+    Assert.isTrue(
+      cpu < Limits.getLimitCpuTime() / 2 &&
+        heap < Limits.getLimitHeapSize() / 2,
+      'A full bulk call must leave half the transaction for the caller. cpu=' +
+        cpu +
+        ' heap=' +
+        heap +
+        ' queries=' +
+        queries
+    );
+  }
 }
