@@ -20,6 +20,13 @@ idempotent save may recover an exact user-scoped request-key collision after use
 The collision path reads only the log Id, hashed request key, and verification digest, and returns a
 match only after the digest agrees. Neither exception can widen prompt data access.
 
+The publish service authorizes Prompt Context Configure itself before those system-mode writes, so
+a caller cannot reach them by bypassing the Lightning controller. `npm run check:apex-surface`
+pins both exceptions by class and count. It also rejects any other `without sharing` class,
+production `Test.isRunningTest()` branch, query or DML without an explicit access mode, and entry
+class that does not call `PromptContextAccess`. The gate is a source scan. It does not replace
+Apex tests or security review.
+
 Selecting Salesforce Files is another separate boundary. It requires Prompt Context Send Files.
 File discovery and confirmation read only versions the running user can access and require a direct
 `ContentDocumentLink` to the current record. The selected list pins exact version IDs, order, format,

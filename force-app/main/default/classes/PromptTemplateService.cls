@@ -169,6 +169,8 @@ public with sharing class PromptTemplateService {
     Id templateId,
     Id sampleRecordId
   ) {
+    // The version writes below use system mode, so this service authorizes them itself.
+    PromptContextAccess.requireConfigure();
     if (sampleRecordId == null) {
       throw new PromptContextException(Label.PCB_Publish_Requires_Preview);
     }

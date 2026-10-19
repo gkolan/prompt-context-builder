@@ -72,9 +72,7 @@ private class PromptContextPreparationServiceTest {
         'The common service should build the prompt. Outcome: ' +
           responses[0].reasonCode +
           ', message: ' +
-          responses[0].message +
-          ', internal test detail: ' +
-          PromptContextPreparationService.lastUnexpectedMessage
+          responses[0].message
       );
       Assert.areEqual(
         PromptContextReasonCodes.SUCCESS,

@@ -29,6 +29,13 @@ Tests may construct those records in memory for language and schema behavior, re
 user, and persist only package-owned fixtures. Deploy-critical tests therefore do not depend on
 subscriber validation rules, flows, or triggers on those org-owned records.
 
+The Apex security-surface gate (`check:apex-surface`) fails when production Apex declares an
+unreviewed `without sharing` class or changes the reviewed `SYSTEM_MODE` count. It also fails on a
+production `Test.isRunningTest()` branch, inline SOQL without `WITH USER_MODE`, Database calls
+without an explicit `AccessLevel`, DML statements, or an entry class that neither calls
+`PromptContextAccess.require*()` nor delegates to an approved class that does. See
+[Security and data access](../architecture/security-and-data-access.md).
+
 The agent-guidance gate verifies that `AGENTS.md` retains the mandatory session link and that the
 [change safety playbook](../contributing/change-safety-playbook.md) remains connected to contributor
 and quality documentation. Repository-aware agents receive `AGENTS.md` at session start; the linked
@@ -42,6 +49,7 @@ playbook is mandatory reading for Apex, metadata, validation, and deployment wor
 | Screenshot inventory, signatures, and references   | Yes                         | No                                            |
 | Agent-guidance presence and navigation             | Yes                         | No                                            |
 | Apex test-data isolation source check              | Yes                         | No                                            |
+| Apex security-surface source check                 | Yes                         | No                                            |
 | LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                            |
 | Salesforce Code Analyzer                           | No                          | No, although some engines can use org context |
 | Apex compilation and `RunLocalTests`               | No                          | Yes                                           |

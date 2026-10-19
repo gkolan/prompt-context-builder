@@ -171,6 +171,32 @@ private class PromptTemplateGovernanceServiceTest {
     }
   }
 
+  @isTest
+  static void shouldRejectServicePublish_WhenConfigurePermissionIsMissing() {
+    PromptContextAccess.setConfigureForTest(false);
+    Integer versionsBefore = [SELECT COUNT() FROM Prompt_Template_Version__c];
+    Exception thrown;
+
+    Test.startTest();
+    try {
+      PromptTemplateService.publish(null, null);
+    } catch (Exception exceptionValue) {
+      thrown = exceptionValue;
+    }
+    Test.stopTest();
+
+    Assert.isInstanceOfType(
+      thrown,
+      PromptContextAccess.AuthorizationException.class,
+      'The system-mode publish service must authorize the caller itself.'
+    );
+    Assert.areEqual(
+      versionsBefore,
+      [SELECT COUNT() FROM Prompt_Template_Version__c],
+      'A denied publish must not create a template version.'
+    );
+  }
+
   private static User getConfigurator() {
     return PromptContextTestDataFactory.createConfiguratorUser();
   }

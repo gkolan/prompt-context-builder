@@ -3,8 +3,6 @@
  * future approved entry points.
  */
 public with sharing class PromptContextPreparationService {
-  @TestVisible
-  private static String lastUnexpectedMessage;
   /** Request fields accepted by the common preparation process. */
   public class Request {
     public Id templateId;
@@ -247,12 +245,6 @@ public with sharing class PromptContextPreparationService {
         );
       }
     } catch (Exception groupException) {
-      if (Test.isRunningTest()) {
-        lastUnexpectedMessage =
-          groupException.getTypeName() +
-          ': ' +
-          groupException.getMessage();
-      }
       for (Integer responseIndex : indexes) {
         fail(
           responses[responseIndex],

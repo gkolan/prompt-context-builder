@@ -90,5 +90,6 @@ browser-verified.
 | Static-analysis configuration  | `code-analyzer.yml`                                           |
 | Change-safety owner page       | `docs/contributing/change-safety-playbook.md`                 |
 | Apex test-isolation gate       | `scripts/check-test-data-isolation.mjs`                       |
+| Apex security-surface gate     | `scripts/check-apex-surface.mjs`                              |
 | Screenshot evidence and policy | `docs/screenshots/README.md` and `manifest.json`              |
 | Screenshot contract gate       | `scripts/check-screenshot-contract.mjs`                       |
