@@ -45,6 +45,23 @@ public with sharing class PromptTemplateLanguage {
     'aggregate'
   };
   private static final String LITERAL_TOKEN_OPEN = '\uE000PCB_LITERAL_OPEN\uE001';
+  /** Escape token that prints a literal {! in the prompt. */
+  public static final String LITERAL_ESCAPE = '{!!}';
+  private static final Set<String> SUPPORTED_ATTRIBUTES = new Set<String>{
+    'fallback',
+    'format',
+    'maxLength'
+  };
+  private static final String TRUNCATION_MARKER = '\u2026';
+  private static Map<Schema.SObjectType, Map<String, PromptContextValueFormatter.FieldInfo>> fieldInfoByType = new Map<Schema.SObjectType, Map<String, PromptContextValueFormatter.FieldInfo>>();
+  private static Integer activeSyntaxVersion = PromptContextContract.SYNTAX_VERSION;
+  private static Boolean truncatedDuringRender = false;
+
+  /** Rendered prompt text and whether any value was shortened by maxLength. */
+  public class RenderOutput {
+    public String text;
+    public Boolean truncated = false;
+  }
 
   /**
    * Validates token shape, block balance, and configured aliases.
@@ -155,13 +172,42 @@ public with sharing class PromptTemplateLanguage {
     Map<String, List<SObject>> relatedByAlias,
     Map<String, Object> aggregateByAlias
   ) {
+    return render(
+        templateBody,
+        rootRecord,
+        relatedByAlias,
+        aggregateByAlias,
+        PromptContextContract.SYNTAX_VERSION
+      )
+      .text;
+  }
+
+  /**
+   * Builds text with the output rules of the publication's syntax version.
+   * @param templateBody Template text
+   * @param rootRecord Current Salesforce record
+   * @param relatedByAlias Related records grouped by source alias
+   * @param aggregateByAlias Calculated values grouped by source alias
+   * @param syntaxVersion Syntax version stored on the publication
+   * @return Prompt text and truncation state
+   */
+  public static RenderOutput render(
+    String templateBody,
+    SObject rootRecord,
+    Map<String, List<SObject>> relatedByAlias,
+    Map<String, Object> aggregateByAlias,
+    Integer syntaxVersion
+  ) {
+    activeSyntaxVersion = syntaxVersion ?? PromptContextContract.SYNTAX_VERSION;
+    truncatedDuringRender = false;
     String rendered = renderBlocks(
-      templateBody,
+      (templateBody ?? '').replace(LITERAL_ESCAPE, LITERAL_TOKEN_OPEN),
       rootRecord,
       relatedByAlias,
       aggregateByAlias
     );
-    return restoreLiteralMergeSyntax(
+    RenderOutput output = new RenderOutput();
+    output.text = restoreLiteralMergeSyntax(
       replaceScalarTokens(
         rendered,
         rootRecord,
@@ -170,6 +216,33 @@ public with sharing class PromptTemplateLanguage {
         new Map<String, SObject>()
       )
     );
+    output.truncated = truncatedDuringRender;
+    return output;
+  }
+
+  /**
+   * Returns the highest zero-based row index referenced for each data set.
+   * @param templateBody Template text
+   * @return Highest index by data-set reference name
+   */
+  public static Map<String, Integer> getHighestRelatedIndexes(
+    String templateBody
+  ) {
+    Map<String, Integer> highest = new Map<String, Integer>();
+    Matcher tokens = TOKEN_PATTERN.matcher(templateBody ?? '');
+    while (tokens.find()) {
+      Matcher relatedMatcher = RELATED_TOKEN.matcher(
+        getTokenCore(tokens.group(1).trim())
+      );
+      if (relatedMatcher.matches()) {
+        Integer index = Integer.valueOf(relatedMatcher.group(2));
+        String alias = relatedMatcher.group(1);
+        if (!highest.containsKey(alias) || highest.get(alias) < index) {
+          highest.put(alias, index);
+        }
+      }
+    }
+    return highest;
   }
 
   private static String renderBlocks(
@@ -255,6 +328,7 @@ public with sharing class PromptTemplateLanguage {
       String tokenText = tokens.group(1).trim();
       String core = getTokenCore(tokenText);
       Object value;
+      ValueTarget target;
 
       Matcher recordMatcher = RECORD_TOKEN.matcher(core);
       Matcher relatedMatcher = RELATED_TOKEN.matcher(core);
@@ -262,13 +336,13 @@ public with sharing class PromptTemplateLanguage {
       Matcher aggregateMatcher = AGGREGATE_TOKEN.matcher(core);
       Matcher localMatcher = LOCAL_TOKEN.matcher(core);
       if (recordMatcher.matches()) {
-        value = getPathValue(rootRecord, recordMatcher.group(1));
+        target = getPathTarget(rootRecord, recordMatcher.group(1));
       } else if (relatedMatcher.matches()) {
         List<SObject> records = relatedByAlias.get(relatedMatcher.group(1));
         Integer rowIndex = Integer.valueOf(relatedMatcher.group(2));
-        value = records != null &&
+        target = records != null &&
           rowIndex < records.size()
-          ? getPathValue(records[rowIndex], relatedMatcher.group(3))
+          ? getPathTarget(records[rowIndex], relatedMatcher.group(3))
           : null;
       } else if (countMatcher.matches()) {
         List<SObject> records = relatedByAlias.get(countMatcher.group(1));
@@ -279,19 +353,26 @@ public with sharing class PromptTemplateLanguage {
         localMatcher.matches() &&
         localRecords.containsKey(localMatcher.group(1))
       ) {
-        value = getPathValue(
+        target = getPathTarget(
           localRecords.get(localMatcher.group(1)),
           localMatcher.group(2)
         );
       } else {
         value = '';
       }
+      if (target != null) {
+        value = target.value;
+      }
       output.add(
         protectLiteralMergeSyntax(
-          formatValue(
-            value,
-            getOption(tokenText, 'fallback'),
-            getOption(tokenText, 'format')
+          limitLength(
+            formatValue(
+              value,
+              target,
+              getOption(tokenText, 'fallback'),
+              getOption(tokenText, 'format')
+            ),
+            getOption(tokenText, 'maxLength')
           )
         )
       );
@@ -403,7 +484,8 @@ public with sharing class PromptTemplateLanguage {
       } else if (
         tokenText == 'else' ||
         tokenText == '/each' ||
-        tokenText == '/if'
+        tokenText == '/if' ||
+        tokenText == '!'
       ) {
         valid = true;
       } else if (
@@ -461,11 +543,11 @@ public with sharing class PromptTemplateLanguage {
       }
       String optionName = options.group(1);
       String optionValue = options.group(2);
-      if (optionName != 'fallback' && optionName != 'format') {
+      if (!SUPPORTED_ATTRIBUTES.contains(optionName)) {
         result.addError(
           'UNKNOWN_ATTRIBUTE',
           'Template body',
-          'Only fallback and format attributes are supported.'
+          'Only fallback, format, and maxLength attributes are supported.'
         );
       } else if (seen.contains(optionName)) {
         result.addError(
@@ -480,6 +562,17 @@ public with sharing class PromptTemplateLanguage {
           'UNSUPPORTED_FORMAT',
           'Template body',
           'Format must be upper, lower, or percent.'
+        );
+      } else if (
+        optionName == 'maxLength' &&
+        parseMaxLength(optionValue) == null
+      ) {
+        result.addError(
+          'INVALID_MAX_LENGTH',
+          'Template body',
+          'maxLength must be a whole number from 1 to ' +
+            PromptContextContract.MAX_PROMPT_CHARACTERS +
+            '.'
         );
       }
       seen.add(optionName);
@@ -540,7 +633,14 @@ public with sharing class PromptTemplateLanguage {
     return value == null ? null : value.replace(LITERAL_TOKEN_OPEN, '{!');
   }
 
-  private static Object getPathValue(SObject record, String fieldPath) {
+  /** A resolved field value with the record that holds it. */
+  private class ValueTarget {
+    Object value;
+    SObject holder;
+    String fieldName;
+  }
+
+  private static ValueTarget getPathTarget(SObject record, String fieldPath) {
     if (record == null) {
       return null;
     }
@@ -552,25 +652,79 @@ public with sharing class PromptTemplateLanguage {
         return null;
       }
     }
-    return currentRecord.get(segments[segments.size() - 1]);
+    ValueTarget target = new ValueTarget();
+    target.holder = currentRecord;
+    target.fieldName = segments[segments.size() - 1];
+    target.value = currentRecord.get(target.fieldName);
+    return target;
+  }
+
+  private static PromptContextValueFormatter.FieldInfo fieldInfo(
+    ValueTarget target
+  ) {
+    if (target == null || target.holder == null) {
+      return null;
+    }
+    Schema.SObjectType objectType = target.holder.getSObjectType();
+    if (!fieldInfoByType.containsKey(objectType)) {
+      fieldInfoByType.put(
+        objectType,
+        new Map<String, PromptContextValueFormatter.FieldInfo>()
+      );
+    }
+    Map<String, PromptContextValueFormatter.FieldInfo> byName = fieldInfoByType.get(
+      objectType
+    );
+    String key = target.fieldName.toLowerCase();
+    if (!byName.containsKey(key)) {
+      Schema.SObjectField token = PromptContextSchemaCache.describeObject(
+          objectType
+        )
+        .fields.getMap()
+        .get(key);
+      byName.put(
+        key,
+        new PromptContextValueFormatter.FieldInfo(
+          PromptContextSchemaCache.describeField(token)
+        )
+      );
+    }
+    return byName.get(key);
+  }
+
+  private static String currencyCode(ValueTarget target) {
+    if (target == null || target.holder == null) {
+      return null;
+    }
+    Object code = target.holder.getPopulatedFieldsAsMap()
+      .get('CurrencyIsoCode');
+    if (code != null) {
+      return String.valueOf(code);
+    }
+    return UserInfo.isMultiCurrencyOrganization()
+      ? null
+      : UserInfo.getDefaultCurrency();
   }
 
   private static String formatValue(
     Object value,
+    ValueTarget target,
     String fallback,
     String formatName
   ) {
     if (value == null || String.isBlank(String.valueOf(value))) {
       return fallback ?? '';
     }
-    String rendered;
-    if (value instanceof Date) {
-      rendered = ((Date) value).format();
-    } else if (value instanceof Datetime) {
-      rendered = ((Datetime) value).format();
-    } else {
-      rendered = String.valueOf(value);
-    }
+    Boolean usesFieldRules =
+      activeSyntaxVersion >=
+      PromptContextContract.SYNTAX_VERSION_READABLE_OUTPUT &&
+      target != null;
+    String rendered = PromptContextValueFormatter.format(
+      value,
+      usesFieldRules ? fieldInfo(target) : null,
+      usesFieldRules ? currencyCode(target) : null,
+      activeSyntaxVersion
+    );
     if (formatName == 'upper') {
       return rendered.toUpperCase();
     }
@@ -578,7 +732,11 @@ public with sharing class PromptTemplateLanguage {
       return rendered.toLowerCase();
     }
     if (formatName == 'percent') {
-      return rendered + '%';
+      return activeSyntaxVersion >=
+        PromptContextContract.SYNTAX_VERSION_READABLE_OUTPUT &&
+        rendered.endsWith('%')
+        ? rendered
+        : rendered + '%';
     }
     if (!String.isBlank(formatName)) {
       throw PromptContextException.withReason(
@@ -587,6 +745,26 @@ public with sharing class PromptTemplateLanguage {
       );
     }
     return rendered;
+  }
+
+  private static String limitLength(String text, String maxLengthOption) {
+    Integer maxLength = parseMaxLength(maxLengthOption);
+    if (maxLength == null || text == null || text.length() <= maxLength) {
+      return text;
+    }
+    truncatedDuringRender = true;
+    return text.substring(0, maxLength) + TRUNCATION_MARKER;
+  }
+
+  private static Integer parseMaxLength(String value) {
+    if (String.isBlank(value) || !value.isNumeric() || value.length() > 5) {
+      return null;
+    }
+    Integer parsed = Integer.valueOf(value);
+    return parsed >= 1 &&
+      parsed <= PromptContextContract.MAX_PROMPT_CHARACTERS
+      ? parsed
+      : null;
   }
 
   private static void addDependency(

@@ -64,6 +64,9 @@
     >Prompt_Template__c.Description__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
+    >Prompt_Template__c.Draft_Revision__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Fingerprint__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
@@ -115,6 +118,9 @@
     >Prompt_Context_Source__c.Filters_JSON__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
+    >Prompt_Context_Source__c.Filter_Logic__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Context_Source__c.Max_Rows__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
@@ -161,6 +167,9 @@
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Context_Source_Version__c.Filters_JSON__c</field><readable
+    >true</readable></fieldPermissions>
+    <fieldPermissions><editable>false</editable><field
+    >Prompt_Context_Source_Version__c.Filter_Logic__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>false</editable><field
     >Prompt_Context_Source_Version__c.Root_Field__c</field><readable

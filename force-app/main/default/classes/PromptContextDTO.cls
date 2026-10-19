@@ -10,6 +10,9 @@ public with sharing class PromptContextDTO {
     public String value { get; set; }
     @AuraEnabled
     public String dataType { get; set; }
+    /** Active choices for a picklist field, so filters can offer a dropdown. */
+    @AuraEnabled
+    public List<Option> picklistValues { get; set; }
 
     /** Creates an empty option for JSON serialization. */
     public Option() {
@@ -85,6 +88,9 @@ public with sharing class PromptContextDTO {
     public List<FilterRule> filters { get; set; }
     @AuraEnabled
     public String filterGroupJoin { get; set; }
+    /** Numbered filter logic such as 1 AND (2 OR 3); replaces groups when set. */
+    @AuraEnabled
+    public String filterLogic { get; set; }
     @AuraEnabled
     public List<SortRule> sorts { get; set; }
     @AuraEnabled
@@ -148,6 +154,9 @@ public with sharing class PromptContextDTO {
     public Integer version { get; set; }
     @AuraEnabled
     public Integer syntaxVersion { get; set; }
+    /** Draft revision the editor loaded; a stale value cannot overwrite newer changes. */
+    @AuraEnabled
+    public Integer draftRevision { get; set; }
     @AuraEnabled
     public String contractVersion { get; set; }
     @AuraEnabled

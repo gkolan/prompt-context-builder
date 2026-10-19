@@ -1,5 +1,8 @@
 /** Reads and validates approved provider and model settings without exposing credentials. */
 public with sharing class PromptContextProviderSettings {
+  @TestVisible
+  private static Map<String, Settings> settingsForTest;
+
   public class Settings {
     public String developerName;
     public Boolean active;
@@ -19,9 +22,6 @@ public with sharing class PromptContextProviderSettings {
     public Date lastVerifiedDate;
     public String reviewReference;
   }
-
-  @TestVisible
-  private static Map<String, Settings> settingsForTest;
 
   /** Returns one active and structurally complete setup or stops publication and execution. */
   public static Settings requireActive(String developerName) {

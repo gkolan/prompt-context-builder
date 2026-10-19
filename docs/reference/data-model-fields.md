@@ -26,34 +26,37 @@ an invalid Draft and never bypasses Salesforce checks.
 | Allowed File Formats        | `Allowed_File_Formats__c`   | Comma-separated formats approved for this template                 |
 | Approved Service Setup      | `Provider_Profile_Key__c`   | Developer name of the reviewed Prompt Context Provider setup       |
 | File Citations              | `File_Citations_Enabled__c` | Whether the reviewed service and model allow document citations    |
+| Draft Revision              | `Draft_Revision__c`         | Increases on every draft save; blocks overwriting newer changes    |
 
 ## Prompt Data Set (`Prompt_Context_Source__c`)
 
-| Field label                | API name                 | Purpose                                                |
-| -------------------------- | ------------------------ | ------------------------------------------------------ |
-| Prompt Template            | `Prompt_Template__c`     | Template that owns this data set                       |
-| Reference Name             | `Reference_Name__c`      | Alias used by merge syntax                             |
-| Records to Include         | `Source_Mode__c`         | `RELATED` or `REFERENCE`                               |
-| Result Type                | `Result_Mode__c`         | Records or one calculated value                        |
-| Related Object             | `Related_Object__c`      | Salesforce object read for this data set               |
-| Current Record Match Field | `Root_Field__c`          | Current-record value used for matching                 |
-| Related Record Match Field | `Correlation_Field__c`   | Queried-object field matched to the current record     |
-| Prompt Fields              | `Selected_Fields__c`     | Fields included in the prompt                          |
-| Filter Settings (Managed)  | `Filters_JSON__c`        | Saved filter rules managed by Prompt Builder           |
-| How Filter Groups Combine  | `Filter_Group_Join__c`   | `AND` or `OR` between named groups                     |
-| Sort Settings (Managed)    | `Sort_JSON__c`           | Saved sorting choices managed by Prompt Builder        |
-| Maximum Records            | `Max_Rows__c`            | Per-data-set record limit; default 10                  |
-| Calculation                | `Aggregate_Operation__c` | Count, sum, average, minimum, or maximum               |
-| Field to Calculate         | `Aggregate_Field__c`     | Field used for a calculation other than count          |
-| Order                      | `Sequence__c`            | Order used to process data sets                        |
-| Include This Data Set      | `Active__c`              | Whether validation and generation include the data set |
+| Field label                | API name                 | Purpose                                                  |
+| -------------------------- | ------------------------ | -------------------------------------------------------- |
+| Prompt Template            | `Prompt_Template__c`     | Template that owns this data set                         |
+| Reference Name             | `Reference_Name__c`      | Alias used by merge syntax                               |
+| Records to Include         | `Source_Mode__c`         | `RELATED` or `REFERENCE`                                 |
+| Result Type                | `Result_Mode__c`         | Records or one calculated value                          |
+| Related Object             | `Related_Object__c`      | Salesforce object read for this data set                 |
+| Current Record Match Field | `Root_Field__c`          | Current-record value used for matching                   |
+| Related Record Match Field | `Correlation_Field__c`   | Queried-object field matched to the current record       |
+| Prompt Fields              | `Selected_Fields__c`     | Fields included in the prompt                            |
+| Filter Settings (Managed)  | `Filters_JSON__c`        | Saved filter rules managed by Prompt Builder             |
+| How Filter Groups Combine  | `Filter_Group_Join__c`   | `AND` or `OR` between named groups                       |
+| Filter Logic               | `Filter_Logic__c`        | Numbered logic such as `1 AND (2 OR 3)`; replaces groups |
+| Sort Settings (Managed)    | `Sort_JSON__c`           | Saved sorting choices managed by Prompt Builder          |
+| Maximum Records            | `Max_Rows__c`            | Per-data-set record limit; default 10                    |
+| Calculation                | `Aggregate_Operation__c` | Count, sum, average, minimum, or maximum                 |
+| Field to Calculate         | `Aggregate_Field__c`     | Field used for a calculation other than count            |
+| Order                      | `Sequence__c`            | Order used to process data sets                          |
+| Include This Data Set      | `Active__c`              | Whether validation and generation include the data set   |
 
 ## Published versions
 
 `Prompt_Template_Version__c` stores the Salesforce object, prompt text, version number, version
 key, contract version, syntax version, published version signature, publication time, and the six
 file settings listed above.
-`Prompt_Context_Source_Version__c` stores the corresponding fixed data set settings. Validation
+`Prompt_Context_Source_Version__c` stores the corresponding fixed data set settings, including
+filter logic. Validation
 rules prevent changes after publication. Restore copies one fixed version into the editable fields
 without changing published history or taking the current published version offline.
 

@@ -8,6 +8,10 @@ These are hard safety and governor-limit boundaries owned by `PromptContextContr
 | Selected fields per source         |          25 | Select only fields rendered or required by the query                        |
 | Filters per source                 |          10 | Consolidate the business rule before adding another filter                  |
 | Filter groups per source           |           5 | Keep related conditions in named groups                                     |
+| Filter logic characters            |         255 | Simplify the logic; it can reference each filter number more than once      |
+| Values in one Is one of list       |          50 | Use a broader rule or split the data set                                    |
+| Relative date amount               |       4,000 | Use a smaller `n` in literals such as `LAST_N_DAYS:n`                       |
+| maxLength attribute                | 1 to 20,000 | Choose the longest text the prompt needs from that field                    |
 | Sort fields per source             |           3 | Use business order first; the service adds `Id` as a stable tiebreaker      |
 | Rows per source                    |          50 | Start with the default of 10 and raise only when the prompt needs more rows |
 | Rows across one prompt             |         200 | Later sources stop at the cap and return an explicit warning                |

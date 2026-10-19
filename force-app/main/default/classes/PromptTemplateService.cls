@@ -86,8 +86,9 @@ public with sharing class PromptTemplateService {
   ) {
     requireSavable(config);
     String persistedStatus = 'Draft';
+    Integer nextRevision = 1;
     if (config.id != null) {
-      Prompt_Template__c existingTemplate = PromptContextSelector.selectTemplateById(
+      Prompt_Template__c existingTemplate = PromptContextSelector.selectTemplateForDraftSave(
         config.id
       );
       if (existingTemplate == null) {
@@ -95,7 +96,17 @@ public with sharing class PromptTemplateService {
           'The requested template was not found or is not accessible.'
         );
       }
+      Integer storedRevision = Integer.valueOf(
+        existingTemplate.Draft_Revision__c ?? 0
+      );
+      if ((config.draftRevision ?? 0) != storedRevision) {
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.DRAFT_CHANGED,
+          'Someone saved newer changes to this template after you opened it. Reload the template, then reapply your edits.'
+        );
+      }
       persistedStatus = existingTemplate.Status__c ?? 'Draft';
+      nextRevision = storedRevision + 1;
     }
     Savepoint savepointValue = Database.setSavepoint();
     try {
@@ -111,7 +122,8 @@ public with sharing class PromptTemplateService {
         Allowed_File_Formats__c = config.allowedFileFormats,
         Provider_Profile_Key__c = config.providerProfileKey,
         File_Citations_Enabled__c = config.fileCitationsEnabled == true,
-        Status__c = persistedStatus
+        Status__c = persistedStatus,
+        Draft_Revision__c = nextRevision
       );
       if (config.id == null) {
         templateRecord.Developer_Key__c = String.isBlank(config.developerKey)
@@ -409,6 +421,9 @@ public with sharing class PromptTemplateService {
     config.fileCitationsEnabled = templateRecord.File_Citations_Enabled__c;
     config.syntaxVersion = PromptContextContract.SYNTAX_VERSION;
     config.contractVersion = PromptContextContract.CONTRACT_VERSION;
+    config.draftRevision = Integer.valueOf(
+      templateRecord.Draft_Revision__c ?? 0
+    );
     for (Prompt_Context_Source__c sourceRecord : sourceRecords) {
       config.sources.add(mapSource(sourceRecord));
     }
@@ -436,6 +451,7 @@ public with sharing class PromptTemplateService {
           List<PromptContextDTO.FilterRule>.class
         );
     source.filterGroupJoin = sourceRecord.Filter_Group_Join__c ?? 'AND';
+    source.filterLogic = sourceRecord.Filter_Logic__c;
     source.sorts = String.isBlank(sourceRecord.Sort_JSON__c)
       ? new List<PromptContextDTO.SortRule>()
       : (List<PromptContextDTO.SortRule>) JSON.deserialize(
@@ -470,6 +486,9 @@ public with sharing class PromptTemplateService {
         source.filters ?? new List<PromptContextDTO.FilterRule>()
       ),
       Filter_Group_Join__c = source.filterGroupJoin ?? 'AND',
+      Filter_Logic__c = String.isBlank(source.filterLogic)
+        ? null
+        : source.filterLogic.trim(),
       Sort_JSON__c = JSON.serialize(
         source.sorts ?? new List<PromptContextDTO.SortRule>()
       ),
@@ -501,6 +520,9 @@ public with sharing class PromptTemplateService {
         source.filters ?? new List<PromptContextDTO.FilterRule>()
       ),
       Filter_Group_Join__c = source.filterGroupJoin ?? 'AND',
+      Filter_Logic__c = String.isBlank(source.filterLogic)
+        ? null
+        : source.filterLogic.trim(),
       Sort_JSON__c = JSON.serialize(
         source.sorts ?? new List<PromptContextDTO.SortRule>()
       ),
@@ -583,6 +605,7 @@ public with sharing class PromptTemplateService {
           List<PromptContextDTO.FilterRule>.class
         );
     source.filterGroupJoin = sourceRecord.Filter_Group_Join__c ?? 'AND';
+    source.filterLogic = sourceRecord.Filter_Logic__c;
     source.sorts = String.isBlank(sourceRecord.Sort_JSON__c)
       ? new List<PromptContextDTO.SortRule>()
       : (List<PromptContextDTO.SortRule>) JSON.deserialize(
@@ -645,6 +668,7 @@ public with sharing class PromptTemplateService {
     normalized.description = null;
     normalized.status = null;
     normalized.version = null;
+    normalized.draftRevision = null;
     normalized.lastHealthStatus = null;
     normalized.lastHealthCheckedAt = null;
     normalized.lastHealthCodes = null;

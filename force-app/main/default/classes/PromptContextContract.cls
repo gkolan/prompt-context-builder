@@ -4,7 +4,9 @@
  */
 public with sharing class PromptContextContract {
   public static final String CONTRACT_VERSION = '1.0';
-  public static final Integer SYNTAX_VERSION = 1;
+  public static final Integer SYNTAX_VERSION = 2;
+  /** First syntax version that prints labels, plain text, and fixed date formats. */
+  public static final Integer SYNTAX_VERSION_READABLE_OUTPUT = 2;
 
   public static final Integer MAX_SOURCES = 10;
   public static final Integer MAX_FIELDS_PER_SOURCE = 25;
@@ -64,8 +66,51 @@ public with sharing class PromptContextContract {
     'IS_NULL',
     'NOT_NULL',
     'CONTAINS',
-    'STARTS_WITH'
+    'STARTS_WITH',
+    'IN',
+    'NOT_IN'
   };
+  public static final Integer MAX_FILTER_LIST_VALUES = 50;
+  public static final Integer MAX_FILTER_LOGIC_CHARACTERS = 255;
+  /** Salesforce relative date literals accepted as filter values for Date and Date/Time fields. */
+  public static final Set<String> DATE_LITERALS = new Set<String>{
+    'YESTERDAY',
+    'TODAY',
+    'TOMORROW',
+    'LAST_WEEK',
+    'THIS_WEEK',
+    'NEXT_WEEK',
+    'LAST_MONTH',
+    'THIS_MONTH',
+    'NEXT_MONTH',
+    'LAST_90_DAYS',
+    'NEXT_90_DAYS',
+    'LAST_QUARTER',
+    'THIS_QUARTER',
+    'NEXT_QUARTER',
+    'LAST_YEAR',
+    'THIS_YEAR',
+    'NEXT_YEAR'
+  };
+  /** Relative date literals that take a whole-number amount, written as NAME:n. */
+  public static final Set<String> DATE_LITERALS_WITH_AMOUNT = new Set<String>{
+    'LAST_N_DAYS',
+    'NEXT_N_DAYS',
+    'N_DAYS_AGO',
+    'LAST_N_WEEKS',
+    'NEXT_N_WEEKS',
+    'N_WEEKS_AGO',
+    'LAST_N_MONTHS',
+    'NEXT_N_MONTHS',
+    'N_MONTHS_AGO',
+    'LAST_N_QUARTERS',
+    'NEXT_N_QUARTERS',
+    'N_QUARTERS_AGO',
+    'LAST_N_YEARS',
+    'NEXT_N_YEARS',
+    'N_YEARS_AGO'
+  };
+  public static final Integer MAX_DATE_LITERAL_AMOUNT = 4000;
   public static final Set<String> FILTER_GROUP_JOINS = new Set<String>{
     'AND',
     'OR'

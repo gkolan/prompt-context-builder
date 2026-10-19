@@ -22,9 +22,74 @@ const FILTER_OPERATORS = [
   { label: "Less than or equal", value: "LTE" },
   { label: "Contains", value: "CONTAINS" },
   { label: "Starts with", value: "STARTS_WITH" },
+  { label: "Is one of", value: "IN" },
+  { label: "Is not one of", value: "NOT_IN" },
   { label: "Is blank", value: "IS_NULL" },
   { label: "Is not blank", value: "NOT_NULL" }
 ];
+
+const BOOLEAN_VALUES = [
+  { label: "True", value: "true" },
+  { label: "False", value: "false" }
+];
+const NUMBER_TYPES = ["CURRENCY", "DOUBLE", "INTEGER", "LONG", "PERCENT"];
+const LIST_OPERATORS = ["IN", "NOT_IN"];
+const BLANK_OPERATORS = ["IS_NULL", "NOT_NULL"];
+
+/**
+ * Describes how one filter value should be entered for its field type and rule.
+ * @param {object} filter Filter row
+ * @param {object} fieldOption Field option with dataType and picklist values
+ * @returns {object} Input kind, placeholder, help text, and choices
+ */
+export function describeFilterValue(filter, fieldOption) {
+  const dataType = fieldOption?.dataType || "";
+  const isList = LIST_OPERATORS.includes(filter.operator);
+  const picklistValues = fieldOption?.picklistValues || [];
+  if (BLANK_OPERATORS.includes(filter.operator)) {
+    return {
+      kind: "none",
+      placeholder: "No value needed",
+      help: "This rule does not use a value."
+    };
+  }
+  if (dataType === "BOOLEAN" && !isList) {
+    return { kind: "boolean", choices: BOOLEAN_VALUES, help: "" };
+  }
+  if (dataType === "PICKLIST" && !isList && picklistValues.length) {
+    return {
+      kind: "choice",
+      choices: picklistValues,
+      help: "Choose a value. Prompt Context Builder stores its API name."
+    };
+  }
+  let placeholder = "Value";
+  let help = "";
+  if (dataType === "DATE") {
+    placeholder = "2026-10-19 or LAST_N_DAYS:30";
+    help =
+      "Use YYYY-MM-DD or a relative date such as TODAY, THIS_QUARTER, or LAST_N_DAYS:30.";
+  } else if (dataType === "DATETIME") {
+    placeholder = "2026-10-19T09:00:00Z or THIS_WEEK";
+    help =
+      "Use an ISO date and time with a time zone, or a relative date such as THIS_WEEK or LAST_N_DAYS:30.";
+  } else if (NUMBER_TYPES.includes(dataType)) {
+    placeholder = "2500.50";
+    help = "Use a number without currency symbols or thousands separators.";
+  } else if (dataType === "PICKLIST" || dataType === "MULTIPICKLIST") {
+    help = picklistValues.length
+      ? `Use API values: ${picklistValues
+          .slice(0, 10)
+          .map((option) => option.value)
+          .join(", ")}${picklistValues.length > 10 ? ", …" : ""}`
+      : "Use the picklist API value, not its label.";
+  }
+  if (isList) {
+    placeholder = "First, Second, Third";
+    help = `Separate up to 50 values with commas. ${help}`.trim();
+  }
+  return { kind: "text", placeholder, help };
+}
 
 const SORT_DIRECTIONS = [
   { label: "Ascending", value: "ASC" },
@@ -797,7 +862,7 @@ export default class PromptTemplateBuilder extends LightningElement {
           fieldName: "",
           operator: "EQ",
           value: "",
-          groupName: "group_1"
+          groupName: source.filterLogic?.trim() ? "" : "group_1"
         }
       ]
     });
@@ -1150,7 +1215,7 @@ export default class PromptTemplateBuilder extends LightningElement {
           mergeField: source.selectedFields?.[0] || "",
           filters: (source.filters || []).map((filter) => ({
             ...filter,
-            groupName: filter.groupName || "group_1",
+            groupName: source.filterLogic ? "" : filter.groupName || "group_1",
             clientKey: `filter-${++this.keySequence}`
           })),
           sorts: (source.sorts || []).map((sort) => ({
@@ -1171,9 +1236,30 @@ export default class PromptTemplateBuilder extends LightningElement {
     const selectedFieldOptions = fieldOptions.filter((option) =>
       selectedFields.includes(option.value)
     );
+    const usesFilterLogic = Boolean(source.filterLogic?.trim());
     const filterText = source.filters?.length
-      ? `${source.filters.length} filter${source.filters.length === 1 ? "" : "s"}`
+      ? usesFilterLogic
+        ? `filters combined as ${source.filterLogic.trim()}`
+        : `${source.filters.length} filter${source.filters.length === 1 ? "" : "s"}`
       : "no extra filters";
+    const filters = (source.filters || []).map((filter, rowIndex) => {
+      const valueView = describeFilterValue(
+        filter,
+        fieldOptions.find((option) => option.value === filter.fieldName)
+      );
+      return {
+        ...filter,
+        number: rowIndex + 1,
+        groupDisabled: usesFilterLogic,
+        isBooleanValue: valueView.kind === "boolean",
+        isChoiceValue: valueView.kind === "choice",
+        isTextValue: valueView.kind === "text" || valueView.kind === "none",
+        valueDisabled: valueView.kind === "none",
+        valueChoices: valueView.choices || [],
+        valuePlaceholder: valueView.placeholder || "",
+        valueHelp: valueView.help || ""
+      };
+    });
     const sortText = source.sorts?.length
       ? `${source.sorts.length} chosen sort${source.sorts.length === 1 ? "" : "s"}, followed by Id`
       : "Id ascending";
@@ -1189,6 +1275,9 @@ export default class PromptTemplateBuilder extends LightningElement {
       isRecords: !isAggregate,
       needsAggregateField: isAggregate && source.aggregateOperation !== "COUNT",
       filterGroupJoin: source.filterGroupJoin || "AND",
+      filterLogic: source.filterLogic || "",
+      usesFilterLogic,
+      filters,
       selectedFields,
       fieldOptions,
       selectedFieldOptions,
@@ -1235,10 +1324,13 @@ export default class PromptTemplateBuilder extends LightningElement {
         filters: source.filters.map((filter) => ({
           fieldName: filter.fieldName,
           operator: filter.operator,
-          value: filter.value,
-          groupName: filter.groupName
+          value: BLANK_OPERATORS.includes(filter.operator) ? "" : filter.value,
+          groupName: source.filterLogic?.trim() ? null : filter.groupName
         })),
-        filterGroupJoin: source.filterGroupJoin || "AND",
+        filterGroupJoin: source.filterLogic?.trim()
+          ? "AND"
+          : source.filterGroupJoin || "AND",
+        filterLogic: source.filterLogic?.trim() || null,
         sorts: source.sorts.map((sort) => ({
           fieldName: sort.fieldName,
           direction: sort.direction,

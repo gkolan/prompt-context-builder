@@ -197,6 +197,12 @@ public with sharing class PromptTemplateGovernanceService {
     comparison.toVersion = toVersion;
     compareValue(
       comparison,
+      'Syntax version',
+      beforeConfig.syntaxVersion,
+      afterConfig.syntaxVersion
+    );
+    compareValue(
+      comparison,
       'Salesforce object',
       beforeConfig.rootObject,
       afterConfig.rootObject
@@ -270,6 +276,7 @@ public with sharing class PromptTemplateGovernanceService {
     restored.version = header.version;
     restored.fingerprint = null;
     restored.publishedAt = null;
+    restored.draftRevision = header.draftRevision;
     return PromptTemplateService.saveDraft(restored);
   }
 

@@ -43,7 +43,8 @@ prompt. Neighboring valid items can still succeed. A successful limited result k
 | `TRANSACTION_BUDGET_EXCEEDED` | Available Salesforce processing capacity is insufficient         | Reduce scope or use Batch Apex                                          |
 | `FLOW_GROUP_LIMIT_EXCEEDED`   | More than ten templates were requested                           | Group the transaction by template                                       |
 | `FLOW_PAYLOAD_LIMIT_EXCEEDED` | Successful prompts exceed the response budget                    | Reduce scope or use Batch Apex                                          |
-| `PROMPT_TOO_LONG`             | Completed prompt exceeds 20,000 characters                       | Reduce template or data set size                                        |
+| `PROMPT_TOO_LONG`             | Completed prompt exceeds 20,000 characters                       | Reduce template or data set size, or add `maxLength` to long fields     |
+| `DRAFT_CHANGED`               | Someone saved the draft after the editor loaded it               | Reload the template, then reapply the edits                             |
 | `UNEXPECTED_ERROR`            | An unexpected failure occurred                                   | Keep the request ID and ask an administrator to investigate             |
 
 ## Successful prompt warning codes
@@ -57,3 +58,4 @@ as a comma-separated `warningCodes` value; their safe explanations are combined 
 | `NULL_MATCH_VALUE` | Related data could not match because its current-record value is blank | Supply data or revise the data set                             |
 | `SOURCE_TRUNCATED` | More records matched than the data set permits                         | Narrow filters or raise the data set limit within the maximum  |
 | `TOTAL_ROW_LIMIT`  | A later data set reached the combined prompt record limit              | Reduce data set limits or move the most important data earlier |
+| `FIELD_TRUNCATED`  | A `maxLength` attribute shortened at least one value                   | Raise the `maxLength` value if the prompt needs more text      |

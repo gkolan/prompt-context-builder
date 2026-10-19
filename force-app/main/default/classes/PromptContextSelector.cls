@@ -164,11 +164,25 @@ public inherited sharing class PromptContextSelector {
         Require_File__c,
         Allowed_File_Formats__c,
         Provider_Profile_Key__c,
-        File_Citations_Enabled__c
+        File_Citations_Enabled__c,
+        Draft_Revision__c
       FROM Prompt_Template__c
       WHERE Id = :templateId
       WITH USER_MODE
       LIMIT 1
+    ];
+    return templates.isEmpty() ? null : templates[0];
+  }
+
+  /** Locks one template row while its draft is saved, so concurrent saves run one at a time. */
+  public static Prompt_Template__c selectTemplateForDraftSave(Id templateId) {
+    List<Prompt_Template__c> templates = [
+      SELECT Id, Status__c, Draft_Revision__c
+      FROM Prompt_Template__c
+      WHERE Id = :templateId
+      WITH USER_MODE
+      LIMIT 1
+      FOR UPDATE
     ];
     return templates.isEmpty() ? null : templates[0];
   }
@@ -283,6 +297,7 @@ public inherited sharing class PromptContextSelector {
         Selected_Fields__c,
         Filters_JSON__c,
         Filter_Group_Join__c,
+        Filter_Logic__c,
         Sort_JSON__c,
         Max_Rows__c,
         Sequence__c,
@@ -408,6 +423,7 @@ public inherited sharing class PromptContextSelector {
         Selected_Fields__c,
         Filters_JSON__c,
         Filter_Group_Join__c,
+        Filter_Logic__c,
         Sort_JSON__c,
         Max_Rows__c,
         Sequence__c,

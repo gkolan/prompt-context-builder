@@ -2,6 +2,13 @@
  * Checks prompt text, Salesforce objects and fields, user access, and size limits.
  */
 public with sharing class PromptContextValidator {
+  private static final Set<Schema.DisplayType> NUMERIC_FILTER_TYPES = new Set<Schema.DisplayType>{
+    Schema.DisplayType.Currency,
+    Schema.DisplayType.Double,
+    Schema.DisplayType.Integer,
+    Schema.DisplayType.Long,
+    Schema.DisplayType.Percent
+  };
   @TestVisible
   private static Boolean multiCurrencyOverride;
   private static final Pattern REFERENCE_NAME = Pattern.compile(
@@ -89,7 +96,102 @@ public with sharing class PromptContextValidator {
     );
     validateSourceTokenModes(config.templateBody, activeSources, result);
     validateDependencies(config, activeSources, result);
+    if (
+      (config.syntaxVersion ?? PromptContextContract.SYNTAX_VERSION) >=
+      PromptContextContract.SYNTAX_VERSION_READABLE_OUTPUT
+    ) {
+      validateReadableOutputRules(config, activeSources, result);
+    }
     return result;
+  }
+
+  /** Rules that apply only to publications using syntax version 2 or later. */
+  private static void validateReadableOutputRules(
+    PromptContextDTO.TemplateConfig config,
+    Map<String, PromptContextDTO.SourceConfig> activeSources,
+    PromptContextDTO.ValidationResult result
+  ) {
+    String templateBody = config.templateBody ?? '';
+    rejectCompoundFields(
+      config.rootObject,
+      PromptTemplateLanguage.getRootFieldPaths(templateBody),
+      'Template body',
+      result
+    );
+    Map<String, Set<String>> relatedDependencies = PromptTemplateLanguage.getRelatedFieldPaths(
+      templateBody
+    );
+    for (String alias : activeSources.keySet()) {
+      PromptContextDTO.SourceConfig source = activeSources.get(alias);
+      Set<String> paths = new Set<String>(
+        source.selectedFields ?? new List<String>()
+      );
+      paths.addAll(relatedDependencies.get(alias) ?? new Set<String>());
+      rejectCompoundFields(
+        source.relatedObject,
+        paths,
+        'Data set ' + alias,
+        result
+      );
+    }
+    Map<String, Integer> highestIndexes = PromptTemplateLanguage.getHighestRelatedIndexes(
+      templateBody
+    );
+    for (String alias : highestIndexes.keySet()) {
+      PromptContextDTO.SourceConfig source = activeSources.get(alias);
+      if (
+        source != null &&
+        source.maxRows != null &&
+        highestIndexes.get(alias) >= source.maxRows
+      ) {
+        result.addError(
+          'INDEX_OUT_OF_RANGE',
+          'Template body',
+          'related.' +
+            alias +
+            '[' +
+            highestIndexes.get(alias) +
+            '] can never have a value because the data set returns at most ' +
+            source.maxRows +
+            ' records. Indexes start at 0.'
+        );
+      }
+    }
+  }
+
+  private static void rejectCompoundFields(
+    String objectApiName,
+    Set<String> fieldPaths,
+    String location,
+    PromptContextDTO.ValidationResult result
+  ) {
+    if (String.isBlank(objectApiName)) {
+      return;
+    }
+    for (String fieldPath : fieldPaths) {
+      Schema.DescribeFieldResult description;
+      try {
+        description = PromptContextSchema.getTerminalFieldDescription(
+          objectApiName,
+          fieldPath
+        );
+      } catch (Exception exceptionValue) {
+        // Missing or unreadable fields are reported by the access checks.
+        continue;
+      }
+      Schema.DisplayType fieldType = description?.getType();
+      if (
+        fieldType == Schema.DisplayType.Address ||
+        fieldType == Schema.DisplayType.Location
+      ) {
+        result.addError(
+          'COMPOUND_FIELD_NOT_SUPPORTED',
+          location,
+          fieldPath +
+          ' combines several values. Use its individual parts instead, such as BillingCity or Location__Latitude__s.'
+        );
+      }
+    }
   }
 
   private static void validateFileSettings(
@@ -435,18 +537,15 @@ public with sharing class PromptContextValidator {
             !String.isBlank(filter.value)
           ) {
             try {
-              PromptContextQuery.convertValue(
-                source.relatedObject,
-                filter.fieldName,
-                filter.value
-              );
+              requireUsableFilterValue(source.relatedObject, filter);
             } catch (PromptContextException exceptionValue) {
               result.addError(
                 PromptContextReasonCodes.INVALID_CONFIGURATION,
                 location,
                 'The filter value for ' +
                   filter.fieldName +
-                  ' does not match its Salesforce field type.'
+                  ' does not match its Salesforce field type. ' +
+                  valueFormatHint(filterDescription.getType(), filter.operator)
               );
             }
           }
@@ -563,6 +662,7 @@ public with sharing class PromptContextValidator {
       );
     }
     validateFilters(source.filters, location, result);
+    validateFilterLogic(source, location, result);
     validateSorts(source.sorts, location, result);
   }
 
@@ -604,10 +704,72 @@ public with sharing class PromptContextValidator {
     }
   }
 
+  /** Throws when a filter value cannot be converted for its field and rule. */
+  private static void requireUsableFilterValue(
+    String objectApiName,
+    PromptContextDTO.FilterRule filter
+  ) {
+    if (filter.operator == 'IN' || filter.operator == 'NOT_IN') {
+      PromptContextQuery.convertList(
+        objectApiName,
+        filter.fieldName,
+        filter.value
+      );
+    } else if (
+      PromptContextQuery.dateLiteral(
+        objectApiName,
+        filter.fieldName,
+        filter.value
+      ) == null
+    ) {
+      PromptContextQuery.convertValue(
+        objectApiName,
+        filter.fieldName,
+        filter.value
+      );
+    }
+  }
+
+  /** Tells an author exactly how to write a filter value for the field type. */
+  private static String valueFormatHint(
+    Schema.DisplayType fieldType,
+    String operatorName
+  ) {
+    String single;
+    if (fieldType == Schema.DisplayType.Date) {
+      single = 'Use YYYY-MM-DD, such as 2026-10-19, or a date literal such as LAST_N_DAYS:30.';
+    } else if (fieldType == Schema.DisplayType.Datetime) {
+      single = 'Use an ISO date and time with a time zone, such as 2026-10-19T09:00:00Z, or a date literal such as THIS_QUARTER.';
+    } else if (fieldType == Schema.DisplayType.Boolean) {
+      single = 'Use true or false.';
+    } else if (NUMERIC_FILTER_TYPES.contains(fieldType)) {
+      single = 'Use a number without currency symbols or thousands separators, such as 2500.50.';
+    } else if (
+      fieldType == Schema.DisplayType.Picklist ||
+      fieldType == Schema.DisplayType.MultiPicklist
+    ) {
+      single = 'Use the picklist API value, not its label.';
+    } else {
+      single = '';
+    }
+    return operatorName == 'IN' ||
+      operatorName == 'NOT_IN'
+      ? ('Separate up to ' +
+          PromptContextContract.MAX_FILTER_LIST_VALUES +
+          ' values with commas. ' +
+          single)
+          .trim()
+      : single;
+  }
+
   private static Boolean isOperatorCompatible(
     String operatorName,
     Schema.DisplayType fieldType
   ) {
+    if (operatorName == 'IN' || operatorName == 'NOT_IN') {
+      return fieldType != Schema.DisplayType.MultiPicklist &&
+        fieldType != Schema.DisplayType.Boolean;
+    }
     if (operatorName == 'CONTAINS' || operatorName == 'STARTS_WITH') {
       return TEXT_FILTER_TYPES.contains(fieldType);
     }
@@ -713,7 +875,73 @@ public with sharing class PromptContextValidator {
     if (!hasBoundary) {
       return false;
     }
+    if (String.isNotBlank(source.filterLogic)) {
+      return hasRequiredCurrencyBoundaryInLogic(source);
+    }
     return source.filterGroupJoin != 'OR' || groups.size() <= 1;
+  }
+
+  private static Boolean hasRequiredCurrencyBoundaryInLogic(
+    PromptContextDTO.SourceConfig source
+  ) {
+    Set<Integer> required;
+    try {
+      required = PromptContextFilterLogic.parse(
+          source.filterLogic,
+          source.filters.size()
+        )
+        .requiredFilters();
+    } catch (PromptContextException exceptionValue) {
+      return false;
+    }
+    for (Integer filterNumber : required) {
+      PromptContextDTO.FilterRule filter = source.filters[filterNumber - 1];
+      if (
+        filter?.fieldName != null &&
+        filter.fieldName.equalsIgnoreCase('CurrencyIsoCode') &&
+        filter.operator == 'EQ' &&
+        Pattern.matches('^[A-Z]{3}$', filter.value ?? '')
+      ) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static void validateFilterLogic(
+    PromptContextDTO.SourceConfig source,
+    String location,
+    PromptContextDTO.ValidationResult result
+  ) {
+    if (String.isBlank(source.filterLogic)) {
+      return;
+    }
+    Boolean usesGroups = (source.filterGroupJoin ?? 'AND') != 'AND';
+    for (
+      PromptContextDTO.FilterRule filter : source.filters ??
+        new List<PromptContextDTO.FilterRule>()
+    ) {
+      usesGroups = usesGroups || String.isNotBlank(filter?.groupName);
+    }
+    if (usesGroups) {
+      result.addError(
+        'FILTER_LOGIC_WITH_GROUPS',
+        location,
+        'Use either filter logic or filter groups, not both. Clear the group names and set groups to AND.'
+      );
+    }
+    try {
+      PromptContextFilterLogic.parse(
+        source.filterLogic,
+        (source.filters ?? new List<PromptContextDTO.FilterRule>()).size()
+      );
+    } catch (PromptContextException exceptionValue) {
+      result.addError(
+        exceptionValue.reasonCode,
+        location,
+        exceptionValue.getMessage()
+      );
+    }
   }
 
   private static void validateFilters(

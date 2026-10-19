@@ -42,12 +42,14 @@ public with sharing class PromptContextBulkService {
         outcome.message = Label.PCB_Access_Denied;
       } else {
         try {
-          String prompt = PromptTemplateLanguage.render(
+          PromptTemplateLanguage.RenderOutput rendered = PromptTemplateLanguage.render(
             config.templateBody,
             runtime.rootRecord,
             runtime.relatedByAlias,
-            runtime.aggregateByAlias
+            runtime.aggregateByAlias,
+            config.syntaxVersion
           );
+          String prompt = rendered.text;
           if (prompt.length() > PromptContextContract.MAX_PROMPT_CHARACTERS) {
             outcome.reasonCode = PromptContextReasonCodes.PROMPT_TOO_LONG;
             outcome.message = 'The generated prompt is longer than 20,000 characters. Reduce fields, records, or template text.';
@@ -62,6 +64,9 @@ public with sharing class PromptContextBulkService {
             result.templateVersion = config.version;
             result.sourceRecordCounts = runtime.countsByAlias;
             result.messages.addAll(runtime.messages);
+            if (rendered.truncated) {
+              result.messages.add(PromptContextService.truncationWarning());
+            }
             outcome.result = result;
           }
         } catch (Exception renderException) {
@@ -78,8 +83,9 @@ public with sharing class PromptContextBulkService {
     PromptContextDTO.TemplateConfig config,
     List<Id> recordIds
   ) {
-    Set<String> fields = PromptTemplateLanguage.getRootFieldPaths(
-      config.templateBody
+    Set<String> fields = PromptContextSchema.addCurrencyCodePaths(
+      config.rootObject,
+      PromptTemplateLanguage.getRootFieldPaths(config.templateBody)
     );
     fields.add('Id');
     for (PromptContextDTO.SourceConfig source : activeSources(config)) {

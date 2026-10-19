@@ -6,6 +6,12 @@ public with sharing class PromptContextSchema {
     Schema.DisplayType.Base64,
     Schema.DisplayType.EncryptedString
   };
+  private static final Integer MAX_PICKLIST_CHOICES = 500;
+  /** Compound fields are not offered for new templates; choose their individual parts. */
+  private static final Set<Schema.DisplayType> COMPOUND_TYPES = new Set<Schema.DisplayType>{
+    Schema.DisplayType.Address,
+    Schema.DisplayType.Location
+  };
 
   /**
    * Returns accessible, queryable objects sorted by label.
@@ -79,17 +85,17 @@ public with sharing class PromptContextSchema {
       Schema.DescribeFieldResult fieldDescription = PromptContextSchemaCache.describeField(
         fieldToken
       );
-      if (isReadableSupported(fieldDescription)) {
-        options.add(
-          new PromptContextDTO.Option(
-            fieldDescription.getLabel() +
-              ' (' +
-              fieldDescription.getName() +
-              ')',
-            fieldDescription.getName(),
-            String.valueOf(fieldDescription.getType())
-          )
+      if (
+        isReadableSupported(fieldDescription) &&
+        !COMPOUND_TYPES.contains(fieldDescription.getType())
+      ) {
+        PromptContextDTO.Option option = new PromptContextDTO.Option(
+          fieldDescription.getLabel() + ' (' + fieldDescription.getName() + ')',
+          fieldDescription.getName(),
+          String.valueOf(fieldDescription.getType())
         );
+        option.picklistValues = picklistChoices(fieldDescription);
+        options.add(option);
       }
     }
     options.sort();
@@ -223,6 +229,59 @@ public with sharing class PromptContextSchema {
    * @param requestedPath Field path
    * @return Terminal field description
    */
+  private static List<PromptContextDTO.Option> picklistChoices(
+    Schema.DescribeFieldResult fieldDescription
+  ) {
+    if (
+      fieldDescription.getType() != Schema.DisplayType.Picklist &&
+      fieldDescription.getType() != Schema.DisplayType.MultiPicklist
+    ) {
+      return null;
+    }
+    List<PromptContextDTO.Option> choices = new List<PromptContextDTO.Option>();
+    for (Schema.PicklistEntry entry : fieldDescription.getPicklistValues()) {
+      if (entry.isActive() && choices.size() < MAX_PICKLIST_CHOICES) {
+        choices.add(
+          new PromptContextDTO.Option(entry.getLabel(), entry.getValue(), null)
+        );
+      }
+    }
+    return choices;
+  }
+
+  /**
+   * Adds the record currency code beside every currency field path in a multi-currency org, so
+   * syntax version 2 can print each amount with its own currency.
+   * @param objectApiName Object that owns the paths
+   * @param fieldPaths Requested field paths; unchanged when the org has one currency
+   * @return The same set, with sibling CurrencyIsoCode paths added
+   */
+  public static Set<String> addCurrencyCodePaths(
+    String objectApiName,
+    Set<String> fieldPaths
+  ) {
+    if (!UserInfo.isMultiCurrencyOrganization()) {
+      return fieldPaths;
+    }
+    for (String fieldPath : new List<String>(fieldPaths)) {
+      Schema.DescribeFieldResult description;
+      try {
+        description = getTerminalFieldDescription(objectApiName, fieldPath);
+      } catch (Exception exceptionValue) {
+        // Unreadable paths fail later with their own access reason.
+        continue;
+      }
+      if (description?.getType() == Schema.DisplayType.Currency) {
+        Integer lastDot = fieldPath.lastIndexOf('.');
+        fieldPaths.add(
+          (lastDot < 0 ? '' : fieldPath.substring(0, lastDot + 1)) +
+          'CurrencyIsoCode'
+        );
+      }
+    }
+    return fieldPaths;
+  }
+
   public static Schema.DescribeFieldResult getTerminalFieldDescription(
     String objectApiName,
     String requestedPath

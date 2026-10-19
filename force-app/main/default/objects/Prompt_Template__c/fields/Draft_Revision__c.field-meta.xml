@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<CustomField xmlns="http://soap.sforce.com/2006/04/metadata">
+    <fullName>Draft_Revision__c</fullName>
+    <description
+  >Increases by one on every draft save so Prompt Builder can stop one person from overwriting another person's newer changes.</description>
+    <label>Draft Revision</label>
+    <precision>9</precision>
+    <required>false</required>
+    <scale>0</scale>
+    <type>Number</type>
+    <unique>false</unique>
+</CustomField>

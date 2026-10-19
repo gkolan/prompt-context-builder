@@ -438,8 +438,19 @@
                       options={filterGroupJoinOptions}
                       data-index={index}
                       onchange={handleSourceField}
+                      disabled={source.usesFilterLogic}
                       field-level-help="Rules in one named group always use AND. Choose whether every group or any group must match."
                     ></lightning-combobox>
+                    <lightning-input
+                      name="filterLogic"
+                      label="Filter logic (optional)"
+                      value={source.filterLogic}
+                      placeholder="1 AND (2 OR NOT 3)"
+                      max-length="255"
+                      data-index={index}
+                      onchange={handleSourceField}
+                      field-level-help="Use the filter numbers with AND, OR, NOT, and parentheses. Logic replaces groups; use parentheses when mixing AND with OR."
+                    ></lightning-input>
                     <template
                       for:each={source.filters}
                       for:item="filter"
@@ -452,12 +463,16 @@
                         <div
                           class="slds-col slds-size_1-of-1 slds-large-size_2-of-12"
                         >
+                          <span class="filter-number"
+                            >Filter {filter.number}</span
+                          >
                           <lightning-input
                             name="groupName"
                             label="Group"
                             variant="label-hidden"
                             value={filter.groupName}
                             placeholder="group_1"
+                            disabled={filter.groupDisabled}
                             data-index={index}
                             data-row-index={rowIndex}
                             onchange={handleFilterField}
@@ -494,15 +509,37 @@
                         <div
                           class="slds-col slds-size_1-of-1 slds-large-size_4-of-12"
                         >
-                          <lightning-input
-                            name="value"
-                            label="Value"
-                            variant="label-hidden"
-                            value={filter.value}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleFilterField}
-                          ></lightning-input>
+                          <template lwc:if={filter.isTextValue}>
+                            <lightning-input
+                              name="value"
+                              label="Value"
+                              variant="label-hidden"
+                              value={filter.value}
+                              placeholder={filter.valuePlaceholder}
+                              disabled={filter.valueDisabled}
+                              data-index={index}
+                              data-row-index={rowIndex}
+                              onchange={handleFilterField}
+                            ></lightning-input>
+                          </template>
+                          <template lwc:else>
+                            <lightning-combobox
+                              name="value"
+                              label="Value"
+                              variant="label-hidden"
+                              value={filter.value}
+                              options={filter.valueChoices}
+                              data-index={index}
+                              data-row-index={rowIndex}
+                              onchange={handleFilterField}
+                            ></lightning-combobox>
+                          </template>
+                          <p
+                            lwc:if={filter.valueHelp}
+                            class="slds-text-body_small slds-text-color_weak"
+                          >
+                            {filter.valueHelp}
+                          </p>
                         </div>
                         <div
                           class="slds-col slds-size_1-of-1 slds-large-size_1-of-12"

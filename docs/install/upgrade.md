@@ -89,7 +89,10 @@ configuration, security, record-page, Flow, or Apex journey.
    sent until an author saves and publishes explicit file settings.
 2. Confirm published version signatures and version history remain present.
 3. Run template health checks and investigate every new error.
-4. Preview a representative template against a readable record.
+4. Preview a representative template against a readable record. Published templates keep their
+   stored syntax version and exact output. Republish a template to adopt syntax version 2 after
+   reviewing the changed picklist, date, rich-text, and currency output in preview. See
+   [Syntax versions and printed values](../reference/merge-syntax.md#syntax-versions-and-printed-values).
 5. Generate from the intended Lightning page as a person with generation access.
 6. Repeat with one required field inaccessible and confirm that no partial prompt is returned.
 7. Run representative Flow and Apex callers and verify the documented response fields.

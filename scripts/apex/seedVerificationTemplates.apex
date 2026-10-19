@@ -21,7 +21,9 @@ Map<String, Contact> contactsByLastName = new Map<String, Contact>();
 for (Contact row : [
   SELECT Id, FirstName, LastName
   FROM Contact
-  WHERE AccountId = :accountRecord.Id AND LastName IN ('Adams', 'Brown', 'Clark')
+  WHERE
+    AccountId = :accountRecord.Id
+    AND LastName IN ('Adams', 'Brown', 'Clark')
 ]) {
   contactsByLastName.put(row.LastName, row);
 }
@@ -84,7 +86,12 @@ PromptContextDTO.SourceConfig mergeContacts = new PromptContextDTO.SourceConfig(
 mergeContacts.referenceName = 'contacts';
 mergeContacts.relatedObject = 'Contact';
 mergeContacts.correlationField = 'AccountId';
-mergeContacts.selectedFields = new List<String>{ 'Name', 'Email', 'Phone', 'Title' };
+mergeContacts.selectedFields = new List<String>{
+  'Name',
+  'Email',
+  'Phone',
+  'Title'
+};
 mergeContacts.maxRows = 10;
 PromptContextDTO.SortRule mergeSort = new PromptContextDTO.SortRule();
 mergeSort.fieldName = 'LastName';
@@ -139,8 +146,18 @@ ranged.filterGroupJoin = 'AND';
 List<List<String>> rangeRules = new List<List<String>>{
   new List<String>{ 'CreatedDate', 'GT', '2000-01-01T00:00:00Z', 'after_2000' },
   new List<String>{ 'CreatedDate', 'GTE', '2000-01-01T00:00:00Z', 'from_2000' },
-  new List<String>{ 'CreatedDate', 'LT', '2100-01-01T00:00:00Z', 'before_2100' },
-  new List<String>{ 'CreatedDate', 'LTE', '2100-01-01T00:00:00Z', 'through_2100' },
+  new List<String>{
+    'CreatedDate',
+    'LT',
+    '2100-01-01T00:00:00Z',
+    'before_2100'
+  },
+  new List<String>{
+    'CreatedDate',
+    'LTE',
+    '2100-01-01T00:00:00Z',
+    'through_2100'
+  },
   new List<String>{ 'Email', 'IS_NULL', null, 'no_email' }
 };
 for (List<String> ruleValues : rangeRules) {
@@ -222,12 +239,60 @@ aggregates.templateBody =
   'Employees average: {!aggregate.employee_avg.value}\n' +
   'Oldest: {!aggregate.oldest_account.value}\nNewest: {!aggregate.newest_account.value}';
 List<List<String>> aggregateRules = new List<List<String>>{
-  new List<String>{ 'contact_count', 'RELATED', 'Contact', 'AccountId', 'Id', 'COUNT', null },
-  new List<String>{ 'account_count', 'REFERENCE', 'Account', null, null, 'COUNT', null },
-  new List<String>{ 'employee_sum', 'REFERENCE', 'Account', null, null, 'SUM', 'NumberOfEmployees' },
-  new List<String>{ 'employee_avg', 'REFERENCE', 'Account', null, null, 'AVG', 'NumberOfEmployees' },
-  new List<String>{ 'oldest_account', 'REFERENCE', 'Account', null, null, 'MIN', 'CreatedDate' },
-  new List<String>{ 'newest_account', 'REFERENCE', 'Account', null, null, 'MAX', 'CreatedDate' }
+  new List<String>{
+    'contact_count',
+    'RELATED',
+    'Contact',
+    'AccountId',
+    'Id',
+    'COUNT',
+    null
+  },
+  new List<String>{
+    'account_count',
+    'REFERENCE',
+    'Account',
+    null,
+    null,
+    'COUNT',
+    null
+  },
+  new List<String>{
+    'employee_sum',
+    'REFERENCE',
+    'Account',
+    null,
+    null,
+    'SUM',
+    'NumberOfEmployees'
+  },
+  new List<String>{
+    'employee_avg',
+    'REFERENCE',
+    'Account',
+    null,
+    null,
+    'AVG',
+    'NumberOfEmployees'
+  },
+  new List<String>{
+    'oldest_account',
+    'REFERENCE',
+    'Account',
+    null,
+    null,
+    'MIN',
+    'CreatedDate'
+  },
+  new List<String>{
+    'newest_account',
+    'REFERENCE',
+    'Account',
+    null,
+    null,
+    'MAX',
+    'CreatedDate'
+  }
 };
 Integer aggregateSequence = 0;
 for (List<String> ruleValues : aggregateRules) {
@@ -362,8 +427,12 @@ List<String> failedNames = new List<String>();
 for (PromptContextDTO.TemplateConfig config : catalog) {
   if (existingByName.containsKey(config.name)) {
     config.id = existingByName.get(config.name).Id;
+    config.draftRevision = PromptTemplateService.getTemplate(config.id)
+      .draftRevision;
   }
-  PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(config);
+  PromptContextDTO.TemplateConfig saved = PromptTemplateService.saveDraft(
+    config
+  );
   if (draftOnlyNames.contains(config.name)) {
     draftCount++;
     continue;
@@ -382,7 +451,9 @@ for (PromptContextDTO.TemplateConfig config : catalog) {
     );
     continue;
   }
-  Id sampleRecordId = config.rootObject == 'Contact' ? contacts[0].Id : accountRecord.Id;
+  Id sampleRecordId = config.rootObject == 'Contact'
+    ? contacts[0].Id
+    : accountRecord.Id;
   PromptTemplateService.publish(saved.id, sampleRecordId);
   publishedCount++;
   if (config.name == 'Verify 12 - Inactive Template') {

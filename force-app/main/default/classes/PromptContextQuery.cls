@@ -2,6 +2,20 @@
  * Compiles one validated related source into deterministic bind-variable SOQL.
  */
 public with sharing class PromptContextQuery {
+  private static final Map<String, String> COMPARISON_OPERATORS = new Map<String, String>{
+    'EQ' => '=',
+    'NE' => '!=',
+    'GT' => '>',
+    'GTE' => '>=',
+    'LT' => '<',
+    'LTE' => '<=',
+    'CONTAINS' => 'LIKE',
+    'STARTS_WITH' => 'LIKE'
+  };
+  private static final Pattern DATE_LITERAL_WITH_AMOUNT = Pattern.compile(
+    '^([A-Z_]+):([0-9]{1,4})$'
+  );
+
   /** A prepared Salesforce query and its typed filter values. */
   public class Plan {
     public String soql { get; private set; }
@@ -39,6 +53,7 @@ public with sharing class PromptContextQuery {
     if (dependencies.containsKey(source.referenceName)) {
       fields.addAll(dependencies.get(source.referenceName));
     }
+    PromptContextSchema.addCurrencyCodePaths(source.relatedObject, fields);
     List<String> canonicalFields = new List<String>();
     for (String fieldPath : fields) {
       canonicalFields.add(
@@ -248,7 +263,10 @@ public with sharing class PromptContextQuery {
     if (dependencies.containsKey(source.referenceName)) {
       fields.addAll(dependencies.get(source.referenceName));
     }
-    return fields;
+    return PromptContextSchema.addCurrencyCodePaths(
+      source.relatedObject,
+      fields
+    );
   }
 
   private static List<String> canonicalFields(
@@ -288,6 +306,24 @@ public with sharing class PromptContextQuery {
     Map<String, Object> binds
   ) {
     List<String> conditions = new List<String>();
+    if (String.isNotBlank(source.filterLogic)) {
+      List<String> orderedConditions = new List<String>();
+      Integer logicIndex = 0;
+      for (PromptContextDTO.FilterRule filter : source.filters) {
+        orderedConditions.add(
+          buildFilter(source.relatedObject, filter, logicIndex, binds)
+        );
+        logicIndex++;
+      }
+      conditions.add(
+        PromptContextFilterLogic.parse(
+            source.filterLogic,
+            orderedConditions.size()
+          )
+          .toSoql(orderedConditions)
+      );
+      return conditions;
+    }
     Integer filterIndex = 0;
     Map<String, List<String>> conditionsByGroup = new Map<String, List<String>>();
     List<String> groupOrder = new List<String>();
@@ -344,6 +380,21 @@ public with sharing class PromptContextQuery {
       return fieldName + ' != null';
     }
     String bindName = 'filter' + filterIndex;
+    if (filter.operator == 'IN' || filter.operator == 'NOT_IN') {
+      binds.put(bindName, convertList(objectApiName, fieldName, filter.value));
+      return fieldName +
+        (filter.operator == 'IN' ? ' IN :' : ' NOT IN :') +
+        bindName;
+    }
+    String literal = dateLiteral(objectApiName, fieldName, filter.value);
+    if (literal != null) {
+      // The literal is rebuilt from an allowlist and a whole number up to 4,000, never copied from input.
+      return fieldName +
+        ' ' +
+        COMPARISON_OPERATORS.get(filter.operator) +
+        ' ' +
+        literal;
+    }
     Object typedValue = convertValue(objectApiName, fieldName, filter.value);
     if (filter.operator == 'CONTAINS') {
       typedValue = '%' + escapeLikeValue(String.valueOf(typedValue)) + '%';
@@ -351,17 +402,119 @@ public with sharing class PromptContextQuery {
       typedValue = escapeLikeValue(String.valueOf(typedValue)) + '%';
     }
     binds.put(bindName, typedValue);
-    Map<String, String> operators = new Map<String, String>{
-      'EQ' => '=',
-      'NE' => '!=',
-      'GT' => '>',
-      'GTE' => '>=',
-      'LT' => '<',
-      'LTE' => '<=',
-      'CONTAINS' => 'LIKE',
-      'STARTS_WITH' => 'LIKE'
-    };
-    return fieldName + ' ' + operators.get(filter.operator) + ' :' + bindName;
+    return fieldName +
+      ' ' +
+      COMPARISON_OPERATORS.get(filter.operator) +
+      ' :' +
+      bindName;
+  }
+
+  /**
+   * Returns the canonical Salesforce date literal for a Date or Date/Time filter value.
+   * @param objectApiName Object that owns the field
+   * @param fieldPath Field path
+   * @param value Saved filter value such as LAST_N_DAYS:30
+   * @return Canonical literal, or null when the value is not a supported literal
+   */
+  public static String dateLiteral(
+    String objectApiName,
+    String fieldPath,
+    String value
+  ) {
+    if (String.isBlank(value)) {
+      return null;
+    }
+    Schema.DisplayType fieldType = PromptContextSchema.getTerminalFieldDescription(
+        objectApiName,
+        fieldPath
+      )
+      .getType();
+    if (
+      fieldType != Schema.DisplayType.Date &&
+      fieldType != Schema.DisplayType.Datetime
+    ) {
+      return null;
+    }
+    String normalized = value.trim().toUpperCase();
+    if (PromptContextContract.DATE_LITERALS.contains(normalized)) {
+      return normalized;
+    }
+    Matcher withAmount = DATE_LITERAL_WITH_AMOUNT.matcher(normalized);
+    if (
+      withAmount.matches() &&
+      PromptContextContract.DATE_LITERALS_WITH_AMOUNT.contains(
+        withAmount.group(1)
+      )
+    ) {
+      Integer amount = Integer.valueOf(withAmount.group(2));
+      if (
+        amount >= 1 &&
+        amount <= PromptContextContract.MAX_DATE_LITERAL_AMOUNT
+      ) {
+        return withAmount.group(1) + ':' + amount;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Converts a comma-separated IN value into a typed bind list.
+   * @param objectApiName Object that owns the field
+   * @param fieldPath Field path
+   * @param value Comma-separated values
+   * @return Typed list suitable for an IN bind
+   */
+  public static Object convertList(
+    String objectApiName,
+    String fieldPath,
+    String value
+  ) {
+    List<String> items = new List<String>();
+    for (String item : (value ?? '').split(',')) {
+      if (String.isBlank(item)) {
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.INVALID_CONFIGURATION,
+          'Separate list values with commas and leave no value empty.'
+        );
+      }
+      items.add(item.trim());
+    }
+    if (items.size() > PromptContextContract.MAX_FILTER_LIST_VALUES) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'Use no more than ' +
+          PromptContextContract.MAX_FILTER_LIST_VALUES +
+          ' values in one list.'
+      );
+    }
+    Schema.DisplayType fieldType = PromptContextSchema.getTerminalFieldDescription(
+        objectApiName,
+        fieldPath
+      )
+      .getType();
+    if (fieldType == Schema.DisplayType.Date) {
+      List<Date> dates = new List<Date>();
+      for (String item : items) {
+        dates.add((Date) convertValue(objectApiName, fieldPath, item));
+      }
+      return dates;
+    }
+    if (fieldType == Schema.DisplayType.Datetime) {
+      List<Datetime> instants = new List<Datetime>();
+      for (String item : items) {
+        instants.add((Datetime) convertValue(objectApiName, fieldPath, item));
+      }
+      return instants;
+    }
+    Object sample = convertValue(objectApiName, fieldPath, items[0]);
+    if (sample instanceof Decimal) {
+      List<Decimal> numbers = new List<Decimal>();
+      for (String item : items) {
+        numbers.add((Decimal) convertValue(objectApiName, fieldPath, item));
+      }
+      return numbers;
+    }
+    return items;
   }
 
   private static String buildOrderBy(PromptContextDTO.SourceConfig source) {

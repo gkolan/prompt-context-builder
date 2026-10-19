@@ -6,6 +6,18 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Added syntax version 2. New publications print picklist labels, plain text from rich text, fixed
+  ISO dates and UTC date-times, currency codes, and percent signs; reject Address and Location
+  fields and impossible row indexes; and support `maxLength="n"` and the `{!!}` literal escape.
+  Publications made with syntax version 1 keep their exact output until republished, and version
+  comparison reports the change.
+- Added **Is one of** and **Is not one of** filters, Salesforce relative date literals, and numbered
+  filter logic such as `1 AND (2 OR NOT 3)`, parsed into a tree so the stored text never reaches the
+  query.
+- Added draft conflict detection: a save based on an older draft returns `DRAFT_CHANGED` instead of
+  overwriting newer changes.
+- Prompt Builder now shows the expected value format for each filter, offers dropdowns for yes/no
+  and picklist values, numbers each filter, and hides Address and Location fields.
 - Added entry-point contract tests for Apex, the Flow action, the Lightning controller, Queueable, and
   a full 200-record Batch scope, plus test-only Flow runtime tests in `integration-tests/flow-runtime`
   for an autolaunched Flow and a bulk record-triggered Flow.

@@ -22,9 +22,19 @@ data sets omit that match and can include any matching records the person can ac
 2. Choose the Salesforce object and the fields the prompt can use.
 3. For related records, choose current-record and related-record fields that hold the same kind of
    value.
-4. Add filters that match the selected field types. Conditions inside one named group use `AND`;
-   choose `AND` or `OR` between
-   groups.
+4. Add filters that match the selected field types. The value box shows the expected format: a
+   dropdown for yes/no and picklist fields, `YYYY-MM-DD` or a relative date such as
+   `LAST_N_DAYS:30` for dates, and plain numbers without currency symbols. **Is one of** and
+   **Is not one of** take up to 50 comma-separated values. Combine filters in one of two ways:
+   - Named groups: conditions inside one group use `AND`; choose `AND` or `OR` between groups.
+   - **Filter logic**: refer to filters by number, such as `1 AND (2 OR NOT 3)`. Logic replaces
+     groups, every filter must appear in it, and mixing `AND` with `OR` requires parentheses.
+
+   Relative dates use Salesforce date literals: `TODAY`, `YESTERDAY`, `TOMORROW`,
+   `LAST_`/`THIS_`/`NEXT_` `WEEK`, `MONTH`, `QUARTER`, or `YEAR`, `LAST_90_DAYS`, `NEXT_90_DAYS`,
+   and `LAST_N_`/`NEXT_N_`/`N_…_AGO` forms of `DAYS`, `WEEKS`, `MONTHS`, `QUARTERS`, and `YEARS`
+   with `:n`. They follow the running person's time zone.
+
 5. Add up to three business sort fields. Salesforce uses `Id` last when records otherwise have the
    same order.
 6. Start with 10 maximum records and increase the number only when the prompt needs more.

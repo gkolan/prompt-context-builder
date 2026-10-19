@@ -37,12 +37,17 @@ public with sharing class PromptContextService {
     }
 
     RuntimeContext runtime = loadRuntimeContext(config, recordId);
-    String prompt = PromptTemplateLanguage.render(
+    PromptTemplateLanguage.RenderOutput rendered = PromptTemplateLanguage.render(
       config.templateBody,
       runtime.rootRecord,
       runtime.relatedByAlias,
-      runtime.aggregateByAlias
+      runtime.aggregateByAlias,
+      config.syntaxVersion
     );
+    String prompt = rendered.text;
+    if (rendered.truncated) {
+      runtime.messages.add(truncationWarning());
+    }
     if (prompt.length() > PromptContextContract.MAX_PROMPT_CHARACTERS) {
       throw new PromptContextException(
         'The generated prompt is longer than 20,000 characters. Reduce fields, rows, or template text.'
@@ -62,12 +67,23 @@ public with sharing class PromptContextService {
     return result;
   }
 
+  /** Warning returned when a maxLength attribute shortened at least one value. */
+  public static PromptContextDTO.Message truncationWarning() {
+    return new PromptContextDTO.Message(
+      'WARNING',
+      'FIELD_TRUNCATED',
+      'Template body',
+      'One or more values were shortened by maxLength.'
+    );
+  }
+
   private static RuntimeContext loadRuntimeContext(
     PromptContextDTO.TemplateConfig config,
     Id recordId
   ) {
-    Set<String> rootFields = PromptTemplateLanguage.getRootFieldPaths(
-      config.templateBody
+    Set<String> rootFields = PromptContextSchema.addCurrencyCodePaths(
+      config.rootObject,
+      PromptTemplateLanguage.getRootFieldPaths(config.templateBody)
     );
     rootFields.add('Id');
     for (

@@ -393,10 +393,13 @@ public with sharing class PromptContextController {
     if (String.isBlank(configJson)) {
       throw new PromptContextException('A template configuration is required.');
     }
-    return (PromptContextDTO.TemplateConfig) JSON.deserialize(
+    PromptContextDTO.TemplateConfig config = (PromptContextDTO.TemplateConfig) JSON.deserialize(
       configJson,
       PromptContextDTO.TemplateConfig.class
     );
+    // Drafts always use the current grammar; only stored publications keep an older version.
+    config.syntaxVersion = PromptContextContract.SYNTAX_VERSION;
+    return config;
   }
 
   private static AuraHandledException safeException(String message) {
