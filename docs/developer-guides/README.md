@@ -69,4 +69,28 @@ the caller's own queries, DML, and callouts.
 Queueable, Batch, and Scheduled Apex do not elevate record access. The executing user still needs
 generation capability and read access to every required customer object and field.
 
+## Supported invocation contexts
+
+Every context calls the same preparation service, so authorization, user-mode data access, limits,
+and reason codes are identical. The table names the Apex tests that exercise each context.
+
+| Context                         | Entry point                                        | Exercised by                                                                                 |
+| ------------------------------- | -------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| Synchronous Apex                | `PromptContextInputApi.prepare`                    | `PromptContextInputApiTest`, `PromptContextEntryPointContractTest`                           |
+| Flow action (any Flow type)     | **Prepare Record Prompt Input** (`prepareForFlow`) | `PromptContextEntryPointContractTest`; real Flow runtime in `PromptContextFlowRuntimeTest`   |
+| Autolaunched Flow               | Same action                                        | `PromptContextFlowRuntimeTest` (output variables and Return/Save delivery)                   |
+| Record-triggered Flow, bulk DML | Same action                                        | `PromptContextFlowRuntimeTest` (one 50-record insert saves 50 logs)                          |
+| Lightning record page           | `PromptContextController.generatePrompt`           | `PromptContextControllerTest`, `PromptContextEntryPointContractTest`                         |
+| Queueable Apex                  | `prepare` from `execute`                           | `PromptContextExecutionContextTest`; 50-record save in `PromptContextEntryPointContractTest` |
+| Batch Apex                      | `prepare` from `execute`                           | Full 200-record scope in `PromptContextEntryPointContractTest`                               |
+| Scheduled Apex                  | `prepare` from `execute`                           | `PromptContextExecutionContextTest`                                                          |
+
+Screen Flows and Process Builder use the same invocable action and request contract. Salesforce no
+longer allows new Process Builder processes; build new automation in Flow. Neither a Screen Flow nor
+a Process Builder process is exercised by an automated test, because Apex tests cannot run a screen
+or create a process.
+
+`PromptContextFlowRuntimeTest` and its two test-only Flows live in `integration-tests/flow-runtime`,
+outside the package. Include that directory when validating against an org; it is never packaged.
+
 See [Reason codes](../reference/reason-codes.md) and [Limits](../reference/limits.md).

@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<Flow xmlns="http://soap.sforce.com/2006/04/metadata">
+    <actionCalls>
+        <name>Save_Input</name>
+        <label>Save Input</label>
+        <locationX>176</locationX>
+        <locationY>323</locationY>
+        <actionName>PromptContextInputApi</actionName>
+        <actionType>apex</actionType>
+        <flowTransactionModel>CurrentTransaction</flowTransactionModel>
+        <inputParameters>
+            <name>templateDeveloperKey</name>
+            <value>
+                <stringValue>pcb_flow_runtime</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>recordId</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>deliveryChoice</name>
+            <value>
+                <stringValue>SAVE_TO_LOG</stringValue>
+            </value>
+        </inputParameters>
+        <inputParameters>
+            <name>requestKey</name>
+            <value>
+                <elementReference>$Record.Id</elementReference>
+            </value>
+        </inputParameters>
+    </actionCalls>
+    <apiVersion>65.0</apiVersion>
+    <description
+  >Test-only record-triggered Flow that saves prompt input for package-owned probe records named PCB Flow Probe. Not packaged.</description>
+    <environments>Default</environments>
+    <interviewLabel
+  >PCB Test Prepare On Insert {!$Flow.CurrentDateTime}</interviewLabel>
+    <label>PCB Test Prepare On Insert</label>
+    <processMetadataValues>
+        <name>BuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processMetadataValues>
+        <name>OriginBuilderType</name>
+        <value>
+            <stringValue>LightningFlowBuilder</stringValue>
+        </value>
+    </processMetadataValues>
+    <processType>AutoLaunchedFlow</processType>
+    <start>
+        <locationX>50</locationX>
+        <locationY>0</locationY>
+        <connector>
+            <targetReference>Save_Input</targetReference>
+        </connector>
+        <filterLogic>and</filterLogic>
+        <filters>
+            <field>Name</field>
+            <operator>StartsWith</operator>
+            <value>
+                <stringValue>PCB Flow Probe</stringValue>
+            </value>
+        </filters>
+        <object>Prompt_Template__c</object>
+        <recordTriggerType>Create</recordTriggerType>
+        <triggerType>RecordAfterSave</triggerType>
+    </start>
+    <status>Active</status>
+</Flow>

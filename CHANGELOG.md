@@ -6,6 +6,9 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Added entry-point contract tests for Apex, the Flow action, the Lightning controller, Queueable, and
+  a full 200-record Batch scope, plus test-only Flow runtime tests in `integration-tests/flow-runtime`
+  for an autolaunched Flow and a bulk record-triggered Flow.
 - Added the `check:apex-surface` gate, which pins reviewed system-mode and sharing exceptions and
   requires every Apex entry class to authorize through `PromptContextAccess`.
 - Added field-value data-set matching so a source field can match a compatible current-record
