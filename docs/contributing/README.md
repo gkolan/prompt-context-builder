@@ -34,6 +34,8 @@ separately.
   `npm run check:test-data-isolation` for every Apex test-fixture change.
 - Select test fixtures by stable semantic keys or states. An unqualified `LIMIT 1` is unsafe when
   multiple semantic records can exist.
+- When a lesson or its gate changes, keep a positive and a negative scenario for it in
+  `scripts/lesson-guards.test.mjs` and run `npm run test:lesson-guards`.
 - Stop on Salesforce source conflicts. Explicit deployment authorization does not authorize
   `--ignore-conflicts` or another overwrite of divergent org source.
 - Inventory and restore Scheduled Apex when a deployment requires a scheduled class to be paused.

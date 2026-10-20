@@ -307,6 +307,7 @@ private class PromptContextControllerTest {
       Prompt_Template_Version__c templateVersion = [
         SELECT Id, Template_Body__c
         FROM Prompt_Template_Version__c
+        WHERE Prompt_Template__c = :saved.id
         LIMIT 1
       ];
       templateVersion.Template_Body__c = 'Changed after publication';
@@ -322,6 +323,9 @@ private class PromptContextControllerTest {
       Prompt_Context_Source_Version__c sourceVersion = [
         SELECT Id, Reference_Name__c
         FROM Prompt_Context_Source_Version__c
+        WHERE
+          Prompt_Template_Version__c = :templateVersion.Id
+          AND Reference_Name__c = 'recent_contacts'
         LIMIT 1
       ];
       sourceVersion.Reference_Name__c = 'changed_alias';

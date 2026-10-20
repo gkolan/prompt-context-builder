@@ -6,6 +6,12 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Added `npm run test:lesson-guards`, part of `ci:gates`, which proves every change-safety lesson's
+  guard passes compliant source and fails each planted regression. The test-data isolation gate now
+  scans every `@isTest` class in `force-app` and `integration-tests`, catches multiline, collection,
+  inline-query, and `Database` DML, and rejects `SeeAllData=true`, Profile selection by name, and an
+  inline `LIMIT 1` query with no `WHERE` or `ORDER BY`. The agent-guidance gate fails when automation
+  bypasses source conflicts, resets tracking, deploys, or creates or deletes a scratch org.
 - Added `integration-tests/security`, which runs generation, publishing, and lifecycle writes as a
   minimum-access user who holds only the package Permission Sets, so Salesforce enforces sharing,
   object access, and field access for real.
@@ -78,6 +84,10 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- Four Apex tests that picked a template version or data set version with an unqualified `LIMIT 1`
+  now select it by its template and reference name, and `selectRootRecord()` fails instead of
+  guessing when a test creates a second root record. The public-release scan no longer reads nested
+  worktrees under `.claude/worktrees`.
 - Prompt Builder keeps each data set's field choices after **Save draft**, **Publish**, and
   **Deactivate**. Before, "Fields available to the prompt", "Source match field", the filter and
   sort field pickers, and "Field to calculate" stayed empty until the template was reopened.

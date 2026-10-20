@@ -4,8 +4,9 @@
 navigation, screenshot inventory and file signatures, the Permission Set custom-permission
 boundary, a description for every Salesforce custom field, the namespace fixture contract,
 plain-language and public-release hygiene, the entry-point, file, input-log, and bulk-matching
-source contracts, Apex test-data isolation, the Apex security surface, LWC lint, LWC Jest behavior,
-enforced JavaScript coverage floors, and Salesforce Code Analyzer. It needs Node.js 22, the
+source contracts, Apex test-data isolation, the Apex security surface, the positive and negative
+scenarios for every change-safety lesson, LWC lint, LWC Jest behavior, enforced JavaScript coverage
+floors, and Salesforce Code Analyzer. It needs Node.js 22, the
 Salesforce CLI, and the Code Analyzer plugin (`sf plugins install code-analyzer`), but no
 Salesforce org.
 
@@ -32,10 +33,13 @@ rules on `force-app` and fails on any critical or high finding. Moderate and low
 advisory; review them in changed files as the change safety playbook describes. Do not suppress a finding merely because it is
 inconvenient; document and narrowly bound any genuine engine false positive.
 
-The Apex test-data isolation gate rejects Account, Contact, and User DML in package test classes.
-Tests may construct those records in memory for language and schema behavior, reuse the running test
-user, and persist only package-owned fixtures. Deploy-critical tests therefore do not depend on
-subscriber validation rules, flows, or triggers on those org-owned records.
+The Apex test-data isolation gate rejects Account, Contact, and User DML in every `@isTest` class in
+`force-app` and `integration-tests`. The one exception is the `User` insert in
+`integration-tests/security`. Tests may construct those records in memory for language and schema
+behavior, reuse the running test user, and persist only package-owned fixtures. Deploy-critical tests
+therefore do not depend on subscriber validation rules, flows, or triggers on those org-owned
+records. The same gate rejects `SeeAllData=true`, a Profile selected by name, and an inline
+`LIMIT 1` query that has no `WHERE` or `ORDER BY`.
 
 The Apex security-surface gate (`check:apex-surface`) fails when production Apex declares an
 unreviewed `without sharing` class or changes the reviewed `SYSTEM_MODE` count. It also fails on a
@@ -54,7 +58,15 @@ not part of `ci:gates`; run it before release and after changing data access.
 The agent-guidance gate verifies that `AGENTS.md` retains the mandatory session link and that the
 [change safety playbook](../contributing/change-safety-playbook.md) remains connected to contributor
 and quality documentation. Repository-aware agents receive `AGENTS.md` at session start; the linked
-playbook is mandatory reading for Apex, metadata, validation, and deployment work.
+playbook is mandatory reading for Apex, metadata, validation, and deployment work. The gate also
+fails when an npm script or GitHub workflow passes `--ignore-conflicts`, resets source tracking,
+runs a mutating deployment, or creates or deletes a scratch org, and when the CI org validation
+stops being a check-only `deploy validate` with `RunLocalTests`.
+
+`npm run test:lesson-guards` runs `scripts/lesson-guards.test.mjs` with the Node.js test runner. For
+each lesson in the [change safety playbook](../contributing/change-safety-playbook.md), it runs the
+real guard against a temporary copy of its inputs and requires compliant source to pass and each
+planted regression to fail. The playbook lists every scenario.
 
 ## Automated and external evidence
 
@@ -63,6 +75,7 @@ playbook is mandatory reading for Apex, metadata, validation, and deployment wor
 | Formatting and documentation links                 | Yes                         | No                                  |
 | Screenshot inventory, signatures, and references   | Yes                         | No                                  |
 | Agent-guidance presence and navigation             | Yes                         | No                                  |
+| Lesson-guard positive and negative scenarios       | Yes                         | No                                  |
 | Apex test-data isolation source check              | Yes                         | No                                  |
 | Apex security-surface source check                 | Yes                         | No                                  |
 | LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                  |
@@ -101,12 +114,14 @@ image and the capture notes. Use the [UI screenshot evidence](../screenshots/REA
 
 ## Isolation-gate boundary
 
-`check:test-data-isolation` is a structural guard, not a complete Apex parser. It detects direct and
-typed-variable DML patterns for `Account`, `Contact`, and `User` in test classes and the shared test
-factory. Reviewers must also inspect indirect factory calls, multiline expressions, generic
-`SObject` aliases, dynamic Apex, and new subscriber-owned object types. A package-owned fixture can
-still be affected by subscriber additions in some installation models, so any-org compatibility
-claims must name their prerequisites and tested org shapes.
+`check:test-data-isolation` is a structural guard, not a complete Apex parser. It detects direct,
+typed-variable, collection, inline-query, and `Database` DML for `Account`, `Contact`, and `User` in
+`@isTest` classes, across lines and with comments and strings removed. Reviewers must also inspect
+DML reached through a non-test class, dynamic Apex and dynamic SOQL, and new subscriber-owned object
+types. The `LIMIT 1` rule cannot tell whether a `WHERE` clause matches exactly one record, so
+reviewers still confirm that a filter is a semantic key or state. A package-owned fixture can still
+be affected by subscriber additions in some installation models, so any-org compatibility claims
+must name their prerequisites and tested org shapes.
 
 ## Regression-first rule
 

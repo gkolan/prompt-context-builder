@@ -73,15 +73,25 @@ public with sharing class PromptContextTestDataFactory {
     return rootRecord;
   }
 
-  /** Returns the package-owned current record created for the test. */
+  /**
+   * Returns the one package-owned current record created for the test. Fails instead of guessing
+   * when a sibling root exists; keep that sibling's Id from createRootRecord instead.
+   * @return the only record whose Developer_Key__c starts with test_root_
+   */
   public static Prompt_Template__c selectRootRecord() {
-    return [
+    List<Prompt_Template__c> roots = [
       SELECT Id, Name
       FROM Prompt_Template__c
       WHERE Developer_Key__c LIKE 'test_root_%'
       WITH SYSTEM_MODE
-      LIMIT 1
+      LIMIT 2
     ];
+    Assert.areEqual(
+      1,
+      roots.size(),
+      'selectRootRecord needs exactly one test_root_ record.'
+    );
+    return roots[0];
   }
 
   /** Creates package-owned roots without touching customer business objects. */

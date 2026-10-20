@@ -317,9 +317,13 @@ private class PromptContextInputLifecycleTest {
 
   private static Id createLog(String requestKey) {
     PromptContextAccess.setSaveInputForTest(true);
+    String templateName = PromptContextTestDataFactory.createTwoSourceConfig()
+      .name;
     Prompt_Template_Version__c versionRecord = [
       SELECT Id
       FROM Prompt_Template_Version__c
+      WHERE Prompt_Template__r.Name = :templateName
+      ORDER BY Version_Number__c DESC
       LIMIT 1
     ];
     Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();

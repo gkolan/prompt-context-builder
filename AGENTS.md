@@ -50,6 +50,9 @@ Every bug fix must leave an executable guard:
 5. Run the focused test, relevant gates, and `npm run ci:gates`.
 6. Keep local, org, browser, and package evidence distinct.
 
+A lesson added to the playbook's "Why these rules exist" table needs an executable guard with a
+positive and a negative scenario in `scripts/lesson-guards.test.mjs`.
+
 For customer-data access, preserve sharing-aware Apex, explicit user-mode queries, schema-backed
 identifiers, typed bind values, bounded resources, and atomic failure. A fallback must never turn a
 missing permission into an ordinary null value.
@@ -92,6 +95,7 @@ browser-verified.
 | Static-analysis configuration  | `code-analyzer.yml`                                           |
 | Change-safety owner page       | `docs/contributing/change-safety-playbook.md`                 |
 | Apex test-isolation gate       | `scripts/check-test-data-isolation.mjs`                       |
+| Lesson-guard scenarios         | `scripts/lesson-guards.test.mjs`                              |
 | Apex security-surface gate     | `scripts/check-apex-surface.mjs`                              |
 | Screenshot evidence and policy | `docs/screenshots/README.md` and `manifest.json`              |
 | Screenshot contract gate       | `scripts/check-screenshot-contract.mjs`                       |

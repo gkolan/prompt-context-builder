@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { stripCommentsAndStrings } from "./apex-source.mjs";
 
 // Pins the production Apex security surface. Each exception below is reviewed in
 // docs/architecture/security-and-data-access.md; changing a count requires the same review.
@@ -20,17 +21,6 @@ const approvedDelegation = new Map([
   ["PromptContextInputPurgeSchedulable", "PromptContextInputPurgeQueueable"]
 ]);
 const failures = [];
-
-// One pass so a "//" inside a string, or a quote inside a comment, cannot hide code.
-function stripCommentsAndStrings(source, keepStrings = false) {
-  return source.replace(
-    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:[^'\\\n]|\\.)*'/g,
-    (token) => {
-      if (token.startsWith("'")) return keepStrings ? token : "''";
-      return token.replace(/[^\n]/g, " ");
-    }
-  );
-}
 const sources = new Map();
 
 for (const fileName of readdirSync(classesDirectory).sort()) {

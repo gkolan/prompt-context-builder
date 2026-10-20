@@ -261,9 +261,13 @@ private class PromptContextInputLogServiceTest {
     request.responseIndex = 0;
     request.requestKey = requestKey;
     request.rootRecordId = PromptContextTestDataFactory.selectRootRecord().Id;
+    String templateName = PromptContextTestDataFactory.createTwoSourceConfig()
+      .name;
     request.templateVersionId = [
       SELECT Id
       FROM Prompt_Template_Version__c
+      WHERE Prompt_Template__r.Name = :templateName
+      ORDER BY Version_Number__c DESC
       LIMIT 1
     ]
     .Id;
