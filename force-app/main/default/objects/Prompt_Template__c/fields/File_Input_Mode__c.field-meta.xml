@@ -4,7 +4,7 @@
     <description
   >Controls whether a prompt uses no Salesforce Files, files selected by the user, or every eligible file linked directly to the source record.</description>
     <inlineHelpText
-  >Choose Disabled, User Selects Files, or All Eligible Files. More than five files always stops the request.</inlineHelpText>
+  >Choose Disabled, User Selects Files, or All Eligible Files. The file limit is the lowest of Maximum Files, the approved service setup limit, and five. User Selects Files stops the request when more files than the limit are chosen. All Eligible Files uses the first eligible files by title, up to the limit.</inlineHelpText>
     <label>File Input Mode</label>
     <required>true</required>
     <type>Picklist</type>
