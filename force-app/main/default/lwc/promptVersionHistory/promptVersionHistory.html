@@ -1,0 +1,49 @@
+<template>
+  <p class="slds-text-body_small slds-text-color_weak">
+    Published versions cannot be changed. Restore copies a selected version into
+    the editable draft. Publishing the draft creates a new version.
+  </p>
+  <div
+    class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
+  >
+    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+      <lightning-combobox
+        name="fromVersion"
+        label="Earlier or restore version"
+        value={fromVersion}
+        options={versionOptions}
+        onchange={handleSelection}
+      ></lightning-combobox>
+    </div>
+    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+      <lightning-combobox
+        name="toVersion"
+        label="Compare with version"
+        value={toVersion}
+        options={versionOptions}
+        onchange={handleSelection}
+      ></lightning-combobox>
+    </div>
+    <div
+      class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 action-row compact-actions"
+    >
+      <lightning-button
+        label="Compare"
+        onclick={handleCompare}
+        disabled={disabled}
+      ></lightning-button>
+      <lightning-button
+        label="Restore as draft"
+        onclick={handleRestore}
+        disabled={disabled}
+      ></lightning-button>
+    </div>
+  </div>
+  <template lwc:if={hasComparison}>
+    <ul class="comparison-list">
+      <template for:each={comparisonChanges} for:item="change">
+        <li key={change.key}>{change.text}</li>
+      </template>
+    </ul>
+  </template>
+</template>

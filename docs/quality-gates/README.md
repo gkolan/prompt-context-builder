@@ -7,9 +7,11 @@ test-data isolation, LWC lint, LWC Jest behavior, enforced JavaScript coverage f
 Salesforce Code Analyzer. It needs Node.js 22, the Salesforce CLI, and the Code Analyzer plugin
 (`sf plugins install code-analyzer`), but no Salesforce org.
 
-The coverage command disables Jest's transform cache and then verifies that both shipped LWC
-controllers are present in `coverage-final.json`. A green percentage threshold is not accepted when
-coverage data for a component is missing.
+The coverage command disables Jest's transform cache and then verifies that the controller of every
+component folder under `force-app/main/default/lwc` is present in `coverage-final.json`. A green
+percentage threshold is not accepted when coverage data for a component is missing. Prompt Builder
+is split into section components, and each one keeps its own line-coverage floor in
+`jest.config.js`.
 
 ## Evidence by change type
 

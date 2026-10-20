@@ -1,0 +1,232 @@
+<template>
+  <article class="source-card">
+    <div
+      class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
+    >
+      <h3 class="slds-text-title_bold">Data set {source.sequence}</h3>
+      <lightning-button-icon
+        icon-name="utility:delete"
+        alternative-text="Remove data set"
+        title="Remove data set"
+        disabled={disabled}
+        onclick={remove}
+      ></lightning-button-icon>
+    </div>
+    <p class="source-progress" role="status">
+      <strong>Guided setup:</strong> {completionText}
+    </p>
+    <h4 class="slds-text-title_bold subsection-heading">
+      A. Choose what to query
+    </h4>
+    <div class="slds-grid slds-wrap slds-gutters_small">
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-input
+          name="referenceName"
+          label="Reference name"
+          value={source.referenceName}
+          required
+          onchange={handleField}
+        ></lightning-input>
+      </div>
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-combobox
+          name="sourceMode"
+          label="Records to include"
+          value={source.sourceMode}
+          options={sourceModeOptions}
+          required
+          onchange={handleField}
+        ></lightning-combobox>
+      </div>
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-combobox
+          name="relatedObject"
+          label="Object to query"
+          value={source.relatedObject}
+          options={objectOptions}
+          required
+          onchange={handleField}
+        ></lightning-combobox>
+      </div>
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-combobox
+          name="resultMode"
+          label="Result type"
+          value={source.resultMode}
+          options={resultModeOptions}
+          required
+          onchange={handleField}
+          field-level-help="Choose records for fields and repeat blocks, or one calculated value for a count, sum, average, minimum, or maximum."
+        ></lightning-combobox>
+      </div>
+      <template lwc:if={isRelated}>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+          <lightning-combobox
+            name="rootField"
+            label="Current record field"
+            value={source.rootField}
+            options={rootFieldOptions}
+            required
+            onchange={handleField}
+          ></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+          <lightning-combobox
+            name="correlationField"
+            label="Source match field"
+            value={source.correlationField}
+            options={source.fieldOptions}
+            required
+            onchange={handleField}
+          ></lightning-combobox>
+        </div>
+      </template>
+    </div>
+    <div class="scope-panel" role="note">
+      <strong>{modeHelp}</strong>
+      <span>{querySummary}</span>
+    </div>
+    <h4 class="slds-text-title_bold subsection-heading">
+      B. Choose information available to the prompt
+    </h4>
+    <template lwc:if={isAggregate}>
+      <div class="slds-grid slds-wrap slds-gutters_small">
+        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+          <lightning-combobox
+            name="aggregateOperation"
+            label="Calculation"
+            value={source.aggregateOperation}
+            options={aggregateOperationOptions}
+            required
+            onchange={handleField}
+          ></lightning-combobox>
+        </div>
+        <template lwc:if={needsAggregateField}>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+            <lightning-combobox
+              name="aggregateField"
+              label="Field to calculate"
+              value={source.aggregateField}
+              options={source.fieldOptions}
+              required
+              onchange={handleField}
+            ></lightning-combobox>
+          </div>
+        </template>
+      </div>
+      <p class="slds-text-body_small slds-text-color_weak">
+        The calculation uses only records and fields visible to the running
+        user. Grouping and custom expressions are not allowed.
+      </p>
+    </template>
+    <template lwc:else>
+      <lightning-dual-listbox
+        label="Fields available to the prompt"
+        source-label="Available fields"
+        selected-label="Selected fields"
+        options={source.fieldOptions}
+        value={source.selectedFields}
+        onchange={handleSelectedFields}
+      ></lightning-dual-listbox>
+    </template>
+
+    <div class="subsection advanced-toggle">
+      <lightning-button
+        label={advancedLabel}
+        icon-name="utility:settings"
+        onclick={toggleAdvanced}
+        disabled={disabled}
+      ></lightning-button>
+    </div>
+    <template lwc:if={source.showAdvanced}>
+      <h4 class="slds-text-title_bold subsection-heading">
+        C. Optional limits, filters, and sorting
+      </h4>
+      <div class="slds-grid slds-wrap slds-gutters_small">
+        <template lwc:if={isRecords}>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+            <lightning-input
+              type="number"
+              name="maxRows"
+              label="Maximum records"
+              min="1"
+              max="50"
+              value={source.maxRows}
+              onchange={handleField}
+            ></lightning-input>
+          </div>
+        </template>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+          <lightning-input
+            type="number"
+            name="sequence"
+            label="Order"
+            min="1"
+            max="999"
+            value={source.sequence}
+            onchange={handleField}
+          ></lightning-input>
+        </div>
+        <div
+          class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 checkbox-cell"
+        >
+          <lightning-input
+            type="checkbox"
+            name="active"
+            label="Active"
+            checked={source.active}
+            onchange={handleField}
+          ></lightning-input>
+        </div>
+      </div>
+
+      <template lwc:if={isRecords}>
+        <c-prompt-filter-sort-editor
+          source={source}
+          disabled={disabled}
+          onruleschange={handleRulesChange}
+        ></c-prompt-filter-sort-editor>
+      </template>
+    </template>
+    <h4 class="slds-text-title_bold subsection-heading">
+      D. Insert this data into the prompt
+    </h4>
+    <template lwc:if={isAggregate}>
+      <div class="merge-tools">
+        <p>Insert the single calculated value into the prompt.</p>
+        <lightning-button
+          label="Insert calculated value"
+          onclick={insertAggregateValue}
+          disabled={disabled}
+        ></lightning-button>
+      </div>
+    </template>
+    <template lwc:else>
+      <div class="merge-tools">
+        <lightning-combobox
+          label="Prompt field to insert"
+          value={source.mergeField}
+          options={selectedFieldOptions}
+          onchange={handleMergeField}
+        ></lightning-combobox>
+        <div class="action-row compact-actions">
+          <lightning-button
+            label="Insert first value"
+            onclick={insertField}
+            disabled={disabled}
+          ></lightning-button>
+          <lightning-button
+            label="Insert count"
+            onclick={insertCount}
+            disabled={disabled}
+          ></lightning-button>
+          <lightning-button
+            label="Insert repeat block"
+            onclick={insertEach}
+            disabled={disabled}
+          ></lightning-button>
+        </div>
+      </div>
+    </template>
+  </article>
+</template>

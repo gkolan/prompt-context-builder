@@ -1,0 +1,77 @@
+<template>
+  <div class="recipe-panel" role="group" aria-label="Starter recipes">
+    <div
+      class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
+    >
+      <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
+        <lightning-combobox
+          label="Optional starter recipe"
+          value={selectedRecipe}
+          options={recipeOptions}
+          onchange={handleRecipeSelection}
+          field-level-help="A recipe fills in editable settings. Salesforce still checks the template and the person's access."
+        ></lightning-combobox>
+      </div>
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
+        <lightning-button
+          label="Apply starter"
+          onclick={applyRecipe}
+          disabled={disabled}
+        ></lightning-button>
+      </div>
+    </div>
+  </div>
+  <div
+    class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
+  >
+    <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
+      <lightning-combobox
+        label="Current record field to insert"
+        value={rootMergeField}
+        options={rootFieldOptions}
+        onchange={handleRootMergeField}
+      ></lightning-combobox>
+    </div>
+    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
+      <lightning-button
+        label="Insert current record field"
+        onclick={insertRootMerge}
+      ></lightning-button>
+    </div>
+  </div>
+  <div class="editor-grid">
+    <div>
+      <lightning-textarea
+        class="prompt-editor"
+        name="templateBody"
+        label="Template body"
+        value={templateBody}
+        required
+        onchange={handleBody}
+      ></lightning-textarea>
+      <p class="editor-guidance" role="status" aria-live="polite">
+        {editorGuidance}
+      </p>
+    </div>
+    <div class="live-preview" aria-labelledby="live-preview-heading">
+      <h3 id="live-preview-heading" class="slds-text-title_bold">
+        Latest preview
+      </h3>
+      <pre>{latestPreviewText}</pre>
+    </div>
+  </div>
+  <p class="slds-text-body_small slds-text-color_weak">
+    {templateCharacterCount} of 20,000 generated-output characters used by the
+    template text before record values are inserted.
+  </p>
+  <lightning-accordion allow-multiple-sections-open>
+    <lightning-accordion-section name="syntax" label="Field insertion help">
+      <dl class="syntax-list">
+        <template for:each={syntaxExamples} for:item="example">
+          <dt key={example.key}>{example.label}</dt>
+          <dd key={example.syntax}><code>{example.syntax}</code></dd>
+        </template>
+      </dl>
+    </lightning-accordion-section>
+  </lightning-accordion>
+</template>

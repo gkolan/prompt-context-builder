@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Prompt Data Set Editor</masterLabel>
+    <description
+  >Edits one Prompt Builder data set: scope, object, match fields, prompt fields, and limits.</description>
+</LightningComponentBundle>

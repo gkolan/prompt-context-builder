@@ -1,0 +1,55 @@
+:host {
+  display: block;
+}
+
+.preview-editor {
+  display: block;
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.action-row,
+.message-panel {
+  margin-top: var(--slds-g-spacing-4, 1rem);
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.publish-guidance,
+.governance-panel,
+.manifest-table {
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.message-panel,
+.governance-panel {
+  background: var(--slds-g-color-surface-container-1, #f3f3f3);
+  border-radius: var(--slds-g-radius-border-1, 0.25rem);
+  color: var(--slds-g-color-on-surface-1, #181818);
+  padding: var(--slds-g-spacing-4, 1rem);
+}
+
+.manifest-table {
+  overflow-x: auto;
+}
+
+.manifest-row {
+  border-bottom: var(--slds-g-sizing-border-1, 1px) solid
+    var(--slds-g-color-border-base-1, #c9c9c9);
+  display: grid;
+  gap: var(--slds-g-spacing-2, 0.5rem);
+  grid-template-columns: 1fr 2fr 1fr 1fr;
+  min-width: 42rem;
+  padding: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.manifest-header {
+  font-weight: 700;
+}
+
+code {
+  overflow-wrap: anywhere;
+}

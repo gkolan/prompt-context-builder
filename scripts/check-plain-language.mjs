@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
+import { promptBuilderSourceFiles } from "./prompt-builder-files.mjs";
 
 const workspace = process.cwd();
 const visibleSourceFiles = [
-  "force-app/main/default/lwc/promptTemplateBuilder/promptTemplateBuilder.html",
-  "force-app/main/default/lwc/promptTemplateBuilder/promptTemplateBuilder.js",
+  ...promptBuilderSourceFiles(workspace),
   "force-app/main/default/lwc/promptGenerator/promptGenerator.html",
   "force-app/main/default/customLabels/CustomLabels.labels-meta.xml",
   "force-app/main/default/classes/PromptContextInputApi.cls",

@@ -1,0 +1,100 @@
+<template>
+  <lightning-record-picker
+    label="Preview record"
+    placeholder="Search for a record"
+    object-api-name={config.rootObject}
+    value={sampleRecordId}
+    onchange={handleSampleRecord}
+  ></lightning-record-picker>
+  <div class="action-row">
+    <lightning-button
+      label="Validate"
+      data-action="validate"
+      onclick={handleAction}
+      disabled={disabled}
+    ></lightning-button>
+    <lightning-button
+      label="Preview"
+      data-action="preview"
+      onclick={handleAction}
+      disabled={disabled}
+    ></lightning-button>
+    <lightning-button
+      label="Save draft"
+      data-action="save"
+      onclick={handleAction}
+      disabled={disabled}
+    ></lightning-button>
+    <lightning-button
+      variant="brand"
+      label="Publish"
+      data-action="publish"
+      onclick={handleAction}
+      disabled={cannotPublish}
+    ></lightning-button>
+  </div>
+  <p class="publish-guidance" role="status" aria-live="polite">
+    {publishGuidance}
+  </p>
+
+  <template lwc:if={hasMessages}>
+    <div class="message-panel" role="status" aria-live="polite">
+      <template for:each={viewMessages} for:item="message">
+        <p key={message.key}>
+          <strong>{message.severity}</strong>, {message.location}:
+          {message.text}
+        </p>
+      </template>
+    </div>
+  </template>
+
+  <template lwc:if={hasAccessManifest}>
+    <section class="governance-panel" aria-labelledby="manifest-heading">
+      <h3 id="manifest-heading" class="slds-text-heading_small">
+        Required field access
+      </h3>
+      <p class="slds-text-body_small slds-text-color_weak">
+        The template needs these fields for prompt values, matching, filtering,
+        or sorting. Salesforce stops the request when the person cannot access a
+        required field.
+      </p>
+      <div
+        class="manifest-table"
+        role="table"
+        aria-label="Required field access for this template"
+      >
+        <div class="manifest-row manifest-header" role="row">
+          <span role="columnheader">Data set</span>
+          <span role="columnheader">Object and field</span>
+          <span role="columnheader">Use</span>
+          <span role="columnheader">Classification</span>
+        </div>
+        <template for:each={manifestRows} for:item="item">
+          <div key={item.key} class="manifest-row" role="row">
+            <span role="cell">{item.sourceLabel}</span>
+            <span role="cell"
+              ><code>{item.objectApiName}.{item.fieldPath}</code></span
+            >
+            <span role="cell">{item.usage}</span>
+            <span role="cell">{item.sensitivityLabel}</span>
+          </div>
+        </template>
+      </div>
+    </section>
+  </template>
+
+  <template lwc:if={hasPreview}>
+    <lightning-textarea
+      class="preview-editor"
+      label="Generated prompt preview"
+      value={previewText}
+      onchange={handlePreviewEdit}
+    ></lightning-textarea>
+    <lightning-button
+      label="Copy preview"
+      icon-name="utility:copy"
+      onclick={copyPreview}
+      disabled={disabled}
+    ></lightning-button>
+  </template>
+</template>
