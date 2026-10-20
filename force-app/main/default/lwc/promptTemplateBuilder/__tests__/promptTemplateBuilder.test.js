@@ -1024,4 +1024,105 @@ describe("c-prompt-template-builder", () => {
       byLabel(element, "lightning-combobox", "Open a template").options[1].label
     ).toBe("Account: Inactive");
   });
+
+  // The server returns the saved template without field choices, so the builder must not lose them.
+  it.each([
+    ["Save draft", () => {}],
+    [
+      "Publish",
+      (element) => {
+        const body = byLabel(element, "lightning-textarea", "Template body");
+        body.value = "{!record.Name} edited";
+        body.dispatchEvent(new CustomEvent("change"));
+        query(element, "lightning-record-picker").dispatchEvent(
+          new CustomEvent("change", {
+            detail: { recordId: "001000000000001AAA" }
+          })
+        );
+      }
+    ],
+    ["Deactivate", () => {}]
+  ])("keeps data set field choices after %s", async (action, prepare) => {
+    const contactFields = [
+      { label: "Account ID", value: "AccountId" },
+      { label: "Email", value: "Email" }
+    ];
+    const template = {
+      id: "a01000000000001",
+      name: "Account",
+      rootObject: "Account",
+      templateBody: "{!record.Name}",
+      status: "Published",
+      version: 1,
+      draftRevision: 2,
+      sources: [
+        {
+          referenceName: "contacts",
+          sourceMode: "RELATED",
+          resultMode: "RECORDS",
+          relatedObject: "Contact",
+          correlationField: "AccountId",
+          rootField: "Id",
+          selectedFields: ["Email"],
+          maxRows: 10,
+          active: true
+        }
+      ]
+    };
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: template.id, name: "Account", status: "Published" }],
+      hasMore: false
+    });
+    getFieldOptions.mockImplementation(({ objectApiName }) =>
+      Promise.resolve(
+        objectApiName === "Contact"
+          ? contactFields
+          : [{ label: "Name", value: "Name" }]
+      )
+    );
+    getTemplate.mockResolvedValue(template);
+    saveDraft.mockResolvedValue({ ...template, draftRevision: 3 });
+    publishTemplate.mockResolvedValue({
+      prompt: "Acme edited",
+      templateVersion: 2,
+      fingerprint: "fingerprint",
+      messages: [],
+      accessManifest: { items: [], warnings: [] }
+    });
+    deactivateTemplate.mockResolvedValue({ ...template, status: "Inactive" });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+    byLabel(element, "lightning-combobox", "Open a template").dispatchEvent(
+      new CustomEvent("change", { detail: { value: template.id } })
+    );
+    await flushPromises();
+    await flushPromises();
+    expect(
+      byLabel(
+        element,
+        "lightning-dual-listbox",
+        "Fields available to the prompt"
+      ).options
+    ).toEqual(contactFields);
+
+    prepare(element);
+    byLabel(element, "lightning-button", action).click();
+    await flushPromises();
+    await flushPromises();
+    await flushPromises();
+
+    expect(
+      byLabel(
+        element,
+        "lightning-dual-listbox",
+        "Fields available to the prompt"
+      ).options
+    ).toEqual(contactFields);
+    expect(
+      byLabel(element, "lightning-combobox", "Source match field").options
+    ).toEqual(contactFields);
+  });
 });

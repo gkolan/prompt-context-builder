@@ -344,6 +344,8 @@ export default class PromptTemplateBuilder extends LightningElement {
     });
     this.config = this.decorateConfig(saved);
     this.selectedTemplateId = saved.id;
+    // The saved template carries no field choices, so reload them for every data set.
+    await this.loadAllSourceFields();
   }
 
   async handlePublish() {
@@ -432,6 +434,7 @@ export default class PromptTemplateBuilder extends LightningElement {
       const inactive = await deactivateTemplate({ templateId: this.config.id });
       this.config = this.decorateConfig(inactive);
       this.isDirty = false;
+      await this.loadAllSourceFields();
       await this.refreshCatalog();
       this.toast(
         "Template deactivated",
