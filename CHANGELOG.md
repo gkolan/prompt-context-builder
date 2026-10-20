@@ -78,6 +78,9 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- Prompt Builder keeps each data set's field choices after **Save draft**, **Publish**, and
+  **Deactivate**. Before, "Fields available to the prompt", "Source match field", the filter and
+  sort field pickers, and "Field to calculate" stayed empty until the template was reopened.
 - Flow, Apex, and Batch requests no longer drop related records for a record whose match value
   sorts after a busy one. A grouped query that fills its row limit is repeated for the match values
   it could not settle, within the transaction's query and row budget; otherwise the request returns
@@ -158,6 +161,10 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
   executable guards for the demo entry points and required ignore rules.
 - Split upgrade and removal guidance by source, package, and scratch-org lifecycle so evaluators do
   not apply package assumptions to source-deployed metadata.
+- Split the Prompt Builder component into section components for the template header, prompt body,
+  data sets, filters and sorting, Salesforce Files, validation and publishing, and version history.
+  Labels and behavior are unchanged. Each section has its own Jest tests and coverage floor, and
+  `check:docs` and `check:language` now read every section's labels.
 
 ## 1.0.3
 

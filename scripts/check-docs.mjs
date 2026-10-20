@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { promptBuilderSourceFiles } from "./prompt-builder-files.mjs";
 
 const workspace = process.cwd();
 const roots = [
@@ -146,14 +147,10 @@ for (const directory of fs.readdirSync(path.join(workspace, "docs"), {
 }
 
 // A junior administrator follows the walkthrough literally, so every field it names must be a real
-// Prompt Builder label.
-const builderDirectory = path.join(
-  workspace,
-  "force-app/main/default/lwc/promptTemplateBuilder"
-);
-const builderSource = ["promptTemplateBuilder.html", "promptTemplateBuilder.js"]
-  .map((fileName) =>
-    fs.readFileSync(path.join(builderDirectory, fileName), "utf8")
+// Prompt Builder label, including labels rendered by its child components.
+const builderSource = promptBuilderSourceFiles(workspace)
+  .map((relativeFile) =>
+    fs.readFileSync(path.join(workspace, relativeFile), "utf8")
   )
   .join("\n");
 const builderLabels = new Set(

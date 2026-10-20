@@ -1,0 +1,58 @@
+<template>
+  <div class="slds-grid slds-wrap slds-gutters_small">
+    <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
+      <lightning-input
+        type="search"
+        label="Find a template"
+        value={templateSearch}
+        onchange={handleSearch}
+      ></lightning-input>
+    </div>
+    <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-3">
+      <lightning-combobox
+        label="Open a template"
+        value={value}
+        options={templateOptions}
+        onchange={handleSelection}
+      ></lightning-combobox>
+    </div>
+    <div
+      class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 status-panel"
+      role="status"
+      aria-live="polite"
+    >
+      <span class="slds-badge">{statusText}</span>
+    </div>
+  </div>
+  <template lwc:if={hasMoreTemplates}>
+    <div class="slds-m-top_x-small">
+      <lightning-button
+        label="Load more templates"
+        onclick={loadMoreTemplates}
+        disabled={isCatalogLoading}
+      ></lightning-button>
+    </div>
+  </template>
+  <template lwc:if={hasStoredHealth}>
+    <div class="guidance-panel slds-m-top_x-small" role="status">
+      <strong>Scheduled setup check:</strong> {storedHealthText}
+    </div>
+  </template>
+  <div class="action-row compact-actions">
+    <lightning-button
+      label="Duplicate as new"
+      onclick={duplicate}
+      disabled={disabled}
+    ></lightning-button>
+    <lightning-button
+      label="Discard changes"
+      onclick={discard}
+      disabled={disabled}
+    ></lightning-button>
+    <lightning-button
+      label="Deactivate"
+      onclick={deactivate}
+      disabled={cannotDeactivate}
+    ></lightning-button>
+  </div>
+</template>

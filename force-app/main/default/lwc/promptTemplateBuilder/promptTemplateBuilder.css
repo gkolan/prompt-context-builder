@@ -9,96 +9,8 @@
   padding-top: var(--slds-g-spacing-4, 1rem);
 }
 
-.status-panel,
-.checkbox-cell {
-  align-content: end;
-  padding-bottom: var(--slds-g-spacing-1, 0.25rem);
-}
-
-.prompt-editor,
-.preview-editor {
-  display: block;
-  margin-top: var(--slds-g-spacing-3, 0.75rem);
-}
-
-.editor-grid {
-  display: grid;
-  gap: var(--slds-g-spacing-4, 1rem);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  margin-top: var(--slds-g-spacing-3, 0.75rem);
-}
-
-.live-preview,
-.recipe-panel,
-.governance-panel,
-.source-progress {
-  background: var(--slds-g-color-surface-container-1, #f3f3f3);
-  border-radius: var(--slds-g-radius-border-1, 0.25rem);
-  color: var(--slds-g-color-on-surface-1, #181818);
-  padding: var(--slds-g-spacing-4, 1rem);
-}
-
-.live-preview pre {
-  margin-top: var(--slds-g-spacing-2, 0.5rem);
-  max-height: 18rem;
-  overflow: auto;
-  white-space: pre-wrap;
-}
-
-.editor-guidance,
-.publish-guidance,
-.source-progress,
-.subsection-heading,
-.governance-panel,
-.comparison-list {
-  margin-top: var(--slds-g-spacing-3, 0.75rem);
-}
-
-.manifest-table {
-  margin-top: var(--slds-g-spacing-3, 0.75rem);
-  overflow-x: auto;
-}
-
-.manifest-row {
-  border-bottom: var(--slds-g-sizing-border-1, 1px) solid
-    var(--slds-g-color-border-base-1, #c9c9c9);
-  display: grid;
-  gap: var(--slds-g-spacing-2, 0.5rem);
-  grid-template-columns: 1fr 2fr 1fr 1fr;
-  min-width: 42rem;
-  padding: var(--slds-g-spacing-2, 0.5rem);
-}
-
-.manifest-header {
-  font-weight: 700;
-}
-
-.source-card {
-  background: var(--slds-g-color-surface-container-1, #f3f3f3);
-  border: var(--slds-g-sizing-border-1, 1px) solid
-    var(--slds-g-color-border-base-1, #c9c9c9);
-  border-radius: var(--slds-g-radius-border-1, 0.25rem);
-  margin-top: var(--slds-g-spacing-4, 1rem);
-  padding: var(--slds-g-spacing-4, 1rem);
-}
-
-.subsection,
-.rule-row,
-.action-row,
-.message-panel {
-  margin-top: var(--slds-g-spacing-4, 1rem);
-}
-
-.action-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--slds-g-spacing-2, 0.5rem);
-}
-
 .empty-state,
-.message-panel,
-.guidance-panel,
-.scope-panel {
+.guidance-panel {
   background: var(--slds-g-color-surface-container-1, #f3f3f3);
   color: var(--slds-g-color-on-surface-1, #181818);
   border-radius: var(--slds-g-radius-border-1, 0.25rem);
@@ -110,40 +22,6 @@
     var(--slds-g-color-palette-blue-50, #0b5cab);
 }
 
-.scope-panel {
-  display: grid;
-  gap: var(--slds-g-spacing-1, 0.25rem);
+.source-budget {
   margin-top: var(--slds-g-spacing-3, 0.75rem);
-}
-
-.source-budget,
-.merge-tools {
-  margin-top: var(--slds-g-spacing-3, 0.75rem);
-}
-
-.compact-actions {
-  margin-top: var(--slds-g-spacing-2, 0.5rem);
-}
-
-.syntax-list {
-  display: grid;
-  gap: var(--slds-g-spacing-2, 0.5rem) var(--slds-g-spacing-4, 1rem);
-  grid-template-columns: max-content 1fr;
-}
-
-code {
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 48rem) {
-  .syntax-list,
-  .editor-grid {
-    grid-template-columns: 1fr;
-  }
-}
-.filter-number {
-  display: block;
-  font-size: 0.75rem;
-  font-weight: 700;
-  margin-bottom: 0.125rem;
 }

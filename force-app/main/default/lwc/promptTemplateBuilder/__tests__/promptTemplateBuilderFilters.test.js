@@ -1,7 +1,7 @@
 import { createElement } from "lwc";
-import PromptTemplateBuilder, {
-  describeFilterValue
-} from "c/promptTemplateBuilder";
+import { deepText, queryAll } from "./shadowQueries";
+import PromptTemplateBuilder from "c/promptTemplateBuilder";
+import { describeFilterValue } from "c/promptFilterSortEditor";
 import getFieldOptions from "@salesforce/apex/PromptContextController.getFieldOptions";
 import getTemplate from "@salesforce/apex/PromptContextController.getTemplate";
 import getTemplateSummaryPage from "@salesforce/apex/PromptContextController.getTemplateSummaryPage";
@@ -124,14 +124,14 @@ async function openTemplate(source) {
   });
   document.body.appendChild(element);
   await flushPromises();
-  [...element.shadowRoot.querySelectorAll("lightning-combobox")]
+  [...queryAll(element, "lightning-combobox")]
     .find((combobox) => combobox.label === "Open a template")
     .dispatchEvent(
       new CustomEvent("change", { detail: { value: "a01000000000001" } })
     );
   await flushPromises();
   await flushPromises();
-  [...element.shadowRoot.querySelectorAll("lightning-button")]
+  [...queryAll(element, "lightning-button")]
     .find((button) => button.label === "Show optional filters and sorting")
     .click();
   await flushPromises();
@@ -140,7 +140,8 @@ async function openTemplate(source) {
 
 function valueInputs(element) {
   return [
-    ...element.shadowRoot.querySelectorAll(
+    ...queryAll(
+      element,
       "lightning-input[data-row-index], lightning-combobox[data-row-index]"
     )
   ].filter((input) => input.name === "value");
@@ -204,9 +205,9 @@ describe("c-prompt-template-builder filters", () => {
       ]
     });
 
-    const ruleOptions = [
-      ...element.shadowRoot.querySelectorAll("lightning-combobox")
-    ].find((combobox) => combobox.name === "operator").options;
+    const ruleOptions = [...queryAll(element, "lightning-combobox")].find(
+      (combobox) => combobox.name === "operator"
+    ).options;
     expect(ruleOptions.map((option) => option.value)).toEqual(
       expect.arrayContaining(["IN", "NOT_IN"])
     );
@@ -221,7 +222,7 @@ describe("c-prompt-template-builder filters", () => {
     );
     expect(inputs[2].placeholder).toContain("LAST_N_DAYS:30");
     expect(inputs[3].disabled).toBe(true);
-    expect(element.shadowRoot.textContent).toContain("Filter 4");
+    expect(deepText(element)).toContain("Filter 4");
   });
 
   it("sends filter logic without groups and keeps the draft revision", async () => {
@@ -236,18 +237,18 @@ describe("c-prompt-template-builder filters", () => {
       ],
       filterGroupJoin: "OR"
     });
-    const logicInput = [
-      ...element.shadowRoot.querySelectorAll("lightning-input")
-    ].find((input) => input.name === "filterLogic");
+    const logicInput = [...queryAll(element, "lightning-input")].find(
+      (input) => input.name === "filterLogic"
+    );
     logicInput.value = " 1 AND (2 OR 3) ";
     logicInput.dispatchEvent(new CustomEvent("change"));
     await flushPromises();
 
-    const groupInputs = [
-      ...element.shadowRoot.querySelectorAll("lightning-input")
-    ].filter((input) => input.name === "groupName");
+    const groupInputs = [...queryAll(element, "lightning-input")].filter(
+      (input) => input.name === "groupName"
+    );
     expect(groupInputs.every((input) => input.disabled)).toBe(true);
-    [...element.shadowRoot.querySelectorAll("lightning-button")]
+    [...queryAll(element, "lightning-button")]
       .find((button) => button.label === "Save draft")
       .click();
     await flushPromises();

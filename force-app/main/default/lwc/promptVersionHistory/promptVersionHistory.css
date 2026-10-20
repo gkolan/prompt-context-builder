@@ -1,0 +1,17 @@
+:host {
+  display: block;
+}
+
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.compact-actions {
+  margin-top: var(--slds-g-spacing-2, 0.5rem);
+}
+
+.comparison-list {
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}

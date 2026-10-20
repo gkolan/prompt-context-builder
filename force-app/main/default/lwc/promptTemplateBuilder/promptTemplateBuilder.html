@@ -15,62 +15,16 @@
         <lightning-spinner alternative-text="Working"></lightning-spinner>
       </template>
 
-      <div class="slds-grid slds-wrap slds-gutters_small">
-        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
-          <lightning-input
-            type="search"
-            label="Find a template"
-            value={templateSearch}
-            onchange={handleTemplateSearch}
-          ></lightning-input>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-3">
-          <lightning-combobox
-            label="Open a template"
-            value={selectedTemplateId}
-            options={templateOptions}
-            onchange={handleTemplateSelection}
-          ></lightning-combobox>
-        </div>
-        <div
-          class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 status-panel"
-          role="status"
-          aria-live="polite"
-        >
-          <span class="slds-badge">{statusText}</span>
-        </div>
-      </div>
-      <template lwc:if={hasMoreTemplates}>
-        <div class="slds-m-top_x-small">
-          <lightning-button
-            label="Load more templates"
-            onclick={loadMoreTemplates}
-            disabled={isCatalogLoading}
-          ></lightning-button>
-        </div>
-      </template>
-      <template lwc:if={hasStoredHealth}>
-        <div class="guidance-panel slds-m-top_x-small" role="status">
-          <strong>Scheduled setup check:</strong> {storedHealthText}
-        </div>
-      </template>
-      <div class="action-row compact-actions">
-        <lightning-button
-          label="Duplicate as new"
-          onclick={duplicateTemplate}
-          disabled={isActionDisabled}
-        ></lightning-button>
-        <lightning-button
-          label="Discard changes"
-          onclick={discardChanges}
-          disabled={isActionDisabled}
-        ></lightning-button>
-        <lightning-button
-          label="Deactivate"
-          onclick={handleDeactivate}
-          disabled={cannotDeactivate}
-        ></lightning-button>
-      </div>
+      <c-prompt-template-header
+        value={selectedTemplateId}
+        config={config}
+        is-dirty={isDirty}
+        disabled={isLoading}
+        ontemplateselect={handleTemplateSelection}
+        onduplicate={duplicateTemplate}
+        ondiscard={discardChanges}
+        ondeactivate={handleDeactivate}
+      ></c-prompt-template-header>
 
       <section class="section" aria-labelledby="template-heading">
         <h2 id="template-heading" class="slds-text-heading_small">
@@ -116,84 +70,18 @@
         <h2 id="prompt-heading" class="slds-text-heading_small">
           2. Prompt and merge fields
         </h2>
-        <div class="recipe-panel" role="group" aria-label="Starter recipes">
-          <div
-            class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
-          >
-            <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
-              <lightning-combobox
-                label="Optional starter recipe"
-                value={selectedRecipe}
-                options={recipeOptions}
-                onchange={handleRecipeSelection}
-                field-level-help="A recipe fills in editable settings. Salesforce still checks the template and the person's access."
-              ></lightning-combobox>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
-              <lightning-button
-                label="Apply starter"
-                onclick={applyRecipe}
-                disabled={isActionDisabled}
-              ></lightning-button>
-            </div>
-          </div>
-        </div>
-        <div
-          class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
-        >
-          <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-4">
-            <lightning-combobox
-              label="Current record field to insert"
-              value={rootMergeField}
-              options={rootFieldOptions}
-              onchange={handleRootMergeField}
-            ></lightning-combobox>
-          </div>
-          <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-4">
-            <lightning-button
-              label="Insert current record field"
-              onclick={insertRootMerge}
-            ></lightning-button>
-          </div>
-        </div>
-        <div class="editor-grid">
-          <div>
-            <lightning-textarea
-              class="prompt-editor"
-              name="templateBody"
-              label="Template body"
-              value={config.templateBody}
-              required
-              onchange={handleTemplateField}
-            ></lightning-textarea>
-            <p class="editor-guidance" role="status" aria-live="polite">
-              {editorGuidance}
-            </p>
-          </div>
-          <div class="live-preview" aria-labelledby="live-preview-heading">
-            <h3 id="live-preview-heading" class="slds-text-title_bold">
-              Latest preview
-            </h3>
-            <pre>{latestPreviewText}</pre>
-          </div>
-        </div>
-        <p class="slds-text-body_small slds-text-color_weak">
-          {templateCharacterCount} of 20,000 generated-output characters used by
-          the template text before record values are inserted.
-        </p>
-        <lightning-accordion allow-multiple-sections-open>
-          <lightning-accordion-section
-            name="syntax"
-            label="Field insertion help"
-          >
-            <dl class="syntax-list">
-              <template for:each={syntaxExamples} for:item="example">
-                <dt key={example.key}>{example.label}</dt>
-                <dd key={example.syntax}><code>{example.syntax}</code></dd>
-              </template>
-            </dl>
-          </lightning-accordion-section>
-        </lightning-accordion>
+        <c-prompt-body-editor
+          template-body={config.templateBody}
+          root-object={config.rootObject}
+          root-field-options={rootFieldOptions}
+          root-merge-field={rootMergeField}
+          preview-text={previewText}
+          disabled={isLoading}
+          onconfigchange={handleConfigChange}
+          onrootfieldchange={handleRootMergeField}
+          ontextinsert={handleTextInsert}
+          onrecipeapply={applyRecipe}
+        ></c-prompt-body-editor>
       </section>
 
       <section class="section" aria-labelledby="sources-heading">
@@ -207,7 +95,7 @@
             label="Add related data"
             icon-name="utility:add"
             onclick={addSource}
-            disabled={isActionDisabled}
+            disabled={isLoading}
           ></lightning-button>
         </div>
         <p class="slds-text-body_small slds-text-color_weak source-budget">
@@ -219,472 +107,18 @@
             for:item="source"
             for:index="index"
           >
-            <article key={source.clientKey} class="source-card">
-              <div
-                class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
-              >
-                <h3 class="slds-text-title_bold">Data set {source.sequence}</h3>
-                <lightning-button-icon
-                  icon-name="utility:delete"
-                  alternative-text="Remove data set"
-                  title="Remove data set"
-                  disabled={isActionDisabled}
-                  data-index={index}
-                  onclick={removeSource}
-                ></lightning-button-icon>
-              </div>
-              <p class="source-progress" role="status">
-                <strong>Guided setup:</strong> {source.completionText}
-              </p>
-              <h4 class="slds-text-title_bold subsection-heading">
-                A. Choose what to query
-              </h4>
-              <div class="slds-grid slds-wrap slds-gutters_small">
-                <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                  <lightning-input
-                    name="referenceName"
-                    label="Reference name"
-                    value={source.referenceName}
-                    data-index={index}
-                    required
-                    onchange={handleSourceField}
-                  ></lightning-input>
-                </div>
-                <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                  <lightning-combobox
-                    name="sourceMode"
-                    label="Records to include"
-                    value={source.sourceMode}
-                    options={sourceModeOptions}
-                    data-index={index}
-                    required
-                    onchange={handleSourceField}
-                  ></lightning-combobox>
-                </div>
-                <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                  <lightning-combobox
-                    name="relatedObject"
-                    label="Object to query"
-                    value={source.relatedObject}
-                    options={objectOptions}
-                    data-index={index}
-                    required
-                    onchange={handleSourceField}
-                  ></lightning-combobox>
-                </div>
-                <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                  <lightning-combobox
-                    name="resultMode"
-                    label="Result type"
-                    value={source.resultMode}
-                    options={resultModeOptions}
-                    data-index={index}
-                    required
-                    onchange={handleSourceField}
-                    field-level-help="Choose records for fields and repeat blocks, or one calculated value for a count, sum, average, minimum, or maximum."
-                  ></lightning-combobox>
-                </div>
-                <template lwc:if={source.isRelated}>
-                  <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                    <lightning-combobox
-                      name="rootField"
-                      label="Current record field"
-                      value={source.rootField}
-                      options={rootFieldOptions}
-                      data-index={index}
-                      required
-                      onchange={handleSourceField}
-                    ></lightning-combobox>
-                  </div>
-                  <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                    <lightning-combobox
-                      name="correlationField"
-                      label="Source match field"
-                      value={source.correlationField}
-                      options={source.fieldOptions}
-                      data-index={index}
-                      required
-                      onchange={handleSourceField}
-                    ></lightning-combobox>
-                  </div>
-                </template>
-              </div>
-              <div class="scope-panel" role="note">
-                <strong>{source.modeHelp}</strong>
-                <span>{source.querySummary}</span>
-              </div>
-              <h4 class="slds-text-title_bold subsection-heading">
-                B. Choose information available to the prompt
-              </h4>
-              <template lwc:if={source.isAggregate}>
-                <div class="slds-grid slds-wrap slds-gutters_small">
-                  <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-                    <lightning-combobox
-                      name="aggregateOperation"
-                      label="Calculation"
-                      value={source.aggregateOperation}
-                      options={aggregateOperationOptions}
-                      data-index={index}
-                      required
-                      onchange={handleSourceField}
-                    ></lightning-combobox>
-                  </div>
-                  <template lwc:if={source.needsAggregateField}>
-                    <div
-                      class="slds-col slds-size_1-of-1 slds-large-size_1-of-2"
-                    >
-                      <lightning-combobox
-                        name="aggregateField"
-                        label="Field to calculate"
-                        value={source.aggregateField}
-                        options={source.fieldOptions}
-                        data-index={index}
-                        required
-                        onchange={handleSourceField}
-                      ></lightning-combobox>
-                    </div>
-                  </template>
-                </div>
-                <p class="slds-text-body_small slds-text-color_weak">
-                  The calculation uses only records and fields visible to the
-                  running user. Grouping and custom expressions are not allowed.
-                </p>
-              </template>
-              <template lwc:else>
-                <lightning-dual-listbox
-                  label="Fields available to the prompt"
-                  source-label="Available fields"
-                  selected-label="Selected fields"
-                  options={source.fieldOptions}
-                  value={source.selectedFields}
-                  data-index={index}
-                  onchange={handleSelectedFields}
-                ></lightning-dual-listbox>
-              </template>
-
-              <div class="subsection advanced-toggle">
-                <lightning-button
-                  label={source.advancedLabel}
-                  icon-name="utility:settings"
-                  data-index={index}
-                  onclick={toggleSourceAdvanced}
-                  disabled={isActionDisabled}
-                ></lightning-button>
-              </div>
-              <template lwc:if={source.showAdvanced}>
-                <h4 class="slds-text-title_bold subsection-heading">
-                  C. Optional limits, filters, and sorting
-                </h4>
-                <div class="slds-grid slds-wrap slds-gutters_small">
-                  <template lwc:if={source.isRecords}>
-                    <div
-                      class="slds-col slds-size_1-of-1 slds-large-size_1-of-3"
-                    >
-                      <lightning-input
-                        type="number"
-                        name="maxRows"
-                        label="Maximum records"
-                        min="1"
-                        max="50"
-                        value={source.maxRows}
-                        data-index={index}
-                        onchange={handleSourceField}
-                      ></lightning-input>
-                    </div>
-                  </template>
-                  <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
-                    <lightning-input
-                      type="number"
-                      name="sequence"
-                      label="Order"
-                      min="1"
-                      max="999"
-                      value={source.sequence}
-                      data-index={index}
-                      onchange={handleSourceField}
-                    ></lightning-input>
-                  </div>
-                  <div
-                    class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 checkbox-cell"
-                  >
-                    <lightning-input
-                      type="checkbox"
-                      name="active"
-                      label="Active"
-                      checked={source.active}
-                      data-index={index}
-                      onchange={handleSourceField}
-                    ></lightning-input>
-                  </div>
-                </div>
-
-                <template lwc:if={source.isRecords}>
-                  <div class="subsection">
-                    <div
-                      class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
-                    >
-                      <h4 class="slds-text-title_bold">Filter groups</h4>
-                      <lightning-button
-                        label="Add filter"
-                        data-index={index}
-                        onclick={addFilter}
-                        disabled={isActionDisabled}
-                      ></lightning-button>
-                    </div>
-                    <lightning-combobox
-                      name="filterGroupJoin"
-                      label="How groups combine"
-                      value={source.filterGroupJoin}
-                      options={filterGroupJoinOptions}
-                      data-index={index}
-                      onchange={handleSourceField}
-                      disabled={source.usesFilterLogic}
-                      field-level-help="Rules in one named group always use AND. Choose whether every group or any group must match."
-                    ></lightning-combobox>
-                    <lightning-input
-                      name="filterLogic"
-                      label="Filter logic (optional)"
-                      value={source.filterLogic}
-                      placeholder="1 AND (2 OR NOT 3)"
-                      max-length="255"
-                      data-index={index}
-                      onchange={handleSourceField}
-                      field-level-help="Use the filter numbers with AND, OR, NOT, and parentheses. Logic replaces groups; use parentheses when mixing AND with OR."
-                    ></lightning-input>
-                    <template
-                      for:each={source.filters}
-                      for:item="filter"
-                      for:index="rowIndex"
-                    >
-                      <div
-                        key={filter.clientKey}
-                        class="rule-row slds-grid slds-wrap slds-gutters_x-small"
-                      >
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_2-of-12"
-                        >
-                          <span class="filter-number"
-                            >Filter {filter.number}</span
-                          >
-                          <lightning-input
-                            name="groupName"
-                            label="Group"
-                            variant="label-hidden"
-                            value={filter.groupName}
-                            placeholder="group_1"
-                            disabled={filter.groupDisabled}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleFilterField}
-                          ></lightning-input>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_3-of-12"
-                        >
-                          <lightning-combobox
-                            name="fieldName"
-                            label="Field"
-                            variant="label-hidden"
-                            value={filter.fieldName}
-                            options={source.fieldOptions}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleFilterField}
-                          ></lightning-combobox>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_2-of-12"
-                        >
-                          <lightning-combobox
-                            name="operator"
-                            label="Rule"
-                            variant="label-hidden"
-                            value={filter.operator}
-                            options={filterOperators}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleFilterField}
-                          ></lightning-combobox>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_4-of-12"
-                        >
-                          <template lwc:if={filter.isTextValue}>
-                            <lightning-input
-                              name="value"
-                              label="Value"
-                              variant="label-hidden"
-                              value={filter.value}
-                              placeholder={filter.valuePlaceholder}
-                              disabled={filter.valueDisabled}
-                              data-index={index}
-                              data-row-index={rowIndex}
-                              onchange={handleFilterField}
-                            ></lightning-input>
-                          </template>
-                          <template lwc:else>
-                            <lightning-combobox
-                              name="value"
-                              label="Value"
-                              variant="label-hidden"
-                              value={filter.value}
-                              options={filter.valueChoices}
-                              data-index={index}
-                              data-row-index={rowIndex}
-                              onchange={handleFilterField}
-                            ></lightning-combobox>
-                          </template>
-                          <p
-                            lwc:if={filter.valueHelp}
-                            class="slds-text-body_small slds-text-color_weak"
-                          >
-                            {filter.valueHelp}
-                          </p>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_1-of-12"
-                        >
-                          <lightning-button-icon
-                            icon-name="utility:close"
-                            alternative-text="Remove filter"
-                            title="Remove filter"
-                            disabled={isActionDisabled}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onclick={removeFilter}
-                          ></lightning-button-icon>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-
-                  <div class="subsection">
-                    <div
-                      class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
-                    >
-                      <h4 class="slds-text-title_bold">Sort order</h4>
-                      <lightning-button
-                        label="Add sort"
-                        data-index={index}
-                        onclick={addSort}
-                        disabled={isActionDisabled}
-                      ></lightning-button>
-                    </div>
-                    <template
-                      for:each={source.sorts}
-                      for:item="sort"
-                      for:index="rowIndex"
-                    >
-                      <div
-                        key={sort.clientKey}
-                        class="rule-row slds-grid slds-wrap slds-gutters_x-small"
-                      >
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_4-of-12"
-                        >
-                          <lightning-combobox
-                            name="fieldName"
-                            label="Field"
-                            variant="label-hidden"
-                            value={sort.fieldName}
-                            options={source.fieldOptions}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleSortField}
-                          ></lightning-combobox>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_3-of-12"
-                        >
-                          <lightning-combobox
-                            name="direction"
-                            label="Direction"
-                            variant="label-hidden"
-                            value={sort.direction}
-                            options={sortDirections}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleSortField}
-                          ></lightning-combobox>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_4-of-12"
-                        >
-                          <lightning-combobox
-                            name="nullsOrder"
-                            label="Blank values"
-                            variant="label-hidden"
-                            value={sort.nullsOrder}
-                            options={nullsOptions}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onchange={handleSortField}
-                          ></lightning-combobox>
-                        </div>
-                        <div
-                          class="slds-col slds-size_1-of-1 slds-large-size_1-of-12"
-                        >
-                          <lightning-button-icon
-                            icon-name="utility:close"
-                            alternative-text="Remove sort"
-                            title="Remove sort"
-                            disabled={isActionDisabled}
-                            data-index={index}
-                            data-row-index={rowIndex}
-                            onclick={removeSort}
-                          ></lightning-button-icon>
-                        </div>
-                      </div>
-                    </template>
-                  </div>
-                </template>
-              </template>
-              <h4 class="slds-text-title_bold subsection-heading">
-                D. Insert this data into the prompt
-              </h4>
-              <template lwc:if={source.isAggregate}>
-                <div class="merge-tools">
-                  <p>Insert the single calculated value into the prompt.</p>
-                  <lightning-button
-                    label="Insert calculated value"
-                    data-index={index}
-                    onclick={insertAggregateValue}
-                    disabled={isActionDisabled}
-                  ></lightning-button>
-                </div>
-              </template>
-              <template lwc:else>
-                <div class="merge-tools">
-                  <lightning-combobox
-                    label="Prompt field to insert"
-                    value={source.mergeField}
-                    options={source.selectedFieldOptions}
-                    data-index={index}
-                    onchange={handleMergeField}
-                  ></lightning-combobox>
-                  <div class="action-row compact-actions">
-                    <lightning-button
-                      label="Insert first value"
-                      data-index={index}
-                      onclick={insertSourceField}
-                      disabled={isActionDisabled}
-                    ></lightning-button>
-                    <lightning-button
-                      label="Insert count"
-                      data-index={index}
-                      onclick={insertSourceCount}
-                      disabled={isActionDisabled}
-                    ></lightning-button>
-                    <lightning-button
-                      label="Insert repeat block"
-                      data-index={index}
-                      onclick={insertSourceEach}
-                      disabled={isActionDisabled}
-                    ></lightning-button>
-                  </div>
-                </div>
-              </template>
-            </article>
+            <c-prompt-data-set-editor
+              key={source.clientKey}
+              source={source}
+              object-options={objectOptions}
+              root-field-options={rootFieldOptions}
+              disabled={isLoading}
+              data-index={index}
+              onsourcechange={handleSourceChange}
+              onsourceviewchange={handleSourceViewChange}
+              onsourceremove={removeSource}
+              ontextinsert={handleTextInsert}
+            ></c-prompt-data-set-editor>
           </template>
         </template>
         <template lwc:else>
@@ -699,170 +133,30 @@
         <h2 id="files-heading" class="slds-text-heading_small">
           4. Salesforce Files
         </h2>
-        <p class="slds-text-body_small slds-text-color_weak">
-          Choose whether this template can reference current Salesforce Files
-          linked directly to the record. Prompt Context Builder records which
-          file versions were chosen; it never reads or sends file contents.
-          Sending files is left to a separately approved process.
-        </p>
-        <lightning-combobox
-          name="fileInputMode"
-          label="Files to include"
-          value={config.fileInputMode}
-          options={fileInputModeOptions}
-          required
-          onchange={handleTemplateField}
-        ></lightning-combobox>
-        <template lwc:if={filesEnabled}>
-          <div class="slds-grid slds-wrap slds-gutters_small">
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-              <lightning-input
-                type="number"
-                name="maxFiles"
-                label="Maximum Files"
-                value={config.maxFiles}
-                min="1"
-                max="5"
-                required
-                onchange={handleTemplateField}
-                field-level-help="Amazon Bedrock accepts no more than five documents in one request."
-              ></lightning-input>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-              <lightning-input
-                name="allowedFileFormats"
-                label="Allowed file formats"
-                value={config.allowedFileFormats}
-                placeholder="pdf,docx,txt"
-                required
-                onchange={handleTemplateField}
-                field-level-help="Use a comma-separated list chosen from pdf, csv, doc, docx, xls, xlsx, html, txt, and md."
-              ></lightning-input>
-            </div>
-          </div>
-          <lightning-input
-            name="providerProfileKey"
-            label="Approved service setup name"
-            value={config.providerProfileKey}
-            required
-            onchange={handleTemplateField}
-            field-level-help="Enter the Developer Name of the provider settings approved by your Salesforce administrator."
-          ></lightning-input>
-          <lightning-input
-            type="checkbox"
-            name="requireAtLeastOneFile"
-            label="Require at least one eligible File"
-            checked={config.requireAtLeastOneFile}
-            onchange={handleTemplateField}
-          ></lightning-input>
-          <lightning-input
-            type="checkbox"
-            name="fileCitationsEnabled"
-            label="Request file citations when the approved model supports them"
-            checked={config.fileCitationsEnabled}
-            onchange={handleTemplateField}
-          ></lightning-input>
-        </template>
+        <c-prompt-file-settings
+          config={config}
+          onconfigchange={handleConfigChange}
+        ></c-prompt-file-settings>
       </section>
 
       <section class="section" aria-labelledby="verify-heading">
         <h2 id="verify-heading" class="slds-text-heading_small">
           5. Validate, preview, and publish
         </h2>
-        <lightning-record-picker
-          label="Preview record"
-          placeholder="Search for a record"
-          object-api-name={config.rootObject}
-          value={sampleRecordId}
-          onchange={handleSampleRecord}
-        ></lightning-record-picker>
-        <div class="action-row">
-          <lightning-button
-            label="Validate"
-            onclick={handleValidate}
-            disabled={isActionDisabled}
-          ></lightning-button>
-          <lightning-button
-            label="Preview"
-            onclick={handlePreview}
-            disabled={isActionDisabled}
-          ></lightning-button>
-          <lightning-button
-            label="Save draft"
-            onclick={handleSave}
-            disabled={isActionDisabled}
-          ></lightning-button>
-          <lightning-button
-            variant="brand"
-            label="Publish"
-            onclick={handlePublish}
-            disabled={cannotPublish}
-          ></lightning-button>
-        </div>
-        <p class="publish-guidance" role="status" aria-live="polite">
-          {publishGuidance}
-        </p>
-
-        <template lwc:if={hasMessages}>
-          <div class="message-panel" role="status" aria-live="polite">
-            <template for:each={viewMessages} for:item="message">
-              <p key={message.key}>
-                <strong>{message.severity}</strong>, {message.location}:
-                {message.text}
-              </p>
-            </template>
-          </div>
-        </template>
-
-        <template lwc:if={hasAccessManifest}>
-          <section class="governance-panel" aria-labelledby="manifest-heading">
-            <h3 id="manifest-heading" class="slds-text-heading_small">
-              Required field access
-            </h3>
-            <p class="slds-text-body_small slds-text-color_weak">
-              The template needs these fields for prompt values, matching,
-              filtering, or sorting. Salesforce stops the request when the
-              person cannot access a required field.
-            </p>
-            <div
-              class="manifest-table"
-              role="table"
-              aria-label="Required field access for this template"
-            >
-              <div class="manifest-row manifest-header" role="row">
-                <span role="columnheader">Data set</span>
-                <span role="columnheader">Object and field</span>
-                <span role="columnheader">Use</span>
-                <span role="columnheader">Classification</span>
-              </div>
-              <template for:each={accessManifest} for:item="item">
-                <div key={item.key} class="manifest-row" role="row">
-                  <span role="cell">{item.sourceLabel}</span>
-                  <span role="cell"
-                    ><code>{item.objectApiName}.{item.fieldPath}</code></span
-                  >
-                  <span role="cell">{item.usage}</span>
-                  <span role="cell">{item.sensitivityLabel}</span>
-                </div>
-              </template>
-            </div>
-          </section>
-        </template>
-
-        <template lwc:if={hasPreview}>
-          <lightning-textarea
-            class="preview-editor"
-            label="Generated prompt preview"
-            value={previewText}
-            onchange={handlePreviewEdit}
-          ></lightning-textarea>
-          <lightning-button
-            label="Copy preview"
-            icon-name="utility:copy"
-            onclick={copyPreview}
-            disabled={isLoading}
-          ></lightning-button>
-        </template>
+        <c-prompt-publish-panel
+          config={config}
+          sample-record-id={sampleRecordId}
+          messages={messages}
+          access-manifest={accessManifest}
+          preview-text={previewText}
+          disabled={isLoading}
+          onsamplechange={handleSampleRecord}
+          onvalidate={handleValidate}
+          onpreview={handlePreview}
+          onsave={handleSave}
+          onpublish={handlePublish}
+          onpreviewedit={handlePreviewEdit}
+        ></c-prompt-publish-panel>
       </section>
 
       <template lwc:if={hasVersions}>
@@ -870,54 +164,13 @@
           <h2 id="versions-heading" class="slds-text-heading_small">
             Version history and restore
           </h2>
-          <p class="slds-text-body_small slds-text-color_weak">
-            Published versions cannot be changed. Restore copies a selected
-            version into the editable draft. Publishing the draft creates a new
-            version.
-          </p>
-          <div
-            class="slds-grid slds-wrap slds-gutters_small slds-grid_vertical-align-end"
-          >
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
-              <lightning-combobox
-                name="fromVersion"
-                label="Earlier or restore version"
-                value={fromVersion}
-                options={versionOptions}
-                onchange={handleVersionSelection}
-              ></lightning-combobox>
-            </div>
-            <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-3">
-              <lightning-combobox
-                name="toVersion"
-                label="Compare with version"
-                value={toVersion}
-                options={versionOptions}
-                onchange={handleVersionSelection}
-              ></lightning-combobox>
-            </div>
-            <div
-              class="slds-col slds-size_1-of-1 slds-large-size_1-of-3 action-row compact-actions"
-            >
-              <lightning-button
-                label="Compare"
-                onclick={handleCompareVersions}
-                disabled={isActionDisabled}
-              ></lightning-button>
-              <lightning-button
-                label="Restore as draft"
-                onclick={handleRestoreVersion}
-                disabled={isActionDisabled}
-              ></lightning-button>
-            </div>
-          </div>
-          <template lwc:if={hasComparison}>
-            <ul class="comparison-list">
-              <template for:each={comparisonChanges} for:item="change">
-                <li key={change.key}>{change.text}</li>
-              </template>
-            </ul>
-          </template>
+          <c-prompt-version-history
+            template-id={config.id}
+            versions={versions}
+            disabled={isLoading}
+            onbusychange={handleBusyChange}
+            onversionrestore={handleRestoreVersion}
+          ></c-prompt-version-history>
         </section>
       </template>
     </div>
