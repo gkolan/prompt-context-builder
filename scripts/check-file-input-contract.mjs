@@ -50,6 +50,31 @@ for (const objectName of templateObjects) {
   }
 }
 
+// All Eligible Files trims to the limit; only a user selection over the limit stops the request.
+for (const [objectName, fieldName] of [
+  ["Prompt_Template__c", "File_Input_Mode__c"],
+  ["Prompt_Template__c", "Maximum_Files__c"],
+  ["Prompt_Template_Version__c", "Maximum_Files__c"]
+]) {
+  const fieldPath = join(
+    sourceRoot,
+    `objects/${objectName}/fields/${fieldName}.field-meta.xml`
+  );
+  const helpText = existsSync(fieldPath)
+    ? (/<inlineHelpText[^>]*>([\s\S]*?)<\/inlineHelpText>/.exec(
+        readFileSync(fieldPath, "utf8")
+      )?.[1] ?? "")
+    : "";
+  if (
+    /always stops|without omitting/i.test(helpText) ||
+    !helpText.includes("first eligible files")
+  ) {
+    failures.push(
+      `${objectName}.${fieldName} help text must say All Eligible Files uses the first eligible files, up to the limit.`
+    );
+  }
+}
+
 for (const relativePath of requiredPaths) {
   if (!existsSync(join(sourceRoot, relativePath))) {
     failures.push(`Missing file-input component: ${relativePath}.`);
