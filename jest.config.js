@@ -2,7 +2,12 @@ const { jestConfig } = require("@salesforce/sfdx-lwc-jest/config");
 
 module.exports = {
   ...jestConfig,
-  modulePathIgnorePatterns: ["<rootDir>/.localdevserver"],
+  // Nested git worktrees under .claude hold other branches' copies of force-app.
+  modulePathIgnorePatterns: ["<rootDir>/.localdevserver", "<rootDir>/.claude/"],
+  testPathIgnorePatterns: [
+    ...jestConfig.testPathIgnorePatterns,
+    "<rootDir>/.claude/"
+  ],
   collectCoverageFrom: [
     "force-app/main/default/lwc/promptGenerator/promptGenerator.js",
     "force-app/main/default/lwc/promptTemplateBuilder/promptTemplateBuilder.js"
