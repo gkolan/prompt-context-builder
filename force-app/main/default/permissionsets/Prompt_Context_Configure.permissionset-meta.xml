@@ -91,22 +91,22 @@
     <fieldPermissions><editable>true</editable><field
     >Prompt_Template__c.Description__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Draft_Revision__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Fingerprint__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Published_At__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Status__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field
     >Prompt_Template__c.Template_Body__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Version__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field
@@ -124,16 +124,16 @@
     <fieldPermissions><editable>true</editable><field
     >Prompt_Template__c.File_Citations_Enabled__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Last_Health_Checked_At__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Last_Health_Codes__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Last_Health_Status__c</field><readable
     >true</readable></fieldPermissions>
-    <fieldPermissions><editable>true</editable><field
+    <fieldPermissions><editable>false</editable><field
     >Prompt_Template__c.Last_Health_Version__c</field><readable
     >true</readable></fieldPermissions>
     <fieldPermissions><editable>true</editable><field
@@ -249,8 +249,8 @@
     >false</viewAllFields><viewAllRecords>false</viewAllRecords>
     </objectPermissions>
     <objectPermissions>
-        <allowCreate>true</allowCreate><allowDelete>true</allowDelete><allowEdit
-    >true</allowEdit><allowRead>true</allowRead>
+        <allowCreate>true</allowCreate><allowDelete
+    >false</allowDelete><allowEdit>true</allowEdit><allowRead>true</allowRead>
         <modifyAllRecords>false</modifyAllRecords><object
     >Prompt_Template__c</object><viewAllFields
     >false</viewAllFields><viewAllRecords>false</viewAllRecords>

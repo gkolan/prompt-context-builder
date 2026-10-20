@@ -175,37 +175,12 @@ public with sharing class PromptContextBulkService {
       source.maxRows,
       PromptContextContract.MAX_ROWS_PER_SOURCE
     );
-    Integer candidateLimit = valueByKey.size() * (perValueLimit + 1);
-    Integer remainingRows = Math.max(
-      0,
-      Limits.getLimitQueryRows() -
-        Limits.getQueryRows() -
-        PromptContextContract.QUERY_ROW_HEADROOM
-    );
-    if (candidateLimit + 1 > remainingRows) {
-      throw PromptContextException.withReason(
-        PromptContextReasonCodes.TRANSACTION_BUDGET_EXCEEDED,
-        'This request could read too many matching records. Reduce the record collection or the data set record limit.'
-      );
-    }
-    PromptContextQuery.Plan plan = PromptContextQuery.buildBulk(
+    Map<String, List<SObject>> rowsByKey = selectGroupedRows(
+      config,
       source,
-      requireTypedValues(source, valueByKey.values()),
-      config.templateBody,
-      candidateLimit + 1
+      valueByKey,
+      perValueLimit
     );
-    List<SObject> rows = PromptContextSelector.selectDynamic(
-      plan.soql,
-      plan.binds
-    );
-    Map<String, List<SObject>> rowsByKey = new Map<String, List<SObject>>();
-    for (SObject row : rows) {
-      String key = matchKey(getPathValue(row, source.correlationField));
-      if (!rowsByKey.containsKey(key)) {
-        rowsByKey.put(key, new List<SObject>());
-      }
-      rowsByKey.get(key).add(row);
-    }
     for (Id recordId : runtimeById.keySet()) {
       if (!keyByRecordId.containsKey(recordId)) {
         continue;
@@ -238,6 +213,79 @@ public with sharing class PromptContextBulkService {
         );
       }
     }
+  }
+
+  /**
+   * Reads up to perValueLimit + 1 rows for every match value with grouped queries. One shared
+   * LIMIT can be filled by an early busy value, so a full result settles only the values that
+   * already have an overflow row; the rest are queried again. Each full result settles at least
+   * one value, so the loop ends, and both Salesforce budgets are checked before every query.
+   */
+  private static Map<String, List<SObject>> selectGroupedRows(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source,
+    Map<String, Object> valueByKey,
+    Integer perValueLimit
+  ) {
+    Map<String, List<SObject>> rowsByKey = new Map<String, List<SObject>>();
+    Map<String, Object> pendingByKey = valueByKey.clone();
+    while (!pendingByKey.isEmpty()) {
+      Integer candidateLimit = pendingByKey.size() * (perValueLimit + 1);
+      requireGroupedQueryCapacity(candidateLimit + 1);
+      PromptContextQuery.Plan plan = PromptContextQuery.buildBulk(
+        source,
+        requireTypedValues(source, pendingByKey.values()),
+        config.templateBody,
+        candidateLimit + 1
+      );
+      List<SObject> rows = PromptContextSelector.selectDynamic(
+        plan.soql,
+        plan.binds
+      );
+      Map<String, List<SObject>> roundRows = new Map<String, List<SObject>>();
+      for (SObject row : rows) {
+        String key = matchKey(getPathValue(row, source.correlationField));
+        if (!roundRows.containsKey(key)) {
+          roundRows.put(key, new List<SObject>());
+        }
+        roundRows.get(key).add(row);
+      }
+      Boolean filled = rows.size() > candidateLimit;
+      Integer settled = 0;
+      for (String key : new List<String>(pendingByKey.keySet())) {
+        List<SObject> keyRows = roundRows.get(key) ?? new List<SObject>();
+        if (!filled || keyRows.size() > perValueLimit) {
+          rowsByKey.put(key, keyRows);
+          pendingByKey.remove(key);
+          settled++;
+        }
+      }
+      if (settled == 0) {
+        throw transactionBudgetExceeded();
+      }
+    }
+    return rowsByKey;
+  }
+
+  private static void requireGroupedQueryCapacity(Integer rowLimit) {
+    Integer remainingRows =
+      Limits.getLimitQueryRows() -
+      Limits.getQueryRows() -
+      PromptContextContract.QUERY_ROW_HEADROOM;
+    Integer remainingQueries =
+      Limits.getLimitQueries() -
+      Limits.getQueries() -
+      PromptContextContract.QUERY_HEADROOM;
+    if (rowLimit > remainingRows || remainingQueries < 1) {
+      throw transactionBudgetExceeded();
+    }
+  }
+
+  private static PromptContextException transactionBudgetExceeded() {
+    return PromptContextException.withReason(
+      PromptContextReasonCodes.TRANSACTION_BUDGET_EXCEEDED,
+      'This request could read too many matching records. Reduce the record collection or the data set record limit.'
+    );
   }
 
   private static void loadGroupedAggregate(

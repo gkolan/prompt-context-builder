@@ -139,17 +139,19 @@ public with sharing class PromptContextController {
     }
   }
 
-  /** Copies a fixed published version into the editable draft. */
+  /** Copies a fixed published version into the editable draft the editor loaded. */
   @AuraEnabled
   public static PromptContextDTO.TemplateConfig restoreTemplateVersion(
     Id templateId,
-    Integer versionNumber
+    Integer versionNumber,
+    Integer draftRevision
   ) {
     try {
       PromptContextAccess.requireConfigure();
       return PromptTemplateGovernanceService.restoreVersionAsDraft(
         templateId,
-        versionNumber
+        versionNumber,
+        draftRevision
       );
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
@@ -227,16 +229,22 @@ public with sharing class PromptContextController {
   /**
    * @param templateId Stored template Id
    * @param sampleRecordId Required sample current-record Id
+   * @param draftRevision Draft revision the publisher reviewed
    * @return Successful publish preview
    */
   @AuraEnabled
   public static PromptContextDTO.PromptResult publish(
     Id templateId,
-    Id sampleRecordId
+    Id sampleRecordId,
+    Integer draftRevision
   ) {
     try {
       PromptContextAccess.requireConfigure();
-      return PromptTemplateService.publish(templateId, sampleRecordId);
+      return PromptTemplateService.publish(
+        templateId,
+        sampleRecordId,
+        draftRevision
+      );
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
     } catch (PromptContextException exceptionValue) {
@@ -296,7 +304,7 @@ public with sharing class PromptContextController {
   ) {
     try {
       PromptContextAccess.requireGenerate();
-      PromptContextDTO.TemplateConfig header = PromptTemplateService.getTemplate(
+      PromptContextDTO.TemplateConfig header = PromptTemplateService.getRuntimeHeader(
         templateId
       );
       if (header.status != 'Published') {

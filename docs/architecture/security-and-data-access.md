@@ -14,18 +14,30 @@ Saving prepared input is a separate authorization boundary. It requires Prompt C
 uses user-mode DML, and writes to a private Prompt Input Log. A missing permission fails the request;
 it is never treated as an ordinary blank value.
 
-Two narrow package-owned operations use system mode without reading customer records: publication
-creates immutable version snapshots after configuration authorization and validation, and an
-idempotent save may recover an exact user-scoped request-key collision after user-mode insert fails.
-The collision path reads only the log Id, hashed request key, and verification digest, and returns a
-match only after the digest agrees. Neither exception can widen prompt data access.
+Three narrow package-owned operations use system mode without reading customer records:
 
-The publish service authorizes Prompt Context Configure itself before those system-mode writes, so
-a caller cannot reach them by bypassing the Lightning controller. `npm run check:apex-surface`
-pins both exceptions by class and count. It also rejects any other `without sharing` class,
-production `Test.isRunningTest()` branch, query or DML without an explicit access mode, and entry
-class that does not call `PromptContextAccess`. The gate is a source scan. It does not replace
-Apex tests or security review.
+- Publication creates immutable version snapshots after configuration authorization and validation.
+- One lifecycle writer sets a template's status, published version, version signature, draft
+  revision, and health fields. No Permission Set lets a person edit those fields, so an author cannot
+  republish an inactive template, switch to an older version, or mark a template Healthy from the
+  standard record page. Before writing, the writer runs a user-mode update with no field changes on
+  the same rows, which succeeds only when the person can edit that template.
+- An idempotent save may recover an exact user-scoped request-key collision after user-mode insert
+  fails. The collision path reads only the log Id, hashed request key, and verification digest, and
+  returns a match only after the digest agrees.
+
+None of these exceptions can widen prompt data access. The publish, save, deactivate, and lifecycle
+services authorize Prompt Context Configure themselves before any system-mode write, so a caller
+cannot reach them by bypassing the Lightning controller. `npm run check:apex-surface` pins every
+exception by class and count. It also rejects any other `without sharing` class, production
+`Test.isRunningTest()` branch, query or DML without an explicit access mode, and entry class that
+does not call `PromptContextAccess`. `npm run check:permissions` rejects any Permission Set that
+grants edit access to a lifecycle field or Delete on Prompt Template. Both gates are source scans.
+They do not replace Apex tests or security review.
+
+Generation reads only a template's header (name, automation key, status, and version number) and
+its fixed published version. People with only Prompt Context Generate cannot read unpublished draft
+text or draft data sets.
 
 Access failures stop the request without a partial prompt. People without the Prompt Context
 Diagnostics permission see only the generic access message, so a failure never tells them which

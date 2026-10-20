@@ -13,20 +13,10 @@ public with sharing class PromptContextInputLifecycle {
       )
     );
     Datetime nowValue = System.now();
-    List<Prompt_Input_Log__c> candidates = [
-      SELECT
-        Id,
-        Source_Record_Id__c,
-        Prompt_Template_Version__c,
-        Prompt_Text__c,
-        Selected_Files_JSON__c,
-        Input_Format_Version__c,
-        Input_Verification_Value__c,
-        Status__c,
-        Available_At__c,
-        Processing_Expires_At__c,
-        Attempt_Count__c,
-        Retain_Until__c
+    // SOQL cannot combine ORDER BY with FOR UPDATE, so choose the longest-waiting rows first,
+    // then lock them and re-check their state in case another worker claimed one meanwhile.
+    List<Prompt_Input_Log__c> oldest = [
+      SELECT Id
       FROM Prompt_Input_Log__c
       WHERE
         (Status__c = 'Ready'
@@ -34,9 +24,41 @@ public with sharing class PromptContextInputLifecycle {
         OR (Status__c = 'Processing'
         AND Processing_Expires_At__c <= :nowValue)
       WITH USER_MODE
+      ORDER BY Available_At__c ASC, Id ASC
       LIMIT :safeLimit
-      FOR UPDATE
     ];
+    Map<Id, Prompt_Input_Log__c> lockedById = new Map<Id, Prompt_Input_Log__c>(
+      [
+        SELECT
+          Id,
+          Source_Record_Id__c,
+          Prompt_Template_Version__c,
+          Prompt_Text__c,
+          Selected_Files_JSON__c,
+          Input_Format_Version__c,
+          Input_Verification_Value__c,
+          Status__c,
+          Available_At__c,
+          Processing_Expires_At__c,
+          Attempt_Count__c,
+          Retain_Until__c
+        FROM Prompt_Input_Log__c
+        WHERE
+          Id IN :oldest
+          AND ((Status__c = 'Ready'
+          AND Available_At__c <= :nowValue)
+          OR (Status__c = 'Processing'
+          AND Processing_Expires_At__c <= :nowValue))
+        WITH USER_MODE
+        FOR UPDATE
+      ]
+    );
+    List<Prompt_Input_Log__c> candidates = new List<Prompt_Input_Log__c>();
+    for (Prompt_Input_Log__c ordered : oldest) {
+      if (lockedById.containsKey(ordered.Id)) {
+        candidates.add(lockedById.get(ordered.Id));
+      }
+    }
     List<Prompt_Input_Log__c> claimed = new List<Prompt_Input_Log__c>();
     List<Prompt_Input_Log__c> updates = new List<Prompt_Input_Log__c>();
     for (Prompt_Input_Log__c candidate : candidates) {

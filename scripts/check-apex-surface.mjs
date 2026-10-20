@@ -8,8 +8,9 @@ const approvedWithoutSharing = new Set(["PromptContextInputLogSelector"]);
 const approvedSystemModeUses = new Map([
   // Digest-checked recovery of the caller's own user-scoped request key after Save Input authorization.
   ["PromptContextInputLogSelector", 1],
-  // Immutable version and source-version inserts during an authorized publish.
-  ["PromptTemplateService", 2]
+  // Immutable version and source-version inserts during an authorized publish, and the one
+  // lifecycle-field writer that runs only after a user-mode edit proof on the same rows.
+  ["PromptTemplateService", 3]
 ]);
 // Entry classes that authorize by delegating every call to a class that calls PromptContextAccess.
 const approvedDelegation = new Map([

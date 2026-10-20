@@ -53,6 +53,7 @@ is stored when Delivery Choice is `SAVE_TO_LOG`.
 The file list contains metadata only. `PromptContextInputApi` does not read file bodies or call an
 external service. Code that chooses `RETURN_TO_APEX` owns any later approved action. Code that chooses
 `SAVE_TO_LOG` can use `PromptContextInputLifecycle` to claim and update saved work.
+`claimAvailable` returns the longest-waiting logs first.
 
 `warningCodes` is a comma-separated list of stable codes. A successful response may carry warnings
 when a configured source limit or the combined prompt row limit bounds the returned context.

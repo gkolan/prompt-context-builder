@@ -174,6 +174,18 @@ public inherited sharing class PromptContextSelector {
     return templates.isEmpty() ? null : templates[0];
   }
 
+  /** Returns only what generation needs to find a fixed publication, without draft settings. */
+  public static Prompt_Template__c selectTemplateHeader(Id templateId) {
+    List<Prompt_Template__c> templates = [
+      SELECT Id, Name, Developer_Key__c, Description__c, Status__c, Version__c
+      FROM Prompt_Template__c
+      WHERE Id = :templateId
+      WITH USER_MODE
+      LIMIT 1
+    ];
+    return templates.isEmpty() ? null : templates[0];
+  }
+
   /** Locks one template row while its draft is saved, so concurrent saves run one at a time. */
   public static Prompt_Template__c selectTemplateForDraftSave(Id templateId) {
     List<Prompt_Template__c> templates = [
@@ -195,28 +207,9 @@ public inherited sharing class PromptContextSelector {
     if (developerKeys == null || developerKeys.isEmpty()) {
       return byKey;
     }
+    // Only the Id is used: generation then loads the header and its fixed publication.
     for (Prompt_Template__c templateRecord : [
-      SELECT
-        Id,
-        Name,
-        Developer_Key__c,
-        Description__c,
-        Root_Object__c,
-        Template_Body__c,
-        Status__c,
-        Version__c,
-        Fingerprint__c,
-        Published_At__c,
-        Last_Health_Status__c,
-        Last_Health_Checked_At__c,
-        Last_Health_Codes__c,
-        Last_Health_Version__c,
-        File_Input_Mode__c,
-        Maximum_Files__c,
-        Require_File__c,
-        Allowed_File_Formats__c,
-        Provider_Profile_Key__c,
-        File_Citations_Enabled__c
+      SELECT Id, Developer_Key__c
       FROM Prompt_Template__c
       WHERE Developer_Key__c IN :developerKeys
       WITH USER_MODE

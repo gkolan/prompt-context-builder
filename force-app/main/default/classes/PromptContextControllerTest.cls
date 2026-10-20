@@ -34,7 +34,8 @@ private class PromptContextControllerTest {
       );
       PromptContextDTO.PromptResult publishResult = PromptContextController.publish(
         saved.id,
-        accountRecord.Id
+        accountRecord.Id,
+        saved.draftRevision
       );
       List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
         'Prompt_Template__c'
@@ -124,7 +125,11 @@ private class PromptContextControllerTest {
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
-      PromptContextController.publish(saved.id, accountRecord.Id);
+      PromptContextController.publish(
+        saved.id,
+        accountRecord.Id,
+        saved.draftRevision
+      );
 
       Test.startTest();
       List<PromptContextDTO.TemplateChoice> choices = PromptContextController.getPublishedTemplates(
@@ -154,7 +159,11 @@ private class PromptContextControllerTest {
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(config)
       );
-      PromptContextController.publish(saved.id, accountRecord.Id);
+      PromptContextController.publish(
+        saved.id,
+        accountRecord.Id,
+        saved.draftRevision
+      );
       PromptContextProviderSettings.settingsForTest
         .get('Approved_Bedrock')
         .maximumFiles = 2;
@@ -179,7 +188,11 @@ private class PromptContextControllerTest {
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
-      PromptContextController.publish(saved.id, accountRecord.Id);
+      PromptContextController.publish(
+        saved.id,
+        accountRecord.Id,
+        saved.draftRevision
+      );
 
       Test.startTest();
       PromptContextDTO.TemplateConfig inactive = PromptContextController.deactivateTemplate(
@@ -286,7 +299,11 @@ private class PromptContextControllerTest {
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
-      PromptContextController.publish(saved.id, accountRecord.Id);
+      PromptContextController.publish(
+        saved.id,
+        accountRecord.Id,
+        saved.draftRevision
+      );
       Prompt_Template_Version__c templateVersion = [
         SELECT Id, Template_Body__c
         FROM Prompt_Template_Version__c
@@ -466,7 +483,7 @@ private class PromptContextControllerTest {
       } else if (action == 'COMPARE') {
         PromptContextController.compareTemplateVersions(null, 1, 2);
       } else if (action == 'RESTORE') {
-        PromptContextController.restoreTemplateVersion(null, 1);
+        PromptContextController.restoreTemplateVersion(null, 1, null);
       } else if (action == 'SAVE') {
         PromptContextController.saveDraft(null);
       } else if (action == 'VALIDATE') {
@@ -474,7 +491,7 @@ private class PromptContextControllerTest {
       } else if (action == 'PREVIEW') {
         PromptContextController.preview(null, null);
       } else if (action == 'PUBLISH') {
-        PromptContextController.publish(null, null);
+        PromptContextController.publish(null, null, null);
       } else if (action == 'DEACTIVATE') {
         PromptContextController.deactivateTemplate(null);
       } else if (action == 'PUBLISHED') {
@@ -515,7 +532,7 @@ private class PromptContextControllerTest {
       } else if (action == 'PREVIEW_JSON') {
         PromptContextController.preview('{bad json', null);
       } else if (action == 'PUBLISH') {
-        PromptContextController.publish(null, null);
+        PromptContextController.publish(null, null, null);
       } else if (action == 'PUBLISHED') {
         PromptContextController.getPublishedTemplates('Missing_Object__c');
       } else if (action == 'GENERATE') {

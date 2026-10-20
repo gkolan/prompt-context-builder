@@ -1055,7 +1055,8 @@ export default class PromptTemplateBuilder extends LightningElement {
       }
       const result = await publishTemplate({
         templateId: this.config.id,
-        sampleRecordId: this.sampleRecordId
+        sampleRecordId: this.sampleRecordId,
+        draftRevision: this.config.draftRevision
       });
       this.previewText = result.prompt;
       this.config = {
@@ -1131,7 +1132,8 @@ export default class PromptTemplateBuilder extends LightningElement {
     await this.runAction(async () => {
       const restored = await restoreTemplateVersion({
         templateId: this.config.id,
-        versionNumber: Number(this.fromVersion)
+        versionNumber: Number(this.fromVersion),
+        draftRevision: this.config.draftRevision
       });
       this.config = this.decorateConfig(restored);
       this.previewText = "";

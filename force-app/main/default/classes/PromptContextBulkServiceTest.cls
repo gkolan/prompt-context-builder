@@ -228,6 +228,50 @@ private class PromptContextBulkServiceTest {
   }
 
   @isTest
+  static void shouldKeepLaterMatchesWhenAnEarlierParentFillsTheGroupedQuery() {
+    // The busy parent sorts first, so its rows alone can fill one shared grouped-query limit.
+    List<Prompt_Template__c> roots = PromptContextTestDataFactory.createRootRecords(
+      new List<String>{ 'Aaa busy parent', 'Zzz quiet parent' }
+    );
+    PromptContextTestDataFactory.createMatchRecords(
+      roots[0].Id,
+      roots[0].Name,
+      20
+    );
+    PromptContextTestDataFactory.createMatchRecords(
+      roots[1].Id,
+      roots[1].Name,
+      2
+    );
+
+    List<PromptContextBulkService.Outcome> outcomes = PromptContextBulkService.generate(
+      matchingConfig(),
+      new List<Id>{ roots[0].Id, roots[1].Id }
+    );
+
+    Assert.areEqual(
+      3,
+      outcomes[0].result.sourceRecordCounts.get('guidance'),
+      'The busy parent should stop at its record limit.'
+    );
+    Assert.areEqual(
+      PromptContextReasonCodes.SOURCE_TRUNCATED,
+      outcomes[0].result.messages[0].code,
+      'The busy parent should report truncation.'
+    );
+    Assert.areEqual(
+      2,
+      outcomes[1].result.sourceRecordCounts.get('guidance'),
+      'A parent after a busy parent should keep every match.'
+    );
+    Assert.isTrue(
+      outcomes[1].result.messages.isEmpty(),
+      'A complete data set should not report truncation: ' +
+      outcomes[1].result.messages
+    );
+  }
+
+  @isTest
   static void shouldReadOneReferenceDataSetForTheWholeCollection() {
     List<Prompt_Template__c> accounts = PromptContextTestDataFactory.createRootRecords(
       new List<String>{ 'First root', 'Second root' }

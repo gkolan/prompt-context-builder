@@ -71,6 +71,10 @@ signature. Saving later edits changes the editable settings. A live template kee
 status, and generation continues to use the latest fixed version until the edits are previewed and
 published as a new version.
 
+If someone else saved the template after you opened it, Publish stops with `DRAFT_CHANGED` and
+publishes nothing. Reload the template, preview their changes, then publish again. **Restore as
+draft** follows the same rule.
+
 ## 5. Verify positive and negative outcomes
 
 - Generate against the Account used for preview. Expect the Account name and visible Contacts in

@@ -137,6 +137,113 @@ private class PromptTemplateDraftConflictTest {
   }
 
   @isTest
+  static void shouldRejectPublishingADraftChangedAfterReview() {
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      PromptContextDTO.TemplateConfig reviewed = PromptTemplateService.saveDraft(
+        PromptContextTestDataFactory.createTwoSourceConfig()
+      );
+      PromptContextDTO.TemplateConfig otherEditor = PromptTemplateService.getTemplate(
+        reviewed.id
+      );
+      otherEditor.description = 'Saved by someone else after the review';
+      PromptTemplateService.saveDraft(otherEditor);
+
+      Test.startTest();
+      String reason;
+      try {
+        PromptTemplateService.publish(
+          reviewed.id,
+          rootId,
+          reviewed.draftRevision
+        );
+      } catch (PromptContextException expected) {
+        reason = expected.reasonCode;
+      }
+      Test.stopTest();
+
+      Assert.areEqual(
+        PromptContextReasonCodes.DRAFT_CHANGED,
+        reason,
+        'Publishing must not release changes the publisher never reviewed.'
+      );
+      Assert.areEqual(
+        'Draft',
+        PromptTemplateService.getTemplate(reviewed.id).status,
+        'A refused publish must leave the template unpublished.'
+      );
+      Assert.isTrue(
+        PromptTemplateGovernanceService.getVersions(reviewed.id).isEmpty(),
+        'A refused publish must not create a version.'
+      );
+    }
+  }
+
+  @isTest
+  static void shouldPublishTheReviewedRevision() {
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      PromptContextDTO.TemplateConfig reviewed = PromptTemplateService.saveDraft(
+        PromptContextTestDataFactory.createTwoSourceConfig()
+      );
+
+      Test.startTest();
+      PromptContextDTO.PromptResult published = PromptTemplateService.publish(
+        reviewed.id,
+        rootId,
+        reviewed.draftRevision
+      );
+      Test.stopTest();
+
+      Assert.areEqual(1, published.templateVersion);
+      Assert.areEqual(
+        'Published',
+        PromptTemplateService.getTemplate(reviewed.id).status
+      );
+    }
+  }
+
+  @isTest
+  static void shouldRejectRestoringOverANewerDraft() {
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      PromptContextDTO.TemplateConfig created = PromptTemplateService.saveDraft(
+        PromptContextTestDataFactory.createTwoSourceConfig()
+      );
+      PromptTemplateService.publish(created.id, rootId);
+      PromptContextDTO.TemplateConfig staleEditor = PromptTemplateService.getTemplate(
+        created.id
+      );
+      PromptContextDTO.TemplateConfig otherEditor = PromptTemplateService.getTemplate(
+        created.id
+      );
+      // Restore replaces the body, so a newer body edit is what a stale restore would erase.
+      otherEditor.templateBody += '\nNewer line that restore must not erase';
+      PromptTemplateService.saveDraft(otherEditor);
+
+      Test.startTest();
+      String reason;
+      try {
+        PromptTemplateGovernanceService.restoreVersionAsDraft(
+          created.id,
+          1,
+          staleEditor.draftRevision
+        );
+      } catch (PromptContextException expected) {
+        reason = expected.reasonCode;
+      }
+      Test.stopTest();
+
+      Assert.areEqual(PromptContextReasonCodes.DRAFT_CHANGED, reason);
+      Assert.isTrue(
+        PromptTemplateService.getTemplate(created.id)
+          .templateBody.contains('Newer line that restore must not erase'),
+        'The newer draft must survive a stale restore.'
+      );
+    }
+  }
+
+  @isTest
   static void shouldTreatATemplateSavedBeforeRevisionsExistedAsRevisionZero() {
     System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
       PromptContextDTO.TemplateConfig created = PromptTemplateService.saveDraft(

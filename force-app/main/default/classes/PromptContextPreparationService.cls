@@ -162,7 +162,7 @@ public with sharing class PromptContextPreparationService {
     List<Response> responses
   ) {
     try {
-      PromptContextDTO.TemplateConfig header = PromptTemplateService.getTemplate(
+      PromptContextDTO.TemplateConfig header = PromptTemplateService.getRuntimeHeader(
         templateId
       );
       if (header.status != 'Published') {
@@ -315,6 +315,11 @@ public with sharing class PromptContextPreparationService {
     String reasonCode,
     String message
   ) {
+    // Read before clearing: support needs the version even though the result no longer returns it.
+    response.diagnosticSummary = PromptContextTrace.diagnosticSummary(
+      reasonCode,
+      response.templateVersion
+    );
     response.success = false;
     response.reasonCode = reasonCode;
     response.message = message;
@@ -330,10 +335,6 @@ public with sharing class PromptContextPreparationService {
     response.sourceRecordCounts = null;
     response.messages = null;
     response.accessManifest = null;
-    response.diagnosticSummary = PromptContextTrace.diagnosticSummary(
-      reasonCode,
-      response.templateVersion
-    );
   }
 
   private static String classify(Exception exceptionValue) {

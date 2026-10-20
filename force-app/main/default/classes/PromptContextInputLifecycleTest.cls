@@ -244,6 +244,44 @@ private class PromptContextInputLifecycleTest {
     }
   }
 
+  @isTest
+  static void shouldClaimTheOldestReadyInputFirst() {
+    System.runAs(configurator()) {
+      Id newerId = createLog('claim-order-newer');
+      Id middleId = createLog('claim-order-middle');
+      // Inserted last but waiting longest, so insertion order cannot pick it by accident.
+      Id oldestId = createLog('claim-order-oldest');
+      Datetime nowValue = System.now();
+      update new List<Prompt_Input_Log__c>{
+        new Prompt_Input_Log__c(
+          Id = newerId,
+          Available_At__c = nowValue.addMinutes(-1)
+        ),
+        new Prompt_Input_Log__c(
+          Id = middleId,
+          Available_At__c = nowValue.addMinutes(-30)
+        ),
+        new Prompt_Input_Log__c(
+          Id = oldestId,
+          Available_At__c = nowValue.addDays(-1)
+        )
+      };
+
+      Test.startTest();
+      List<Prompt_Input_Log__c> first = PromptContextInputLifecycle.claimAvailable(
+        1
+      );
+      List<Prompt_Input_Log__c> next = PromptContextInputLifecycle.claimAvailable(
+        2
+      );
+      Test.stopTest();
+
+      Assert.areEqual(oldestId, first[0].Id, 'The oldest work goes first.');
+      Assert.areEqual(middleId, next[0].Id, 'Claims follow waiting time.');
+      Assert.areEqual(newerId, next[1].Id);
+    }
+  }
+
   private static User configurator() {
     return PromptContextTestDataFactory.createConfiguratorUser();
   }

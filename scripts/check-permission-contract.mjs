@@ -87,6 +87,70 @@ requireFields(
   "Prompt Context Configure"
 );
 
+// Publish, deactivate, save, and the health job own these fields. An author who could edit them
+// directly could republish an inactive template, serve an old version, or mark a template Healthy.
+const lifecycleFields = [
+  "Status__c",
+  "Version__c",
+  "Fingerprint__c",
+  "Published_At__c",
+  "Draft_Revision__c",
+  "Last_Health_Checked_At__c",
+  "Last_Health_Codes__c",
+  "Last_Health_Status__c",
+  "Last_Health_Version__c"
+].map((fieldName) => `Prompt_Template__c.${fieldName}`);
+for (const fileName of fs.readdirSync(permissionSetDirectory).sort()) {
+  const source = fs.readFileSync(
+    path.join(permissionSetDirectory, fileName),
+    "utf8"
+  );
+  for (const block of source.match(
+    /<fieldPermissions>[\s\S]*?<\/fieldPermissions>/g
+  ) ?? []) {
+    const fieldName = block.match(/<field\s*>\s*([^<]+)<\/field>/)?.[1].trim();
+    if (
+      lifecycleFields.includes(fieldName) &&
+      /<editable>\s*true\s*<\/editable>/.test(block)
+    ) {
+      throw new Error(
+        `${fileName} must not grant edit access to ${fieldName}; package services write it.`
+      );
+    }
+  }
+  for (const block of source.match(
+    /<objectPermissions>[\s\S]*?<\/objectPermissions>/g
+  ) ?? []) {
+    if (
+      /<object\s*>\s*Prompt_Template__c\s*<\/object>/.test(block) &&
+      /<allowDelete>\s*true\s*<\/allowDelete>/.test(block)
+    ) {
+      throw new Error(
+        `${fileName} must not grant Delete on Prompt_Template__c; deactivate keeps version history.`
+      );
+    }
+  }
+}
+
+// Generation reads only the template header and its fixed published version, so people who only
+// generate prompts must not be able to read unpublished draft text or draft data sets.
+const generateSource = readPermissionSet("Prompt_Context_Generate");
+const draftReads = [
+  ...[...fieldPermissions(generateSource)].filter(
+    (fieldName) =>
+      fieldName === "Prompt_Template__c.Template_Body__c" ||
+      fieldName.startsWith("Prompt_Context_Source__c.")
+  ),
+  ...(/<object\s*>\s*Prompt_Context_Source__c\s*<\/object>/.test(generateSource)
+    ? ["Prompt_Context_Source__c object"]
+    : [])
+];
+if (draftReads.length) {
+  throw new Error(
+    `Prompt Context Generate must not read draft settings: [${draftReads.join(", ")}]`
+  );
+}
+
 requireExact(
   customPermissions(readPermissionSet("Prompt_Context_Generate")),
   new Set(["Prompt_Context_Generate"]),

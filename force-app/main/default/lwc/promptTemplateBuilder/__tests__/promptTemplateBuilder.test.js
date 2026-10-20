@@ -682,6 +682,7 @@ describe("c-prompt-template-builder", () => {
       templateBody: "Old body {!record.Name}",
       status: "Published",
       version: 1,
+      draftRevision: 4,
       sources: []
     });
     saveDraft.mockImplementation(({ configJson }) =>
@@ -732,5 +733,11 @@ describe("c-prompt-template-builder", () => {
     expect(saveDraft.mock.invocationCallOrder[0]).toBeLessThan(
       publishTemplate.mock.invocationCallOrder[0]
     );
+    // The server refuses to publish when someone saved a newer draft after this review.
+    expect(publishTemplate).toHaveBeenCalledWith({
+      templateId: "a01000000000001",
+      sampleRecordId: "001000000000001AAA",
+      draftRevision: 4
+    });
   });
 });

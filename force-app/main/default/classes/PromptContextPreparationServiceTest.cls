@@ -25,6 +25,31 @@ private class PromptContextPreparationServiceTest {
     );
   }
 
+  @isTest
+  static void shouldKeepTheTemplateVersionInTheDiagnosticSummaryOfALateFailure() {
+    PromptContextAccess.setDiagnosticsForTest(true);
+    PromptContextPreparationService.Response response = new PromptContextPreparationService.Response();
+    response.success = true;
+    response.prompt = 'too long for the limit';
+    response.templateVersion = 3;
+
+    PromptContextPreparationService.enforceFlowPayloadLimit(
+      new List<PromptContextPreparationService.Response>{ response },
+      5
+    );
+
+    Assert.isFalse(response.success);
+    Assert.isNull(
+      response.templateVersion,
+      'A failed result clears success-only fields.'
+    );
+    Assert.isTrue(
+      response.diagnosticSummary.contains('templateVersion=3'),
+      'Support still needs the version that failed: ' +
+      response.diagnosticSummary
+    );
+  }
+
   @TestSetup
   static void setupData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
@@ -83,6 +108,49 @@ private class PromptContextPreparationServiceTest {
         responses[0].prompt,
         'A successful result should contain the complete prompt.'
       );
+    }
+  }
+
+  @isTest
+  static void shouldGenerateFromThePublicationWithoutReadingTheDraft() {
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
+    System.runAs(configurator) {
+      Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
+      // The only Published template is the one setupData published; the root fixture stays Draft.
+      Prompt_Template__c templateRecord = [
+        SELECT Id
+        FROM Prompt_Template__c
+        WHERE Status__c = 'Published'
+        LIMIT 1
+      ];
+      // A half-finished draft data set that cannot be read must not affect the fixed publication.
+      insert new Prompt_Context_Source__c(
+        Prompt_Template__c = templateRecord.Id,
+        Reference_Name__c = 'halfEdited',
+        Source_Mode__c = 'RELATED',
+        Result_Mode__c = 'RECORDS',
+        Filter_Group_Join__c = 'AND',
+        Filters_JSON__c = '{ not json'
+      );
+      PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+      request.templateId = templateRecord.Id;
+      request.recordId = accountRecord.Id;
+
+      Test.startTest();
+      PromptContextPreparationService.Response response = PromptContextPreparationService.execute(
+        new List<PromptContextPreparationService.Request>{ request },
+        'APEX'
+      )[0];
+      Test.stopTest();
+
+      Assert.isTrue(
+        response.success,
+        'Generation must read only the publication: ' +
+          response.reasonCode +
+          ' ' +
+          response.message
+      );
+      Assert.areEqual(1, response.templateVersion);
     }
   }
 

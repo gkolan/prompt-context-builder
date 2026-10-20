@@ -2,6 +2,20 @@
  * Coordinates template persistence, loading, publishing, and generation.
  */
 public with sharing class PromptTemplateService {
+  /** The only fields writeLifecycle may set; every Permission Set keeps them read-only. */
+  private static final Set<String> LIFECYCLE_FIELDS = new Set<String>{
+    'id',
+    'status__c',
+    'version__c',
+    'fingerprint__c',
+    'published_at__c',
+    'draft_revision__c',
+    'last_health_checked_at__c',
+    'last_health_codes__c',
+    'last_health_status__c',
+    'last_health_version__c'
+  };
+
   /** Loads one limited page in a consistent order without loading prompt text or data sets. */
   public static PromptContextDTO.TemplateSummaryPage getTemplateSummaryPage(
     String searchText,
@@ -77,6 +91,34 @@ public with sharing class PromptTemplateService {
   }
 
   /**
+   * Loads the template header generation needs to find its fixed publication. It reads no draft
+   * text or draft data sets, so people who only generate prompts need no access to them.
+   * @param templateId Template Id
+   * @return Header with identity, status, and published version number
+   */
+  public static PromptContextDTO.TemplateConfig getRuntimeHeader(
+    Id templateId
+  ) {
+    Prompt_Template__c templateRecord = PromptContextSelector.selectTemplateHeader(
+      templateId
+    );
+    if (templateRecord == null) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.TEMPLATE_NOT_FOUND,
+        'The requested template was not found or is not accessible.'
+      );
+    }
+    PromptContextDTO.TemplateConfig header = new PromptContextDTO.TemplateConfig();
+    header.id = templateRecord.Id;
+    header.developerKey = templateRecord.Developer_Key__c;
+    header.name = templateRecord.Name;
+    header.description = templateRecord.Description__c;
+    header.status = templateRecord.Status__c;
+    header.version = Integer.valueOf(templateRecord.Version__c ?? 0);
+    return header;
+  }
+
+  /**
    * Saves a draft and replaces its child source configuration atomically.
    * @param config Editable template configuration
    * @return Reloaded saved configuration
@@ -84,6 +126,8 @@ public with sharing class PromptTemplateService {
   public static PromptContextDTO.TemplateConfig saveDraft(
     PromptContextDTO.TemplateConfig config
   ) {
+    // Status and revision are written in system mode below, so this service authorizes itself.
+    PromptContextAccess.requireConfigure();
     requireSavable(config);
     String persistedStatus = 'Draft';
     Integer nextRevision = 1;
@@ -121,9 +165,7 @@ public with sharing class PromptTemplateService {
         Require_File__c = config.requireAtLeastOneFile == true,
         Allowed_File_Formats__c = config.allowedFileFormats,
         Provider_Profile_Key__c = config.providerProfileKey,
-        File_Citations_Enabled__c = config.fileCitationsEnabled == true,
-        Status__c = persistedStatus,
-        Draft_Revision__c = nextRevision
+        File_Citations_Enabled__c = config.fileCitationsEnabled == true
       );
       if (config.id == null) {
         templateRecord.Developer_Key__c = String.isBlank(config.developerKey)
@@ -148,6 +190,16 @@ public with sharing class PromptTemplateService {
           Database.delete(existingSources, true, AccessLevel.USER_MODE);
         }
       }
+      writeLifecycle(
+        new List<Prompt_Template__c>{
+          new Prompt_Template__c(
+            Id = templateRecord.Id,
+            Status__c = persistedStatus,
+            Draft_Revision__c = nextRevision
+          )
+        },
+        true
+      );
 
       List<Prompt_Context_Source__c> sourceRecords = new List<Prompt_Context_Source__c>();
       for (
@@ -171,20 +223,49 @@ public with sharing class PromptTemplateService {
     }
   }
 
+  /** Publishes the stored draft as it is now, for automation that has just saved it. */
+  public static PromptContextDTO.PromptResult publish(
+    Id templateId,
+    Id sampleRecordId
+  ) {
+    return publish(templateId, sampleRecordId, null);
+  }
+
   /**
    * Validates and previews a stored template, then publishes that exact configuration.
    * @param templateId Template Id
    * @param sampleRecordId Current Salesforce record used for the required successful preview
+   * @param expectedDraftRevision Draft revision the publisher reviewed; null skips the check
    * @return Preview generated from the published configuration
    */
   public static PromptContextDTO.PromptResult publish(
     Id templateId,
-    Id sampleRecordId
+    Id sampleRecordId,
+    Integer expectedDraftRevision
   ) {
     // The version writes below use system mode, so this service authorizes them itself.
     PromptContextAccess.requireConfigure();
     if (sampleRecordId == null) {
       throw new PromptContextException(Label.PCB_Publish_Requires_Preview);
+    }
+    // The row lock makes concurrent publishes run one at a time, so each gets its own version.
+    Prompt_Template__c lockedTemplate = PromptContextSelector.selectTemplateForDraftSave(
+      templateId
+    );
+    if (lockedTemplate == null) {
+      throw new PromptContextException(
+        'The requested template was not found or is not accessible.'
+      );
+    }
+    if (
+      expectedDraftRevision != null &&
+      expectedDraftRevision !=
+      Integer.valueOf(lockedTemplate.Draft_Revision__c ?? 0)
+    ) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.DRAFT_CHANGED,
+        'Someone saved newer changes to this template after you reviewed it. Reload the template, preview it, then publish.'
+      );
     }
     PromptContextDTO.TemplateConfig config = getTemplate(templateId);
     PromptContextDTO.TemplateHealth health = PromptTemplateGovernanceService.checkHealth(
@@ -209,6 +290,19 @@ public with sharing class PromptTemplateService {
     Datetime publishedAt = System.now();
     Savepoint savepointValue = Database.setSavepoint();
     try {
+      // Runs first: its user-mode edit proof must pass before any system-mode version insert.
+      writeLifecycle(
+        new List<Prompt_Template__c>{
+          new Prompt_Template__c(
+            Id = templateId,
+            Status__c = 'Published',
+            Version__c = nextVersion,
+            Fingerprint__c = fingerprint,
+            Published_At__c = publishedAt
+          )
+        },
+        true
+      );
       Prompt_Template_Version__c versionRecord = new Prompt_Template_Version__c(
         Prompt_Template__c = templateId,
         Version_Key__c = config.developerKey + ':' + nextVersion,
@@ -242,19 +336,6 @@ public with sharing class PromptTemplateService {
       if (!sourceVersions.isEmpty()) {
         Database.insert(sourceVersions, true, AccessLevel.SYSTEM_MODE);
       }
-      Database.update(
-        new List<Prompt_Template__c>{
-          new Prompt_Template__c(
-            Id = templateId,
-            Status__c = 'Published',
-            Version__c = nextVersion,
-            Fingerprint__c = fingerprint,
-            Published_At__c = publishedAt
-          )
-        },
-        true,
-        AccessLevel.USER_MODE
-      );
     } catch (DmlException exceptionValue) {
       Database.rollback(savepointValue);
       throw new PromptContextException(
@@ -321,7 +402,7 @@ public with sharing class PromptTemplateService {
     Id templateId,
     Id recordId
   ) {
-    PromptContextDTO.TemplateConfig header = getTemplate(templateId);
+    PromptContextDTO.TemplateConfig header = getRuntimeHeader(templateId);
     if (header.status != 'Published') {
       throw new PromptContextException(
         'Only a published template can generate a record-page prompt.'
@@ -339,16 +420,18 @@ public with sharing class PromptTemplateService {
    * @return Reloaded inactive configuration
    */
   public static PromptContextDTO.TemplateConfig deactivate(Id templateId) {
-    if (getTemplate(templateId).status == 'Inactive') {
-      return getTemplate(templateId);
+    // Status is written in system mode, so this service authorizes itself.
+    PromptContextAccess.requireConfigure();
+    PromptContextDTO.TemplateConfig current = getTemplate(templateId);
+    if (current.status == 'Inactive') {
+      return current;
     }
     try {
-      Database.update(
+      writeLifecycle(
         new List<Prompt_Template__c>{
           new Prompt_Template__c(Id = templateId, Status__c = 'Inactive')
         },
-        true,
-        AccessLevel.USER_MODE
+        true
       );
       return getTemplate(templateId);
     } catch (DmlException exceptionValue) {
@@ -357,6 +440,47 @@ public with sharing class PromptTemplateService {
       );
     } catch (SecurityException exceptionValue) {
       throw new PromptContextException(Label.PCB_Access_Denied);
+    }
+  }
+
+  /**
+   * Writes lifecycle fields that authors cannot edit directly: status, version, signature, draft
+   * revision, and health. Each row first gets a user-mode update with no field changes, which
+   * succeeds only when the running user can edit that template; only those rows are then written
+   * in system mode.
+   * @param updates Template rows carrying only lifecycle fields
+   * @param allOrNone True to fail on the first row the user cannot edit; false to skip such rows
+   */
+  public static void writeLifecycle(
+    List<Prompt_Template__c> updates,
+    Boolean allOrNone
+  ) {
+    PromptContextAccess.requireConfigure();
+    List<Prompt_Template__c> editProofs = new List<Prompt_Template__c>();
+    for (Prompt_Template__c updateRecord : updates) {
+      // System mode skips field access, so it must never carry an author-editable field.
+      for (String fieldName : updateRecord.getPopulatedFieldsAsMap().keySet()) {
+        if (!LIFECYCLE_FIELDS.contains(fieldName.toLowerCase())) {
+          throw new PromptContextException(
+            'Only template lifecycle fields can be written by the lifecycle service.'
+          );
+        }
+      }
+      editProofs.add(new Prompt_Template__c(Id = updateRecord.Id));
+    }
+    List<Database.SaveResult> proofResults = Database.update(
+      editProofs,
+      allOrNone,
+      AccessLevel.USER_MODE
+    );
+    List<Prompt_Template__c> editable = new List<Prompt_Template__c>();
+    for (Integer index = 0; index < updates.size(); index++) {
+      if (proofResults[index].isSuccess()) {
+        editable.add(updates[index]);
+      }
+    }
+    if (!editable.isEmpty()) {
+      Database.update(editable, allOrNone, AccessLevel.SYSTEM_MODE);
     }
   }
 

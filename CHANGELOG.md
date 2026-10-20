@@ -42,8 +42,31 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
   file extensions, and a screenshot contract gate for inventory, file signatures, evidence scope,
   and alternative text.
 
+### Security
+
+- Template status, published version, version signature, draft revision, and health fields are now
+  read-only in every Permission Set. Publish, deactivate, save, and the health check write them only
+  after a user-mode update proves the person can edit that template. An author can no longer
+  republish an inactive template, switch to an older version, or mark a template Healthy from the
+  standard record page.
+- Prompt Context Configure no longer grants Delete on Prompt Template, so a template's version
+  history cannot be erased. Deactivate retires a template. The Prompt Templates object tab is no
+  longer in the app navigation; edit templates in Prompt Builder.
+- Generation now reads only the template header and its fixed published version. Prompt Context
+  Generate no longer grants read access to draft template text or draft data sets.
+
 ### Fixed
 
+- Flow, Apex, and Batch requests no longer drop related records for a record whose match value
+  sorts after a busy one. A grouped query that fills its row limit is repeated for the match values
+  it could not settle, within the transaction's query and row budget; otherwise the request returns
+  `TRANSACTION_BUDGET_EXCEEDED` instead of an incomplete prompt.
+- Publish returns `DRAFT_CHANGED` when someone saved the draft after the publisher reviewed it, and
+  concurrent publishes of one template now run one at a time. Restoring a version over a newer draft
+  also returns `DRAFT_CHANGED` instead of erasing the newer edits.
+- `PromptContextInputLifecycle.claimAvailable` claims the longest-waiting logs first.
+- `diagnosticSummary` keeps the template version when a request fails after preparation, such as a
+  Request Key conflict or the Flow response-size limit.
 - Flow and Batch averages over a formula match field now print the same digits as the record page.
 - Added `npm run scan:sfge`, which runs Graph Engine field-security analysis on a parse-compatible copy
   and fails on engine errors. The misconfiguration matrix now requires a valid baseline and that

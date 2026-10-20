@@ -263,6 +263,18 @@ public with sharing class PromptTemplateGovernanceService {
     Id templateId,
     Integer versionNumber
   ) {
+    return restoreVersionAsDraft(templateId, versionNumber, null);
+  }
+
+  /**
+   * Copies a fixed published version into the editable draft.
+   * @param expectedDraftRevision Draft revision the editor loaded; null restores over the stored draft
+   */
+  public static PromptContextDTO.TemplateConfig restoreVersionAsDraft(
+    Id templateId,
+    Integer versionNumber,
+    Integer expectedDraftRevision
+  ) {
     PromptContextDTO.TemplateConfig header = requireTemplate(templateId);
     PromptContextDTO.TemplateConfig restored = getVersionConfig(
       header,
@@ -276,7 +288,8 @@ public with sharing class PromptTemplateGovernanceService {
     restored.version = header.version;
     restored.fingerprint = null;
     restored.publishedAt = null;
-    restored.draftRevision = header.draftRevision;
+    // saveDraft rejects a revision that no longer matches, so a stale restore cannot erase edits.
+    restored.draftRevision = expectedDraftRevision ?? header.draftRevision;
     return PromptTemplateService.saveDraft(restored);
   }
 

@@ -332,6 +332,49 @@ private class PromptContextInputApiTest {
   }
 
   @isTest
+  static void shouldKeepTheTemplateVersionInTheDiagnosticSummaryOfASaveConflict() {
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
+    System.runAs(configurator) {
+      PromptContextAccess.setDiagnosticsForTest(true);
+      PromptContextInputApi.Request firstRequest = requestForDelivery(
+        PromptContextInputApi.SAVE_TO_LOG,
+        'reused-for-other-input'
+      );
+      PromptContextInputApi.Request otherInput = requestForDelivery(
+        PromptContextInputApi.SAVE_TO_LOG,
+        'reused-for-other-input'
+      );
+      // Templates are also Prompt_Template__c records, so the published one is a different root.
+      otherInput.recordId = [
+        SELECT Id
+        FROM Prompt_Template__c
+        WHERE Status__c = 'Published'
+        LIMIT 1
+      ]
+      .Id;
+
+      Test.startTest();
+      PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{ firstRequest }
+      );
+      PromptContextInputApi.Result conflict = PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{ otherInput }
+      )[0];
+      Test.stopTest();
+
+      Assert.areEqual(
+        PromptContextReasonCodes.REQUEST_KEY_CONFLICT,
+        conflict.reasonCode
+      );
+      Assert.isTrue(
+        conflict.diagnosticSummary.contains('templateVersion=1'),
+        'Support still needs the version that failed: ' +
+        conflict.diagnosticSummary
+      );
+    }
+  }
+
+  @isTest
   static void shouldRejectRequestWhenDeliveryChoiceIsMissing() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {

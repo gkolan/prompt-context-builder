@@ -69,6 +69,12 @@ One invocation accepts at most 200 requests and 10 distinct templates. Successfu
 Flow response are limited to 1,000,000 combined characters. The resource planner can return
 `TRANSACTION_BUDGET_EXCEEDED` for later records before Salesforce governor limits would be crossed.
 
+When some records have many more related records than a data set's maximum, preparation runs extra
+grouped queries so every record still gets its own complete rows. If those queries would exceed the
+transaction's capacity, every request for that template returns `TRANSACTION_BUDGET_EXCEEDED`; no
+prompt is returned with records missing. Reduce the collection size or the data set's maximum
+records.
+
 The response order matches the request order. One failed record does not discard successful
 neighbors. For each response:
 

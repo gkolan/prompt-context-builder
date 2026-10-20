@@ -249,6 +249,11 @@ global with sharing class PromptContextInputApi {
   }
 
   private static void fail(Result result, String reasonCode, String message) {
+    // Read before clearing: support needs the version even though the result no longer returns it.
+    result.diagnosticSummary = PromptContextTrace.diagnosticSummary(
+      reasonCode,
+      result.templateVersion
+    );
     result.success = false;
     result.reasonCode = reasonCode;
     result.message = message;
@@ -261,10 +266,6 @@ global with sharing class PromptContextInputApi {
     result.templateVersion = null;
     result.contractVersion = null;
     result.syntaxVersion = null;
-    result.diagnosticSummary = PromptContextTrace.diagnosticSummary(
-      reasonCode,
-      result.templateVersion
-    );
   }
 
   private PromptContextInputApi() {

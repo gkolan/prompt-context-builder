@@ -33,7 +33,8 @@ public with sharing class PromptTemplateHealthQueueable implements Queueable {
       healthUpdates.add(buildHealthUpdate(templateRecord.Id));
     }
     if (!healthUpdates.isEmpty()) {
-      Database.update(healthUpdates, false, AccessLevel.USER_MODE);
+      // Health fields are package-owned; templates the scheduler cannot edit are skipped.
+      PromptTemplateService.writeLifecycle(healthUpdates, false);
     }
     if (templates.size() == PAGE_SIZE) {
       System.enqueueJob(

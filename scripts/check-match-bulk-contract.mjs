@@ -35,6 +35,7 @@ for (const testName of [
   "shouldSkipSourceQueryWhenEveryMatchValueIsBlank",
   "shouldGroupAggregateValuesForEveryCurrentRecord",
   "shouldReadOneReferenceDataSetForTheWholeCollection",
+  "shouldKeepLaterMatchesWhenAnEarlierParentFillsTheGroupedQuery",
   "shouldRejectAStringThatCannotBeUsedAsAnIdMatch"
 ]) {
   if (!tests.includes(testName)) {
