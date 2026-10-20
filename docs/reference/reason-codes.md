@@ -61,3 +61,14 @@ as a comma-separated `warningCodes` value; their safe explanations are combined 
 | `SOURCE_TRUNCATED` | More records matched than the data set permits                         | Narrow filters or raise the data set limit within the maximum  |
 | `TOTAL_ROW_LIMIT`  | A later data set reached the combined prompt record limit              | Reduce data set limits or move the most important data earlier |
 | `FIELD_TRUNCATED`  | A `maxLength` attribute shortened at least one value                   | Raise the `maxLength` value if the prompt needs more text      |
+
+## Stored health codes
+
+The scheduled health check saves validation codes in a template's **Last Check Details** field. It
+also uses one code that no response returns:
+
+| Code                 | Meaning                                            | Administrator action                                             |
+| -------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| `HEALTH_CHECK_ERROR` | The check could not evaluate the published version | Open the template in Prompt Builder, validate it, and preview it |
+
+See [Monitor template health](../production-operations/README.md#monitor-template-health).

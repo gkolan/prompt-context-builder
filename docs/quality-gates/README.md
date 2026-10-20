@@ -2,10 +2,12 @@
 
 `npm run ci:gates` is the local pull-request gate. It verifies formatting, documentation links and
 navigation, screenshot inventory and file signatures, the Permission Set custom-permission
-boundary, a description for every Salesforce custom field, the namespace fixture contract, Apex
-test-data isolation, LWC lint, LWC Jest behavior, enforced JavaScript coverage floors, and
-Salesforce Code Analyzer. It needs Node.js 22, the Salesforce CLI, and the Code Analyzer plugin
-(`sf plugins install code-analyzer`), but no Salesforce org.
+boundary, a description for every Salesforce custom field, the namespace fixture contract,
+plain-language and public-release hygiene, the entry-point, file, input-log, and bulk-matching
+source contracts, Apex test-data isolation, the Apex security surface, LWC lint, LWC Jest behavior,
+enforced JavaScript coverage floors, and Salesforce Code Analyzer. It needs Node.js 22, the
+Salesforce CLI, and the Code Analyzer plugin (`sf plugins install code-analyzer`), but no
+Salesforce org.
 
 The coverage command disables Jest's transform cache and then verifies that both shipped LWC
 controllers are present in `coverage-final.json`. A green percentage threshold is not accepted when
@@ -70,9 +72,12 @@ playbook is mandatory reading for Apex, metadata, validation, and deployment wor
 | Mutating deployment                                | No                          | Yes                                 |
 | Browser or package verification                    | No                          | Yes                                 |
 
-The `apex-validation` CI job runs a check-only deployment of `force-app` with `RunLocalTests`. It
-is skipped until the repository owner stores an SFDX authorization URL for an approved validation
-org in the `SF_VALIDATION_AUTH_URL` repository secret, and it never deploys. Use an org reserved
+The `apex-validation` CI job runs a check-only deployment of `force-app` and the three test-only
+suites in `integration-tests/flow-runtime`, `integration-tests/formula-fixtures`, and
+`integration-tests/security` with `RunLocalTests`. The security suite needs one free Salesforce user
+license in the validation org. The job is skipped until the repository owner stores an SFDX
+authorization URL for an approved validation org in the `SF_VALIDATION_AUTH_URL` repository
+secret, and it never deploys. Use an org reserved
 for validation: pull requests from this repository run their Apex tests there, and secrets are not
 available to pull requests from forks.
 

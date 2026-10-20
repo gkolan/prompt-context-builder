@@ -93,7 +93,9 @@ values print as plain numbers without trailing zeros, so a sum prints `180`; the
 currency. A picklist value that is no longer defined prints as stored.
 
 To adopt version 2, open the template, preview it, review the changed output, and publish. Version
-comparison lists `Syntax version changed.` for that publication.
+comparison lists `Syntax version changed.` for that publication. Restoring a version published
+with syntax version 1 also publishes as version 2, and Prompt Builder warns about the change after
+the restore.
 
 ## Authoring checks added in syntax version 2
 

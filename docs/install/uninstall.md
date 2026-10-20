@@ -17,8 +17,8 @@ that source as one installed package.
 
 ## Before removing any installation
 
-1. Deactivate or update Lightning pages, Flow actions, Apex callers, and scheduled health jobs
-   that depend on Prompt Context Builder.
+1. Deactivate or update Lightning pages, Flow actions, and Apex callers that depend on Prompt
+   Context Builder, and delete its scheduled health and Prompt Input Log purge jobs.
 2. Export any records that must be retained:
    - `Prompt_Template__c`
    - `Prompt_Context_Source__c`
@@ -59,7 +59,7 @@ Afterward, confirm:
 - no active Lightning page references **Prompt Generator**;
 - no Flow references **Prepare Record Prompt Input**;
 - no Apex caller references `PromptContextInputApi`; and
-- no scheduled template-health job remains active.
+- no scheduled template-health or Prompt Input Log purge job remains active.
 
 An untested reinstall is not a proven recovery path. Validate clean reinstall and configuration
 restore in a sandbox before depending on them.

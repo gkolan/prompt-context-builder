@@ -48,10 +48,10 @@ records, and create/edit/delete access to their draft data sets. Status, publish
 signature, draft revision, and health fields are read-only; Prompt Builder's Publish, Deactivate,
 and Save actions and the scheduled health check set them. The Permission Set does not grant Delete
 on templates: deactivate a template to retire it and keep its version history. It also grants the
-Generate and Diagnostics custom permissions
-so authors can preview, run, save, and troubleshoot their templates. It includes Prompt Input Log
-create/read access for saving prepared input, but it does not grant edit or delete access to those
-logs and does not grant Send Files or Process Input. Published version records are read-only to the
+Generate, Save Input, and Diagnostics custom permissions so authors can preview, run, save, and
+troubleshoot their templates. It includes Prompt Input Log create/read access for saving prepared
+input, but it does not grant edit or delete access to those logs and does not grant Send Files or
+Process Input. Published version records are read-only to the
 author; validated package service code creates them during publication.
 
 Do not also assign **Prompt Context Generate** to a user who already has **Prompt Context

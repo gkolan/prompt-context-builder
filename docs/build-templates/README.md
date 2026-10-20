@@ -88,11 +88,14 @@ After approval:
    limit remains five files and 4,500,000 bytes per file even when the service allows more.
 4. Assign **Prompt Context Send Files** only to people or automation allowed to include Salesforce
    File references in prepared input.
-5. In Prompt Builder, choose **User selects files** or **All eligible files**, the active **Approved
-   Service Setup**, a maximum from one through five, and the approved formats.
+5. In Prompt Builder, set **Files to include** to **Let the user choose Files** or **Include all
+   eligible Files**. Set **Maximum Files** from one through five, enter the approved formats in
+   **Allowed file formats**, and enter the active record's Developer Name in **Approved service
+   setup name**. Optionally select **Require at least one eligible File**.
 6. Preview and publish. On the record page, **Show more Files** loads another 50 eligible Files
-   without clearing selections. A sixth selected or automatically eligible File stops the complete
-   request.
+   without clearing selections. Selecting more Files than the effective limit stops the complete
+   request. **Include all eligible Files** uses the first eligible Files in Title and Id order, up to
+   the limit.
 
 The selected-file value contains IDs, name, format, size, version, and last-modified time. It never
 contains file bytes. **Return to Apex** lets approved code own the next action; **Save to Prompt

@@ -83,7 +83,8 @@ No open contacts were found.
 
 ## Try the prepared demo
 
-You need Git, Node.js 22, Salesforce CLI, and access to a Dev Hub that can create scratch orgs.
+You need Git, Node.js 22, Salesforce CLI with the Code Analyzer plugin
+(`sf plugins install code-analyzer`), and access to a Dev Hub that can create scratch orgs.
 Creating a scratch org consumes Dev Hub capacity. Run these commands only with the Dev Hub owner's
 approval, replacing `TARGET_DEV_HUB` with an authenticated alias:
 

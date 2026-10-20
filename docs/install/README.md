@@ -26,7 +26,8 @@ You need:
 
 - Git;
 - Node.js 22 with npm;
-- Salesforce CLI;
+- Salesforce CLI with the Code Analyzer plugin (`sf plugins install code-analyzer`), which
+  `npm run ci:gates` runs;
 - a Salesforce sandbox where you may deploy metadata and Apex;
 - permission to assign Permission Sets and edit Lightning record pages; and
 - an authenticated CLI alias for the target sandbox.
@@ -117,7 +118,7 @@ execution log.
 3. Open a Draft, validate it, preview it against a readable record, and publish it.
 4. Open a matching record in the **Prompt Context Builder** app. The included Account page already
    contains **Prompt Generator** for Account evaluation.
-5. Choose the published template and select **Generate Context**.
+5. Choose the published template and select **Generate record context**.
 6. Confirm the generated text and data set counts match records visible to that user.
 7. Repeat as a user with **Prompt Context Generate** but without one required field. Expect an
    access failure and no partial prompt.

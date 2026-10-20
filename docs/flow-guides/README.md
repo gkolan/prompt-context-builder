@@ -31,13 +31,14 @@ The prompt remains usable, but the Flow should decide whether that limited data 
 
 ## Inputs
 
-| Flow input                  | Required | Meaning                                                      |
-| --------------------------- | -------- | ------------------------------------------------------------ |
-| **Record Id**               | Yes      | Record whose object must match the published template        |
-| **Template Automation Key** | One of   | Stable template identity recommended for deployed automation |
-| **Published Template Id**   | One of   | Environment-specific Salesforce Id of the published template |
-| **Delivery Choice**         | Yes      | `RETURN_TO_APEX` or `SAVE_TO_LOG`; case does not matter      |
-| **Request Key**             | For save | Stable caller key used to make a retry safe                  |
+| Flow input                               | Required  | Meaning                                                                                                                   |
+| ---------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Record Id**                            | Yes       | Record whose object must match the published template                                                                     |
+| **Template Automation Key**              | One of    | Stable template identity recommended for deployed automation                                                              |
+| **Published Template Id**                | One of    | Environment-specific Salesforce Id of the published template                                                              |
+| **Delivery Choice**                      | Yes       | `RETURN_TO_APEX` or `SAVE_TO_LOG`; case does not matter                                                                   |
+| **Request Key**                          | For save  | Stable caller key used to make a retry safe                                                                               |
+| **Selected Salesforce File Version Ids** | For files | Exact current `ContentVersion` Ids for a template that lets the user choose Files; requires **Prompt Context Send Files** |
 
 Delivery Choice matches the API value regardless of case and surrounding spaces. A label such as
 `Save to log` returns
@@ -55,7 +56,10 @@ allows new processes, so build new automation in Flow.
 | `message`           | Safe explanation for the primary outcome                               |
 | `warningCodes`      | Comma-separated successful-result warnings                             |
 | `warningMessage`    | Safe explanation of successful-result warnings                         |
+| `templateId`        | Template that answered the request                                     |
+| `recordId`          | Record Id from the request                                             |
 | `prompt`            | Generated text; null when the item failed                              |
+| `selectedFilesJson` | Server-built list of selected File versions; null without files        |
 | `inputLogId`        | Saved Prompt Input Log Id; null when input was returned to Apex        |
 | `templateVersionId` | Exact published template version used                                  |
 | `templateVersion`   | Fixed published version used                                           |

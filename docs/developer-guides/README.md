@@ -45,9 +45,11 @@ log. Reusing that key for different input fails with `REQUEST_KEY_CONFLICT`.
 The returned `correlationId` identifies this result for diagnostics. Do not log `prompt`, Request
 Keys, or customer values in production.
 
-For a file-enabled published template, assign **Prompt Context Send Files** and provide exact current
-Salesforce File version IDs in `request.selectedContentVersionIds`. A successful result returns the
-server-built `selectedFilesJson`. Callers cannot provide their own file JSON. The same managed value
+For a file-enabled published template, assign **Prompt Context Send Files**. When the template lets
+the user choose Files, provide exact current Salesforce File version IDs in
+`request.selectedContentVersionIds`. When it includes all eligible Files, leave that list empty; a
+supplied ID returns `INVALID_REQUEST`. A successful result returns the server-built
+`selectedFilesJson`. Callers cannot provide their own file JSON. The same managed value
 is stored when Delivery Choice is `SAVE_TO_LOG`.
 
 The file list contains metadata only. `PromptContextInputApi` does not read file bodies or call an

@@ -6,27 +6,27 @@ an invalid Draft and never bypasses Salesforce checks.
 
 ## Prompt Template (`Prompt_Template__c`)
 
-| Field label                 | API name                    | Purpose                                                            |
-| --------------------------- | --------------------------- | ------------------------------------------------------------------ |
-| Automation Key              | `Developer_Key__c`          | Stable automation identity generated on first save                 |
-| Description                 | `Description__c`            | Administrator-facing intent and usage notes                        |
-| Salesforce Object           | `Root_Object__c`            | Salesforce object used by the current record                       |
-| Prompt Text                 | `Template_Body__c`          | Editable merge-language text                                       |
-| Status                      | `Status__c`                 | `Draft`, `Published`, or `Inactive`                                |
-| Published Version           | `Version__c`                | Current published version number                                   |
-| Published Version Signature | `Fingerprint__c`            | SHA-256 identity of the published configuration                    |
-| Last Published              | `Published_At__c`           | Publication timestamp                                              |
-| Last Setup Check Result     | `Last_Health_Status__c`     | `Healthy`, `Unhealthy`, or `Error` from the latest scheduled check |
-| Last Setup Check            | `Last_Health_Checked_At__c` | Latest scheduled-check timestamp                                   |
-| Last Check Details          | `Last_Health_Codes__c`      | Saved results from the latest setup check                          |
-| Last Checked Version        | `Last_Health_Version__c`    | Published version checked by the scheduled job                     |
-| File Input Mode             | `File_Input_Mode__c`        | Disabled, user selection, or all eligible directly linked files    |
-| Maximum Files               | `Maximum_Files__c`          | Template file limit from one through five                          |
-| Require File                | `Require_File__c`           | Whether preparation must include at least one eligible file        |
-| Allowed File Formats        | `Allowed_File_Formats__c`   | Comma-separated formats approved for this template                 |
-| Approved Service Setup      | `Provider_Profile_Key__c`   | Developer name of the reviewed Prompt Context Provider setup       |
-| File Citations              | `File_Citations_Enabled__c` | Whether the reviewed service and model allow document citations    |
-| Draft Revision              | `Draft_Revision__c`         | Increases on every draft save; blocks overwriting newer changes    |
+| Field label                 | API name                    | Purpose                                                                                                               |
+| --------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| Automation Key              | `Developer_Key__c`          | Stable automation identity generated on first save                                                                    |
+| Description                 | `Description__c`            | Administrator-facing intent and usage notes                                                                           |
+| Salesforce Object           | `Root_Object__c`            | Salesforce object used by the current record                                                                          |
+| Prompt Text                 | `Template_Body__c`          | Editable merge-language text                                                                                          |
+| Status                      | `Status__c`                 | `Draft`, `Published`, or `Inactive`                                                                                   |
+| Published Version           | `Version__c`                | Current published version number                                                                                      |
+| Published Version Signature | `Fingerprint__c`            | SHA-256 identity of the published configuration                                                                       |
+| Last Published              | `Published_At__c`           | Publication timestamp                                                                                                 |
+| Last Setup Check Result     | `Last_Health_Status__c`     | `Healthy`, `Unhealthy`, or `Error` from the latest scheduled check                                                    |
+| Last Setup Check            | `Last_Health_Checked_At__c` | Latest scheduled-check timestamp                                                                                      |
+| Last Check Details          | `Last_Health_Codes__c`      | Saved results from the latest setup check                                                                             |
+| Last Checked Version        | `Last_Health_Version__c`    | Published version checked by the scheduled job                                                                        |
+| File Input Mode             | `File_Input_Mode__c`        | Disabled, user selection, or all eligible directly linked files                                                       |
+| Maximum Files               | `Maximum_Files__c`          | Template file limit from one through five                                                                             |
+| Require a File              | `Require_File__c`           | Whether preparation must include at least one eligible file                                                           |
+| Allowed File Formats        | `Allowed_File_Formats__c`   | Comma-separated formats approved for this template                                                                    |
+| Provider Profile Key        | `Provider_Profile_Key__c`   | Developer name of the reviewed Prompt Context Provider setup; Prompt Builder calls it **Approved service setup name** |
+| File Citations Enabled      | `File_Citations_Enabled__c` | Whether the reviewed service and model allow document citations                                                       |
+| Draft Revision              | `Draft_Revision__c`         | Increases on every draft save; blocks overwriting newer changes                                                       |
 
 ## Prompt Data Set (`Prompt_Context_Source__c`)
 
@@ -79,21 +79,21 @@ or filter value.
 This private object is created only for `SAVE_TO_LOG`. Package code manages these fields; automation
 should read the public API result instead of assembling log records directly.
 
-| Field label              | API name                      | Purpose                                                                |
-| ------------------------ | ----------------------------- | ---------------------------------------------------------------------- |
-| Request Key              | `Request_Key__c`              | User-scoped hash used to make the save retry-safe                      |
-| Input Verification Value | `Input_Verification_Value__c` | Checksum that detects a reused key or an accidental edit; not a seal   |
-| Source Record ID         | `Source_Record_Id__c`         | Source Salesforce record Id, stored without a polymorphic lookup       |
-| Prompt Template Version  | `Prompt_Template_Version__c`  | Exact published version used                                           |
-| Prepared Prompt Text     | `Prompt_Text__c`              | Complete prepared prompt                                               |
-| Selected Files           | `Selected_Files_JSON__c`      | Managed JSON list for zero through five exact Salesforce File versions |
-| Input Format Version     | `Input_Format_Version__c`     | Stored-input format; currently `1`                                     |
-| Status                   | `Status__c`                   | `Ready`, `Processing`, `Sent`, `Failed`, `Cancelled`, or `Expired`     |
-| Available At             | `Available_At__c`             | Earliest time a later worker may claim the log                         |
-| Processing Expires At    | `Processing_Expires_At__c`    | Time an unfinished processing claim expires                            |
-| Attempt Count            | `Attempt_Count__c`            | Number of later processing attempts; starts at `0`                     |
-| Last Reason Code         | `Last_Reason_Code__c`         | Stable outcome from the latest processing attempt                      |
-| Retain Until             | `Retain_Until__c`             | Retention boundary; defaults to 30 days after creation                 |
+| Field label                         | API name                      | Purpose                                                                |
+| ----------------------------------- | ----------------------------- | ---------------------------------------------------------------------- |
+| Request Key                         | `Request_Key__c`              | User-scoped hash used to make the save retry-safe                      |
+| Input Verification Value            | `Input_Verification_Value__c` | Checksum that detects a reused key or an accidental edit; not a seal   |
+| Source Record ID                    | `Source_Record_Id__c`         | Source Salesforce record Id, stored without a polymorphic lookup       |
+| Prompt Template Version             | `Prompt_Template_Version__c`  | Exact published version used                                           |
+| Prepared Prompt Text                | `Prompt_Text__c`              | Complete prepared prompt                                               |
+| Selected Salesforce Files (Managed) | `Selected_Files_JSON__c`      | Managed JSON list for zero through five exact Salesforce File versions |
+| Input Format Version                | `Input_Format_Version__c`     | Stored-input format; currently `1`                                     |
+| Status                              | `Status__c`                   | `Ready`, `Processing`, `Sent`, `Failed`, `Cancelled`, or `Expired`     |
+| Available At                        | `Available_At__c`             | Earliest time a later worker may claim the log                         |
+| Processing Expires At               | `Processing_Expires_At__c`    | Time an unfinished processing claim expires                            |
+| Attempt Count                       | `Attempt_Count__c`            | Number of later processing attempts; starts at `0`                     |
+| Last Reason Code                    | `Last_Reason_Code__c`         | Stable outcome from the latest processing attempt                      |
+| Retain Until                        | `Retain_Until__c`             | Retention boundary; defaults to 30 days after creation                 |
 
 ## Prompt Context Provider (`Prompt_Context_Provider__mdt`)
 

@@ -27,6 +27,15 @@ access changes. The health job, or `scripts/apex/runPromptHealth.apex` run once,
 template's last checked time, status, version, and reason codes. It does not generate or store
 customer prompts.
 
+| **Last Setup Check Result** | Meaning                                                           | **Last Check Details**                                  |
+| --------------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| **Healthy**                 | The published version passes validation and required field access | `OK`, or warning codes such as `SENSITIVE_FIELD_REVIEW` |
+| **Unhealthy**               | Validation or required field access failed for the checking user  | Sorted, comma-separated reason codes                    |
+| **Error**                   | The check could not evaluate the template                         | `HEALTH_CHECK_ERROR`                                    |
+
+The job checks 15 templates per page and continues with the next page even when one page fails; the
+failed page keeps its previous values.
+
 The check uses the access of the user who scheduled it. **Healthy** means that user can read every
 required field; it does not prove that the people who generate prompts can. Schedule the job as an
 integration user whose access matches those people, and test generation as a real user after access

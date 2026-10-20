@@ -13,7 +13,7 @@ You need:
 
 - Git;
 - Node.js 22 with npm;
-- Salesforce CLI;
+- Salesforce CLI with the Code Analyzer plugin (`sf plugins install code-analyzer`);
 - an authenticated Dev Hub that can create scratch orgs; and
 - authorization from the Dev Hub owner to consume scratch-org capacity.
 
@@ -32,8 +32,8 @@ npm run ci:gates
 ```
 
 The gate must finish successfully before deployment. It checks formatting, documentation links,
-public-release hygiene, the permission boundary, namespace fixtures, LWC lint, Jest behavior, and
-JavaScript coverage completeness.
+public-release hygiene, the permission boundary, namespace fixtures, the Apex security surface, LWC
+lint, Jest behavior, JavaScript coverage completeness, and Salesforce Code Analyzer findings.
 
 ## 2. Confirm the Dev Hub
 
@@ -136,10 +136,11 @@ explains all 12 templates and the option family each one demonstrates.
 2. Open the **Accounts** tab.
 3. Open **Prompt Context Verification Account**.
 4. In **Prompt Generator**, choose a Published `Verify` template that targets Account.
-5. Select **Generate Context**.
+5. Select **Generate record context**.
 6. Review the generated text and data set counts.
-7. Add optional Prefix or Suffix text, edit the generated text, and select **Copy Complete Prompt**.
-8. Select **Start Over** and confirm the component clears the editable workspace.
+7. Add optional text in **Add instructions at the top (optional)** or **Add instructions at the
+   bottom (optional)**, edit the generated text, and select **Copy complete prompt**.
+8. Select **Start over** and confirm the component clears the editable workspace.
 
 The Account page included in the source is assigned to the Prompt Context Builder app. Other apps
 or objects require explicit Lightning page placement and activation; follow [Configure Prompt

@@ -15,6 +15,9 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 - Added a nightly Prompt Input Log purge and `PromptContextSchedules`, which registers the health
   check and the purge once each. Scheduled classes start their worker by name, so a scheduled job no
   longer blocks deploying the package; `check:apex-surface` enforces that.
+  `PromptTemplateHealthSchedulable.scheduleDaily()` is removed; call
+  `PromptContextSchedules.scheduleHealthCheckDaily()`. A health job scheduled by an earlier revision
+  can still block the upgrade deployment; see the upgrade guide.
 - Prompt Builder shows **Saved changes not published** while a live template's saved draft differs
   from the version users receive, and warns when a restored version used an older syntax version.
 - `{!record.Owner.Name}` and other `Name` fields across a relationship that can point to more than

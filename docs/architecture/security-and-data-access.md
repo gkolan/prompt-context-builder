@@ -102,8 +102,8 @@ sharing rule or manual share grants it, and the record-page component offers the
 
 The package fails the complete request when file permission, direct-link access, a user selection,
 size, format, or approved service settings do not pass. A user-selected request never silently drops
-files. **All eligible** deterministically selects the first eligible current versions up to the
-effective template/provider limit.
+files. **Include all eligible Files** deterministically selects the first eligible current versions
+up to the effective template/provider limit.
 
 The current source does not read file bodies, upload to AWS, or call Amazon Bedrock. Before an
 organization adds that later process, its security owner must approve the AWS account, region,

@@ -15,7 +15,18 @@ transition in a representative sandbox before production.
    - `Prompt_Context_Source_Version__c`
 4. Capture the health state of active Published templates.
 5. Identify Lightning pages, Flow actions, and Apex callers that depend on the product.
-6. Read `CHANGELOG.md` and the target release documentation for contract or migration changes.
+6. In Setup, open **Scheduled Jobs** and record each Prompt Context Builder job, its submitting
+   user, and its next run time.
+7. Read `CHANGELOG.md` and the target release documentation for contract or migration changes.
+
+A health job scheduled by an earlier source revision uses package classes directly, and Salesforce
+can refuse to deploy a class that a pending scheduled job uses. When the current org was deployed
+before `PromptContextSchedules` existed, delete **Prompt Template Health - Daily 2AM** from
+**Scheduled Jobs** immediately before the deployment, then schedule it again afterward as described
+in [Production operations](../production-operations/README.md#schedule-the-nightly-jobs). Jobs
+scheduled through `PromptContextSchedules` do not block deployment. Scripts that called
+`PromptTemplateHealthSchedulable.scheduleDaily()` must call
+`PromptContextSchedules.scheduleHealthCheckDaily()` instead.
 
 Keep exported configuration under the organization's approved data-handling controls. Template
 bodies and filter values can contain sensitive business instructions even though generated prompts
@@ -96,11 +107,15 @@ configuration, security, record-page, Flow, or Apex journey.
 5. Generate from the intended Lightning page as a person with generation access.
 6. Repeat with one required field inaccessible and confirm that no partial prompt is returned.
 7. Run representative Flow and Apex callers and verify the documented response fields.
-8. Record local, deployment, package, browser, and prompt-generation evidence separately.
+8. Schedule every job you deleted, and the Prompt Input Log purge if you save input, as the users
+   recorded before the upgrade. Confirm each job name and next run time in **Scheduled Jobs**.
+9. Record local, deployment, package, browser, and prompt-generation evidence separately.
 
 ## Recovery
 
 - If a source dry run fails, preserve the result and do not deploy.
+- If a deployment fails after you deleted a scheduled job, schedule the job again before you stop
+  work.
 - If a package installation fails, preserve the package version and installation result before
   retrying.
 - If verification fails before production rollout, stop promotion and keep production on its
