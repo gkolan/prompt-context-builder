@@ -15,4 +15,53 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # ci:gates ends with Salesforce Code Analyzer, which needs the CLI and its plugin. No org is used.
+      - run: npm install --global @salesforce/cli@2.152.14
+      - run: sf plugins install code-analyzer@5.16.0
       - run: npm run ci:gates
+
+  # Apex compilation and RunLocalTests need a Salesforce org. This job stays off until the repository
+  # owner stores an SFDX auth URL for an approved validation org in the SF_VALIDATION_AUTH_URL
+  # secret. It runs a check-only deployment and never deploys.
+  validation-org:
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.check.outputs.configured }}
+    steps:
+      - id: check
+        env:
+          SF_VALIDATION_AUTH_URL: ${{ secrets.SF_VALIDATION_AUTH_URL }}
+        run: |
+          if [ -n "$SF_VALIDATION_AUTH_URL" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "No SF_VALIDATION_AUTH_URL secret; Apex validation is skipped."
+          fi
+
+  apex-validation:
+    needs: [local-gates, validation-org]
+    if: needs.validation-org.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    concurrency:
+      group: apex-validation
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm install --global @salesforce/cli@2.152.14
+      - name: Sign in to the approved validation org
+        env:
+          SF_VALIDATION_AUTH_URL: ${{ secrets.SF_VALIDATION_AUTH_URL }}
+        run: echo "$SF_VALIDATION_AUTH_URL" | sf org login sfdx-url --sfdx-url-stdin --alias validation
+      # The integration suites are test-only and never packaged. The security suite needs one free
+      # Salesforce user license in the validation org.
+      - name: Check-only deployment with local tests
+        run: >-
+          sf project deploy validate --target-org validation --test-level RunLocalTests --wait 60
+          --source-dir force-app
+          --source-dir integration-tests/flow-runtime
+          --source-dir integration-tests/formula-fixtures
+          --source-dir integration-tests/security

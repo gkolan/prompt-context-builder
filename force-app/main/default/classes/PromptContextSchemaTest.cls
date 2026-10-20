@@ -67,6 +67,35 @@ private class PromptContextSchemaTest {
   }
 
   @isTest
+  static void shouldAllowNameAcrossARelationshipWhoseTargetsAllHaveName() {
+    // A package record's Owner can be a User or a queue (Group); both have a readable Name.
+    Assert.areEqual(
+      'Owner.Name',
+      PromptContextSchema.requireReadableFieldPath(
+        'Prompt_Template__c',
+        'owner.name'
+      )
+    );
+  }
+
+  @isTest
+  static void shouldRejectOtherFieldsAcrossAPolymorphicRelationship() {
+    try {
+      PromptContextSchema.requireReadableFieldPath(
+        'Prompt_Template__c',
+        'Owner.Email'
+      );
+      Assert.fail('Only Name is shared by every Owner target.');
+    } catch (PromptContextException expected) {
+      Assert.areEqual(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        expected.reasonCode
+      );
+      Assert.isTrue(expected.getMessage().contains('Owner.Name'));
+    }
+  }
+
+  @isTest
   static void shouldOfferUnderstandableBusinessObjectsOnly() {
     List<PromptContextDTO.Option> options = PromptContextSchema.getObjectOptions();
     Set<String> values = new Set<String>();

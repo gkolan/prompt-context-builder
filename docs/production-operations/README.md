@@ -1,13 +1,43 @@
 # Operate Prompt Context Builder
 
+## Schedule the nightly jobs
+
+Two optional jobs keep templates and saved input in order:
+
+| Job                                | What it does                                               | Who schedules it                             |
+| ---------------------------------- | ---------------------------------------------------------- | -------------------------------------------- |
+| Prompt Template Health - Daily 2AM | Checks every published version against the current setup   | A user with **Prompt Context Configure**     |
+| Prompt Input Log Purge - Daily 3AM | Deletes Prompt Input Logs past their **Retain Until** date | A user with **Prompt Context Process Input** |
+
+To schedule a job:
+
+1. Sign in as the user the job should run as. The job uses that user's access every night.
+2. Open **Developer Console**, then choose **Debug → Open Execute Anonymous Window**.
+3. Enter `PromptContextSchedules.scheduleHealthCheckDaily();` or
+   `PromptContextSchedules.scheduleInputPurgeDaily();`, then select **Execute**.
+4. In Setup, open **Scheduled Jobs** and confirm the job name and next run time.
+
+Running the command again keeps the existing job. To stop a job, delete it from **Scheduled Jobs**.
+A scheduled job does not block deploying Prompt Context Builder updates.
+
 ## Monitor template health
 
 Published templates can drift when fields are removed, types change, packages are uninstalled, or
-access changes. Run `PromptTemplateHealthSchedulable` on an approved schedule or execute
-`scripts/apex/runPromptHealth.apex` manually after reviewing its target scope.
+access changes. The health job, or `scripts/apex/runPromptHealth.apex` run once, updates each
+template's last checked time, status, version, and reason codes. It does not generate or store
+customer prompts.
 
-Health checks update the template's last checked time, status, version, and reason codes. They do
-not generate or store customer prompts.
+The check uses the access of the user who scheduled it. **Healthy** means that user can read every
+required field; it does not prove that the people who generate prompts can. Schedule the job as an
+integration user whose access matches those people, and test generation as a real user after access
+changes.
+
+## Retain and purge saved input
+
+Each Prompt Input Log stores a complete copy of the prepared prompt, including record values, until
+its **Retain Until** date, 30 days after it is saved. The purge job deletes only the logs its user
+can see and delete, so schedule it as a user whose sharing covers every saved log, or delete expired
+logs according to your organization's retention process.
 
 ## Monitor generation
 

@@ -3,7 +3,9 @@
 `npm run ci:gates` is the local pull-request gate. It verifies formatting, documentation links and
 navigation, screenshot inventory and file signatures, the Permission Set custom-permission
 boundary, a description for every Salesforce custom field, the namespace fixture contract, Apex
-test-data isolation, LWC lint, LWC Jest behavior, and enforced JavaScript coverage floors.
+test-data isolation, LWC lint, LWC Jest behavior, enforced JavaScript coverage floors, and
+Salesforce Code Analyzer. It needs Node.js 22, the Salesforce CLI, and the Code Analyzer plugin
+(`sf plugins install code-analyzer`), but no Salesforce org.
 
 The coverage command disables Jest's transform cache and then verifies that both shipped LWC
 controllers are present in `coverage-final.json`. A green percentage threshold is not accepted when
@@ -21,7 +23,9 @@ coverage data for a component is missing.
 | Package boundary  | Package-version test and clean install/upgrade evidence approved by the release owner |
 
 Code Analyzer uses `code-analyzer.yml` to apply the repository's ESLint configuration and keep
-Node-only repository scripts out of LWC rule scope. Do not suppress a finding merely because it is
+Node-only repository scripts out of LWC rule scope. `npm run scan:code-analyzer` runs the Recommended
+rules on `force-app` and fails on any critical or high finding. Moderate and low findings are
+advisory; review them in changed files as the change safety playbook describes. Do not suppress a finding merely because it is
 inconvenient; document and narrowly bound any genuine engine false positive.
 
 The Apex test-data isolation gate rejects Account, Contact, and User DML in package test classes.
@@ -50,21 +54,27 @@ playbook is mandatory reading for Apex, metadata, validation, and deployment wor
 
 ## Automated and external evidence
 
-| Check                                              | In `ci:gates` and GitHub CI | Requires an approved Salesforce org           |
-| -------------------------------------------------- | --------------------------- | --------------------------------------------- |
-| Formatting and documentation links                 | Yes                         | No                                            |
-| Screenshot inventory, signatures, and references   | Yes                         | No                                            |
-| Agent-guidance presence and navigation             | Yes                         | No                                            |
-| Apex test-data isolation source check              | Yes                         | No                                            |
-| Apex security-surface source check                 | Yes                         | No                                            |
-| LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                            |
-| Salesforce Code Analyzer                           | No                          | No, although some engines can use org context |
-| Apex compilation and `RunLocalTests`               | No                          | Yes                                           |
-| Check-only deployment                              | No                          | Yes                                           |
-| Source-conflict inspection and resolution          | No                          | Yes                                           |
-| Scheduled Apex inventory and restoration           | No                          | Yes                                           |
-| Mutating deployment                                | No                          | Yes                                           |
-| Browser or package verification                    | No                          | Yes                                           |
+| Check                                              | In `ci:gates` and GitHub CI | Requires an approved Salesforce org |
+| -------------------------------------------------- | --------------------------- | ----------------------------------- |
+| Formatting and documentation links                 | Yes                         | No                                  |
+| Screenshot inventory, signatures, and references   | Yes                         | No                                  |
+| Agent-guidance presence and navigation             | Yes                         | No                                  |
+| Apex test-data isolation source check              | Yes                         | No                                  |
+| Apex security-surface source check                 | Yes                         | No                                  |
+| LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                  |
+| Salesforce Code Analyzer, critical and high        | Yes                         | No                                  |
+| Apex compilation and `RunLocalTests`               | CI only, once configured    | Yes                                 |
+| Check-only deployment                              | CI only, once configured    | Yes                                 |
+| Source-conflict inspection and resolution          | No                          | Yes                                 |
+| Scheduled Apex inventory and restoration           | No                          | Yes                                 |
+| Mutating deployment                                | No                          | Yes                                 |
+| Browser or package verification                    | No                          | Yes                                 |
+
+The `apex-validation` CI job runs a check-only deployment of `force-app` with `RunLocalTests`. It
+is skipped until the repository owner stores an SFDX authorization URL for an approved validation
+org in the `SF_VALIDATION_AUTH_URL` repository secret, and it never deploys. Use an org reserved
+for validation: pull requests from this repository run their Apex tests there, and secrets are not
+available to pull requests from forks.
 
 The local gate cannot prove Apex compilation, Salesforce test results, source-conflict safety,
 deployment, schedule restoration, browser behavior, or package installation. Follow the

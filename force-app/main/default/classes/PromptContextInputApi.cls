@@ -146,15 +146,15 @@ global with sharing class PromptContextInputApi {
   private static PreflightFailure validateDelivery(Request request) {
     if (
       request == null ||
-      (request.deliveryChoice != SAVE_TO_LOG &&
-      request.deliveryChoice != RETURN_TO_APEX)
+      (deliveryChoice(request) != SAVE_TO_LOG &&
+      deliveryChoice(request) != RETURN_TO_APEX)
     ) {
       return new PreflightFailure(
         PromptContextReasonCodes.INVALID_DELIVERY_CHOICE,
         'Select Save to Prompt Input Log or Return to Apex.'
       );
     }
-    if (request.deliveryChoice == SAVE_TO_LOG) {
+    if (deliveryChoice(request) == SAVE_TO_LOG) {
       if (!PromptContextAccess.canSaveInput()) {
         return new PreflightFailure(
           PromptContextReasonCodes.NOT_AUTHORIZED,
@@ -169,6 +169,11 @@ global with sharing class PromptContextInputApi {
       }
     }
     return null;
+  }
+
+  /** Flow users type the choice, so letter case and surrounding spaces do not matter. */
+  private static String deliveryChoice(Request request) {
+    return request?.deliveryChoice?.trim().toUpperCase();
   }
 
   private static PromptContextPreparationService.Request mapRequest(
@@ -218,7 +223,7 @@ global with sharing class PromptContextInputApi {
     for (Integer index = 0; index < requests.size(); index++) {
       Request request = requests[index];
       Result result = results[index];
-      if (request?.deliveryChoice != SAVE_TO_LOG || result.success != true) {
+      if (deliveryChoice(request) != SAVE_TO_LOG || result.success != true) {
         continue;
       }
       PromptContextInputLogService.SaveRequest saveRequest = new PromptContextInputLogService.SaveRequest();

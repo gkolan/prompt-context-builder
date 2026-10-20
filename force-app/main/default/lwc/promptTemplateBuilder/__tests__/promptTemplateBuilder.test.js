@@ -9,6 +9,7 @@ import getTemplateVersions from "@salesforce/apex/PromptContextController.getTem
 import compareTemplateVersions from "@salesforce/apex/PromptContextController.compareTemplateVersions";
 import saveDraft from "@salesforce/apex/PromptContextController.saveDraft";
 import publishTemplate from "@salesforce/apex/PromptContextController.publish";
+import restoreTemplateVersion from "@salesforce/apex/PromptContextController.restoreTemplateVersion";
 
 jest.mock(
   "@salesforce/apex/PromptContextController.getObjectOptions",
@@ -683,6 +684,7 @@ describe("c-prompt-template-builder", () => {
       status: "Published",
       version: 1,
       draftRevision: 4,
+      hasUnpublishedChanges: true,
       sources: []
     });
     saveDraft.mockImplementation(({ configJson }) =>
@@ -739,5 +741,129 @@ describe("c-prompt-template-builder", () => {
       sampleRecordId: "001000000000001AAA",
       draftRevision: 4
     });
+    expect(
+      element.shadowRoot.querySelector(".slds-badge").textContent
+    ).not.toContain("Saved changes not published");
+  });
+
+  it("shows when saved changes to a live template are not published", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: "a01000000000001", name: "Account", status: "Published" }],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    getTemplate.mockResolvedValue({
+      id: "a01000000000001",
+      name: "Account",
+      rootObject: "Account",
+      templateBody: "{!record.Name}",
+      status: "Published",
+      version: 3,
+      hasUnpublishedChanges: true,
+      sources: []
+    });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+
+    [...element.shadowRoot.querySelectorAll("lightning-combobox")]
+      .find((combobox) => combobox.label === "Open a template")
+      .dispatchEvent(
+        new CustomEvent("change", { detail: { value: "a01000000000001" } })
+      );
+    await flushPromises();
+    await flushPromises();
+
+    expect(element.shadowRoot.querySelector(".slds-badge").textContent).toBe(
+      "Published · Version 3 · Saved changes not published"
+    );
+  });
+
+  it("asks for a preview record before publishing", async () => {
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    const toasts = [];
+    element.addEventListener("lightning__showtoast", (event) =>
+      toasts.push(event.detail)
+    );
+    document.body.appendChild(element);
+    await flushPromises();
+
+    [...element.shadowRoot.querySelectorAll("lightning-button")]
+      .find((button) => button.label === "Publish")
+      .click();
+    await flushPromises();
+
+    expect(toasts[0].message).toBe(
+      "Choose a preview record before publishing."
+    );
+    expect(publishTemplate).not.toHaveBeenCalled();
+  });
+
+  it("warns when a restored version used an older syntax version", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: "a01000000000001", name: "Account", status: "Published" }],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    const template = {
+      id: "a01000000000001",
+      name: "Account",
+      rootObject: "Account",
+      templateBody: "{!record.Name}",
+      status: "Published",
+      version: 2,
+      syntaxVersion: 2,
+      draftRevision: 5,
+      sources: []
+    };
+    getTemplate.mockResolvedValue(template);
+    restoreTemplateVersion.mockResolvedValue({ ...template, draftRevision: 6 });
+    getTemplateVersions.mockResolvedValue([
+      {
+        versionNumber: 2,
+        syntaxVersion: 2,
+        publishedAt: "2026-10-18T12:00:00.000Z"
+      },
+      {
+        versionNumber: 1,
+        syntaxVersion: 1,
+        publishedAt: "2026-09-18T12:00:00.000Z"
+      }
+    ]);
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    const toasts = [];
+    element.addEventListener("lightning__showtoast", (event) =>
+      toasts.push(event.detail)
+    );
+    document.body.appendChild(element);
+    await flushPromises();
+    [...element.shadowRoot.querySelectorAll("lightning-combobox")]
+      .find((combobox) => combobox.label === "Open a template")
+      .dispatchEvent(
+        new CustomEvent("change", { detail: { value: "a01000000000001" } })
+      );
+    await flushPromises();
+    await flushPromises();
+
+    [...element.shadowRoot.querySelectorAll("lightning-button")]
+      .find((button) => button.label === "Restore as draft")
+      .click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(restoreTemplateVersion).toHaveBeenCalledWith({
+      templateId: "a01000000000001",
+      versionNumber: 1,
+      draftRevision: 5
+    });
+    const restoredToast = toasts[toasts.length - 1];
+    expect(restoredToast.variant).toBe("warning");
+    expect(restoredToast.message).toContain("syntax version 1");
   });
 });

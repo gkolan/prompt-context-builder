@@ -16,6 +16,14 @@
         <apexClass>PromptContextInputLifecycle</apexClass>
         <enabled>true</enabled>
     </classAccesses>
+    <classAccesses><apexClass
+    >PromptContextInputPurgeQueueable</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass
+    >PromptContextInputPurgeSchedulable</apexClass><enabled
+    >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextSchedules</apexClass><enabled
+    >true</enabled></classAccesses>
     <classAccesses>
         <apexClass>PromptContextInputLogService</apexClass>
         <enabled>true</enabled>

@@ -312,11 +312,16 @@ export default class PromptTemplateBuilder extends LightningElement {
   }
 
   get statusText() {
+    // Saved edits to a live template stay invisible to users until they are published.
+    const unpublishedText =
+      !this.isDirty && this.config.hasUnpublishedChanges
+        ? " · Saved changes not published"
+        : "";
     const dirtyText = this.isDirty ? " · Unsaved changes" : "";
     const healthText = this.config.lastHealthStatus
       ? ` · Health ${this.config.lastHealthStatus}`
       : "";
-    return `${this.config.status || "Draft"} · Version ${this.config.version || 0}${healthText}${dirtyText}`;
+    return `${this.config.status || "Draft"} · Version ${this.config.version || 0}${healthText}${unpublishedText}${dirtyText}`;
   }
 
   get hasStoredHealth() {
@@ -1002,8 +1007,8 @@ export default class PromptTemplateBuilder extends LightningElement {
   async handlePreview() {
     if (!this.sampleRecordId) {
       this.toast(
-        "Sample record needed",
-        "Enter a current record ID to preview.",
+        "Preview record needed",
+        "Choose a preview record first.",
         "warning"
       );
       return;
@@ -1039,8 +1044,8 @@ export default class PromptTemplateBuilder extends LightningElement {
   async handlePublish() {
     if (!this.sampleRecordId) {
       this.toast(
-        "Sample record needed",
-        "Enter a current record ID before publishing.",
+        "Preview record needed",
+        "Choose a preview record before publishing.",
         "warning"
       );
       return;
@@ -1063,7 +1068,8 @@ export default class PromptTemplateBuilder extends LightningElement {
         ...this.config,
         status: "Published",
         version: result.templateVersion,
-        fingerprint: result.fingerprint
+        fingerprint: result.fingerprint,
+        hasUnpublishedChanges: false
       };
       this.messages = result.messages;
       this.setAccessManifest(result.accessManifest);
@@ -1143,6 +1149,21 @@ export default class PromptTemplateBuilder extends LightningElement {
       await Promise.all(
         this.config.sources.map((source, index) => this.loadSourceFields(index))
       );
+      const restoredFrom = this.versions.find(
+        (version) => version.versionNumber === Number(this.fromVersion)
+      );
+      // Republishing uses the current merge language, which can print the same data differently.
+      if (
+        restoredFrom?.syntaxVersion &&
+        restoredFrom.syntaxVersion < this.config.syntaxVersion
+      ) {
+        this.toast(
+          "Version restored as draft",
+          `Version ${restoredFrom.versionNumber} was published with syntax version ${restoredFrom.syntaxVersion}. Publishing this draft uses syntax version ${this.config.syntaxVersion}, which prints picklist labels, plain text, and dates differently. Preview it before publishing.`,
+          "warning"
+        );
+        return;
+      }
       this.toast(
         "Version restored as draft",
         "The published version is unchanged. Review this draft and publish it to create a new version.",

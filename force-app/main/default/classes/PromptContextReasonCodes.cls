@@ -44,6 +44,11 @@ public with sharing class PromptContextReasonCodes {
   public static final String FLOW_GROUP_LIMIT_EXCEEDED = 'FLOW_GROUP_LIMIT_EXCEEDED';
   public static final String FLOW_PAYLOAD_LIMIT_EXCEEDED = 'FLOW_PAYLOAD_LIMIT_EXCEEDED';
   public static final String PROMPT_TOO_LONG = 'PROMPT_TOO_LONG';
+  public static final String FORMULA_INPUT_NOT_VERIFIED = 'FORMULA_INPUT_NOT_VERIFIED';
+  /** Warning code: a maxLength attribute shortened at least one value. */
+  public static final String FIELD_TRUNCATED = 'FIELD_TRUNCATED';
+  /** Stored health code: the scheduled check could not evaluate a template. */
+  public static final String HEALTH_CHECK_ERROR = 'HEALTH_CHECK_ERROR';
   public static final String UNEXPECTED_ERROR = 'UNEXPECTED_ERROR';
 
   @TestVisible

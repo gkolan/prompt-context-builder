@@ -4,8 +4,9 @@ This guide is for contributors changing Prompt Context Builder source or documen
 
 ## Prepare a local checkout
 
-Use Node.js 22 and the current Salesforce CLI. Fork the repository in GitHub, then clone your fork
-and install the locked dependencies:
+Use Node.js 22 and the current Salesforce CLI with the Code Analyzer plugin
+(`sf plugins install code-analyzer`), which `npm run ci:gates` runs. Fork the repository in GitHub,
+then clone your fork and install the locked dependencies:
 
 ```bash
 git clone https://github.com/YOUR-ACCOUNT/prompt-context-builder.git

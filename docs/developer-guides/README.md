@@ -100,7 +100,10 @@ or create a process.
 
 `PromptContextFlowRuntimeTest` and its two test-only Flows live in `integration-tests/flow-runtime`;
 `PromptContextFormulaFieldTest`, its test-only formula fields, and its permission set live in
-`integration-tests/formula-fixtures`. Include both directories when validating against an org; neither
-is packaged.
+`integration-tests/formula-fixtures`. `PromptContextRestrictedUserTest` in `integration-tests/security`
+runs generation, publishing, and lifecycle writes as a minimum-access user who holds only the package
+Permission Sets, so Salesforce enforces sharing, object access, and field access for real. It creates
+that user inside the test, Salesforce rolls it back, and it needs one free Salesforce user license.
+Include all three directories when validating against an org; none is packaged.
 
 See [Reason codes](../reference/reason-codes.md) and [Limits](../reference/limits.md).

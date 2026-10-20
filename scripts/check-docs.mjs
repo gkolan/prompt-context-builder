@@ -145,6 +145,42 @@ for (const directory of fs.readdirSync(path.join(workspace, "docs"), {
   }
 }
 
+// A junior administrator follows the walkthrough literally, so every field it names must be a real
+// Prompt Builder label.
+const builderDirectory = path.join(
+  workspace,
+  "force-app/main/default/lwc/promptTemplateBuilder"
+);
+const builderSource = ["promptTemplateBuilder.html", "promptTemplateBuilder.js"]
+  .map((fileName) =>
+    fs.readFileSync(path.join(builderDirectory, fileName), "utf8")
+  )
+  .join("\n");
+const builderLabels = new Set(
+  [
+    ...builderSource.matchAll(
+      /(?:label|source-label|selected-label)="([^"]+)"/g
+    ),
+    ...builderSource.matchAll(/\blabel:\s*"([^"]+)"/g)
+  ].map((match) => match[1])
+);
+const walkthrough = fs.readFileSync(
+  path.join(workspace, "docs/step-by-step-guide/README.md"),
+  "utf8"
+);
+for (const table of walkthrough.matchAll(
+  /^\| Field in Prompt Builder[^\n]*\n\|[-| ]+\|\n((?:\|[^\n]*\n)+)/gm
+)) {
+  for (const row of table[1].trim().split("\n")) {
+    const fieldLabel = row.split("|")[1].trim();
+    if (!builderLabels.has(fieldLabel)) {
+      failures.push(
+        `docs/step-by-step-guide/README.md: "${fieldLabel}" is not a Prompt Builder label`
+      );
+    }
+  }
+}
+
 if (failures.length > 0) {
   console.error("Documentation checks failed:\n" + failures.join("\n"));
   process.exitCode = 1;

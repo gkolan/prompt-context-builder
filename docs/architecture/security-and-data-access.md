@@ -52,6 +52,28 @@ File discovery and confirmation read only versions the running user can access a
 `ContentDocumentLink` to the current record. The selected list pins exact version IDs, order, format,
 size, version number, and last-modified time. It never stores file contents.
 
+## Saved prompt text is a copy
+
+A Prompt Input Log stores the prepared prompt as plain text. That text keeps the record values the
+saving user could read when it was prepared; it is not checked again against the source record's
+sharing or field access. Anyone who can read the log can read those values, including users above
+the owner in the role hierarchy and users with View All on the object. Review **Grant Access Using
+Hierarchies** for Prompt Input Log in Sharing Settings, share logs with a separate worker user only
+through an explicit sharing rule, and schedule the purge job described in
+[Production operations](../production-operations/README.md).
+
+The log's Input Verification Value is a checksum of the stored input. It catches accidental edits;
+someone who can edit both the text and the checksum can change them together.
+
+## Record text can contain instructions
+
+Field values reach the model exactly as people wrote them. A Case description or email body can
+include text aimed at the model, such as "ignore the instructions above." Merge syntax inside a
+value is never run, but the model still reads the words. Keep your own instructions first, place
+customer-written fields inside clearly labeled delimiters, and tell the model to treat that section
+as data. Validation warns with `SENSITIVE_FIELD_REVIEW` when a template prints a long text field.
+See [Build prompt templates](../build-templates/README.md#keep-customer-text-separate-from-instructions).
+
 ## Safe Salesforce searches
 
 - Objects, fields, and relationships must exist in Salesforce and be available to the running user.
@@ -69,6 +91,12 @@ A readable blank value can remain blank or use configured fallback text. A requi
 or no longer exists is different: generation stops. Errors, measurements, and troubleshooting
 details exclude customer values and prompt content. Completed text is never treated as a new field
 instruction or active HTML.
+
+## Template sharing
+
+Internal users with Prompt Context Configure can edit any template: internal sharing is Public
+Read/Write. External sharing is Private, so Experience Cloud users see a template only when a
+sharing rule or manual share grants it, and the record-page component offers them nothing else.
 
 ## Files and external delivery
 

@@ -39,7 +39,8 @@ The prompt remains usable, but the Flow should decide whether that limited data 
 | **Delivery Choice**         | Yes      | `RETURN_TO_APEX` or `SAVE_TO_LOG`; case does not matter      |
 | **Request Key**             | For save | Stable caller key used to make a retry safe                  |
 
-Delivery Choice matches the API value regardless of case. A label such as `Save to log` returns
+Delivery Choice matches the API value regardless of case and surrounding spaces. A label such as
+`Save to log` returns
 `INVALID_DELIVERY_CHOICE`; the action reports it as a failed result and does not fault the Flow.
 
 Existing Process Builder processes call this same action with the same inputs. Salesforce no longer

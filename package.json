@@ -29,11 +29,12 @@
     "check:test-data-isolation": "node scripts/check-test-data-isolation.mjs",
     "check:apex-surface": "node scripts/check-apex-surface.mjs",
     "scan:sfge": "node scripts/scan-sfge.mjs",
+    "scan:code-analyzer": "node scripts/scan-code-analyzer.mjs",
     "demo:setup-source": "sf apex run --file scripts/apex/seedVerificationTemplates.apex",
     "demo:verify-source": "sf apex run --file scripts/apex/verifyVerificationTemplates.apex",
     "prettier": "prettier --write \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",
     "prettier:verify": "prettier --check \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",
-    "ci:gates": "npm run prettier:verify && npm run check:docs && npm run check:screenshots && npm run check:agent-guidance && npm run check:language && npm run check:common-entry && npm run check:day-one && npm run check:input-log && npm run check:file-input && npm run check:match-bulk && npm run check:release && npm run check:permissions && npm run check:field-descriptions && npm run check:namespace-fixtures && npm run check:test-data-isolation && npm run check:apex-surface && npm run lint && npm run test:unit:coverage",
+    "ci:gates": "npm run prettier:verify && npm run check:docs && npm run check:screenshots && npm run check:agent-guidance && npm run check:language && npm run check:common-entry && npm run check:day-one && npm run check:input-log && npm run check:file-input && npm run check:match-bulk && npm run check:release && npm run check:permissions && npm run check:field-descriptions && npm run check:namespace-fixtures && npm run check:test-data-isolation && npm run check:apex-surface && npm run lint && npm run test:unit:coverage && npm run scan:code-analyzer",
     "prepare": "husky || true",
     "precommit": "lint-staged"
   },

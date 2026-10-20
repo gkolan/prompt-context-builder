@@ -207,6 +207,77 @@ private class PromptTemplateGovernanceServiceTest {
   }
 
   @isTest
+  static void shouldWarnThatLongTextIsDataNotInstructions() {
+    System.runAs(getConfigurator()) {
+      PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
+      config.name = 'Free text';
+      config.rootObject = 'Prompt_Template__c';
+      config.templateBody = 'Summarize this text:\n{!record.Template_Body__c}';
+
+      List<PromptContextDTO.Message> warnings = PromptTemplateGovernanceService.buildAccessManifest(
+          config
+        )
+        .warnings;
+
+      Boolean warned = false;
+      for (PromptContextDTO.Message warning : warnings) {
+        warned =
+          warned ||
+          (warning.code == 'SENSITIVE_FIELD_REVIEW' &&
+          warning.text.contains('Template_Body__c') &&
+          warning.text.contains('instructions'));
+      }
+      Assert.isTrue(
+        warned,
+        'Long text can carry instructions for the model: ' + warnings
+      );
+    }
+  }
+
+  @isTest
+  static void shouldFlagSavedChangesUntilTheyArePublished() {
+    System.runAs(getConfigurator()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
+        JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
+      );
+      Boolean flaggedAsDraft = saved.hasUnpublishedChanges;
+      PromptContextController.publish(saved.id, rootId, saved.draftRevision);
+      Boolean flaggedAfterPublish = PromptContextController.getTemplate(
+          saved.id
+        )
+        .hasUnpublishedChanges;
+
+      saved = PromptContextController.getTemplate(saved.id);
+      saved.sources[0].maxRows = 1;
+      Boolean flaggedAfterEdit = PromptContextController.saveDraft(
+          JSON.serialize(saved)
+        )
+        .hasUnpublishedChanges;
+      PromptContextController.publish(
+        saved.id,
+        rootId,
+        saved.draftRevision + 1
+      );
+      Boolean flaggedAfterRepublish = PromptContextController.getTemplate(
+          saved.id
+        )
+        .hasUnpublishedChanges;
+
+      Assert.isFalse(
+        flaggedAsDraft,
+        'A never-published Draft has no live version.'
+      );
+      Assert.isFalse(flaggedAfterPublish);
+      Assert.isTrue(
+        flaggedAfterEdit,
+        'A saved edit to a live template is not live until published.'
+      );
+      Assert.isFalse(flaggedAfterRepublish);
+    }
+  }
+
+  @isTest
   static void shouldKeepLifecycleFieldsOutOfAuthorEditAccess() {
     Set<String> lifecycleFields = new Set<String>{
       'Prompt_Template__c.Status__c',

@@ -1,2 +1,2 @@
-String jobId = PromptTemplateHealthSchedulable.scheduleDaily();
+String jobId = PromptContextSchedules.scheduleHealthCheckDaily();
 System.debug('Prompt template health scheduled: ' + jobId);

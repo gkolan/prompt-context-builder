@@ -3,6 +3,7 @@ public with sharing class PromptContextSchemaCache {
   private static Map<String, Schema.SObjectType> globalByName;
   private static Map<Schema.SObjectType, Schema.DescribeSObjectResult> objectsByType;
   private static Map<Schema.SObjectField, Schema.DescribeFieldResult> fieldsByToken;
+  private static Map<Schema.SObjectType, Map<String, Schema.SObjectField>> relationshipsByType;
 
   public static Map<String, Schema.SObjectType> globalDescribe() {
     if (globalByName == null) {
@@ -50,10 +51,41 @@ public with sharing class PromptContextSchemaCache {
     return fieldsByToken.get(fieldToken);
   }
 
+  /** Returns an object's lookup fields keyed by lowercase relationship name, built once per object. */
+  public static Map<String, Schema.SObjectField> relationshipFields(
+    Schema.DescribeSObjectResult objectDescription
+  ) {
+    if (relationshipsByType == null) {
+      relationshipsByType = new Map<Schema.SObjectType, Map<String, Schema.SObjectField>>();
+    }
+    Schema.SObjectType objectType = objectDescription.getSObjectType();
+    if (!relationshipsByType.containsKey(objectType)) {
+      Map<String, Schema.SObjectField> byName = new Map<String, Schema.SObjectField>();
+      for (
+        Schema.SObjectField fieldToken : objectDescription.fields.getMap()
+          .values()
+      ) {
+        Schema.DescribeFieldResult fieldDescription = describeField(fieldToken);
+        if (
+          fieldDescription.getType() == Schema.DisplayType.Reference &&
+          fieldDescription.getRelationshipName() != null
+        ) {
+          byName.put(
+            fieldDescription.getRelationshipName().toLowerCase(),
+            fieldToken
+          );
+        }
+      }
+      relationshipsByType.put(objectType, byName);
+    }
+    return relationshipsByType.get(objectType);
+  }
+
   @TestVisible
   private static void clearForTest() {
     globalByName = null;
     objectsByType = null;
     fieldsByToken = null;
+    relationshipsByType = null;
   }
 }

@@ -460,7 +460,10 @@ private class PromptContextScenarioTest {
       generate(config, LONG_NAME);
       Assert.fail('A prompt over the limit must not be returned.');
     } catch (PromptContextException expected) {
-      Assert.isTrue(expected.getMessage().contains('20,000'));
+      Assert.isTrue(
+        expected.getMessage()
+          .contains(PromptContextContract.MAX_PROMPT_CHARACTERS.format())
+      );
     }
   }
 

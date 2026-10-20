@@ -82,7 +82,7 @@ should read the public API result instead of assembling log records directly.
 | Field label              | API name                      | Purpose                                                                |
 | ------------------------ | ----------------------------- | ---------------------------------------------------------------------- |
 | Request Key              | `Request_Key__c`              | User-scoped hash used to make the save retry-safe                      |
-| Input Verification Value | `Input_Verification_Value__c` | Hash used to detect a reused key with different input                  |
+| Input Verification Value | `Input_Verification_Value__c` | Checksum that detects a reused key or an accidental edit; not a seal   |
 | Source Record ID         | `Source_Record_Id__c`         | Source Salesforce record Id, stored without a polymorphic lookup       |
 | Prompt Template Version  | `Prompt_Template_Version__c`  | Exact published version used                                           |
 | Prepared Prompt Text     | `Prompt_Text__c`              | Complete prepared prompt                                               |

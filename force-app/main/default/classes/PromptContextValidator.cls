@@ -78,7 +78,9 @@ public with sharing class PromptContextValidator {
       result.addError(
         'TEMPLATE_TOO_LONG',
         'Prompt template',
-        'Keep the prompt template at or below 20,000 characters.'
+        'Keep the prompt template at or below ' +
+          PromptContextContract.MAX_TEMPLATE_CHARACTERS.format() +
+          ' characters.'
       );
     }
     validateRoot(config, result);
@@ -727,7 +729,9 @@ public with sharing class PromptContextValidator {
       result.addError(
         'TOO_MANY_FIELDS',
         location,
-        'Choose no more than 25 fields for one data set.'
+        'Choose no more than ' +
+          PromptContextContract.MAX_FIELDS_PER_SOURCE +
+          ' fields for one data set.'
       );
     }
     if (filterCount > PromptContextContract.MAX_FILTERS_PER_SOURCE) {

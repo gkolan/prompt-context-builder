@@ -165,7 +165,7 @@ public with sharing class PromptContextPreparationService {
       PromptContextDTO.TemplateConfig header = PromptTemplateService.getRuntimeHeader(
         templateId
       );
-      if (header.status != 'Published') {
+      if (header.status != PromptContextContract.TEMPLATE_PUBLISHED) {
         throw PromptContextException.withReason(
           PromptContextReasonCodes.TEMPLATE_NOT_PUBLISHED,
           'Only a published template can generate prompts.'
@@ -337,6 +337,8 @@ public with sharing class PromptContextPreparationService {
     response.accessManifest = null;
   }
 
+  /** Returns the reason a failure carries; message text never decides a public reason code. */
+  @TestVisible
   private static String classify(Exception exceptionValue) {
     if (exceptionValue instanceof PromptContextAccess.AuthorizationException) {
       return PromptContextReasonCodes.NOT_AUTHORIZED;
@@ -347,35 +349,6 @@ public with sharing class PromptContextPreparationService {
       if (!String.isBlank(domainReason)) {
         return domainReason;
       }
-    }
-    String message = exceptionValue.getMessage()?.toLowerCase();
-    if (
-      message != null &&
-      message.contains('record') &&
-      (message.contains('not found') || message.contains('not accessible'))
-    ) {
-      return PromptContextReasonCodes.RECORD_NOT_ACCESSIBLE;
-    }
-    if (
-      message != null &&
-      message.contains('prompt') &&
-      message.contains('long')
-    ) {
-      return PromptContextReasonCodes.PROMPT_TOO_LONG;
-    }
-    if (
-      message != null &&
-      (message.contains('invalid configuration') ||
-      message.contains('configuration contains') ||
-      message.contains('template contains'))
-    ) {
-      return PromptContextReasonCodes.INVALID_CONFIGURATION;
-    }
-    if (message != null && message.contains('not found')) {
-      return PromptContextReasonCodes.TEMPLATE_NOT_FOUND;
-    }
-    if (message != null && message.contains('published')) {
-      return PromptContextReasonCodes.TEMPLATE_NOT_PUBLISHED;
     }
     return PromptContextReasonCodes.UNEXPECTED_ERROR;
   }

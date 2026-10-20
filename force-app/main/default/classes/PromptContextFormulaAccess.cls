@@ -107,7 +107,7 @@ public with sharing class PromptContextFormulaAccess {
     code = STRING_LITERAL.matcher(code).replaceAll('""');
     if (code.contains(':')) {
       throw PromptContextException.withReason(
-        'FORMULA_INPUT_NOT_VERIFIED',
+        PromptContextReasonCodes.FORMULA_INPUT_NOT_VERIFIED,
         'A formula uses a relationship to more than one object type, so its fields cannot be checked.'
       );
     }
@@ -127,7 +127,7 @@ public with sharing class PromptContextFormulaAccess {
     String detail
   ) {
     return PromptContextException.withReason(
-      'FORMULA_INPUT_NOT_VERIFIED',
+      PromptContextReasonCodes.FORMULA_INPUT_NOT_VERIFIED,
       'Formula field ' + fieldPath + ' ' + detail + '.'
     );
   }

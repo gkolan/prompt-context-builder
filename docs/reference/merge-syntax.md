@@ -15,6 +15,12 @@ as inert text and are never parsed again.
 
 Indexes are zero-based. The configured source must expose every referenced related field.
 
+A field path can follow up to five relationships. A relationship that can point to more than one
+kind of record, such as a Case or Lead `Owner` (a user or a queue) or a Task `Who` (a contact or a
+lead), supports only `Name`: `{!record.Owner.Name}`. It works when every kind of record it can point
+to has a `Name` field you can read. Other fields across such a relationship, and `What` on Tasks and
+Events, which can point to records without a `Name` field, return `INVALID_CONFIGURATION`.
+
 ## Blocks
 
 ```text

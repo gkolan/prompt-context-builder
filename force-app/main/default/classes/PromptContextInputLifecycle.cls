@@ -19,9 +19,9 @@ public with sharing class PromptContextInputLifecycle {
       SELECT Id
       FROM Prompt_Input_Log__c
       WHERE
-        (Status__c = 'Ready'
+        (Status__c = :PromptContextContract.INPUT_READY
         AND Available_At__c <= :nowValue)
-        OR (Status__c = 'Processing'
+        OR (Status__c = :PromptContextContract.INPUT_PROCESSING
         AND Processing_Expires_At__c <= :nowValue)
       WITH USER_MODE
       ORDER BY Available_At__c ASC, Id ASC
@@ -45,9 +45,9 @@ public with sharing class PromptContextInputLifecycle {
         FROM Prompt_Input_Log__c
         WHERE
           Id IN :oldest
-          AND ((Status__c = 'Ready'
+          AND ((Status__c = :PromptContextContract.INPUT_READY
           AND Available_At__c <= :nowValue)
-          OR (Status__c = 'Processing'
+          OR (Status__c = :PromptContextContract.INPUT_PROCESSING
           AND Processing_Expires_At__c <= :nowValue))
         WITH USER_MODE
         FOR UPDATE
@@ -62,11 +62,11 @@ public with sharing class PromptContextInputLifecycle {
     List<Prompt_Input_Log__c> claimed = new List<Prompt_Input_Log__c>();
     List<Prompt_Input_Log__c> updates = new List<Prompt_Input_Log__c>();
     for (Prompt_Input_Log__c candidate : candidates) {
-      if (candidate.Status__c == 'Processing') {
+      if (candidate.Status__c == PromptContextContract.INPUT_PROCESSING) {
         updates.add(
           new Prompt_Input_Log__c(
             Id = candidate.Id,
-            Status__c = 'Failed',
+            Status__c = PromptContextContract.INPUT_FAILED,
             Last_Reason_Code__c = PromptContextReasonCodes.DELIVERY_OUTCOME_UNCERTAIN,
             Processing_Expires_At__c = null
           )
@@ -77,7 +77,7 @@ public with sharing class PromptContextInputLifecycle {
         updates.add(
           new Prompt_Input_Log__c(
             Id = candidate.Id,
-            Status__c = 'Failed',
+            Status__c = PromptContextContract.INPUT_FAILED,
             Last_Reason_Code__c = PromptContextReasonCodes.INPUT_VERIFICATION_FAILED,
             Processing_Expires_At__c = null
           )
@@ -89,7 +89,7 @@ public with sharing class PromptContextInputLifecycle {
         updates.add(
           new Prompt_Input_Log__c(
             Id = candidate.Id,
-            Status__c = 'Failed',
+            Status__c = PromptContextContract.INPUT_FAILED,
             Last_Reason_Code__c = PromptContextReasonCodes.DELIVERY_RETRY_LIMIT,
             Processing_Expires_At__c = null
           )
@@ -97,7 +97,7 @@ public with sharing class PromptContextInputLifecycle {
         continue;
       }
       attempts++;
-      candidate.Status__c = 'Processing';
+      candidate.Status__c = PromptContextContract.INPUT_PROCESSING;
       candidate.Attempt_Count__c = attempts;
       candidate.Processing_Expires_At__c = nowValue.addMinutes(
         PromptContextContract.INPUT_PROCESSING_MINUTES
@@ -116,7 +116,7 @@ public with sharing class PromptContextInputLifecycle {
   public static void markSent(Id inputLogId) {
     PromptContextAccess.requireProcessInput();
     Prompt_Input_Log__c recordValue = requireProcessing(inputLogId);
-    recordValue.Status__c = 'Sent';
+    recordValue.Status__c = PromptContextContract.INPUT_SENT;
     recordValue.Processing_Expires_At__c = null;
     recordValue.Last_Reason_Code__c = null;
     Database.update(
@@ -140,7 +140,9 @@ public with sharing class PromptContextInputLifecycle {
       retryable == true &&
       providerMayHaveAccepted != true &&
       attempts < PromptContextContract.MAX_INPUT_DELIVERY_ATTEMPTS;
-    recordValue.Status__c = mayRetry ? 'Ready' : 'Failed';
+    recordValue.Status__c = mayRetry
+      ? PromptContextContract.INPUT_READY
+      : PromptContextContract.INPUT_FAILED;
     recordValue.Available_At__c = mayRetry
       ? System.now().addMinutes(PromptContextContract.INPUT_RETRY_MINUTES)
       : recordValue.Available_At__c;
@@ -167,7 +169,7 @@ public with sharing class PromptContextInputLifecycle {
       FROM Prompt_Input_Log__c
       WHERE
         Retain_Until__c <= :nowValue
-        AND (Status__c != 'Processing'
+        AND (Status__c != :PromptContextContract.INPUT_PROCESSING
         OR Processing_Expires_At__c <= :nowValue)
       WITH USER_MODE
       ORDER BY Retain_Until__c ASC, Id ASC
@@ -200,7 +202,10 @@ public with sharing class PromptContextInputLifecycle {
       LIMIT 1
       FOR UPDATE
     ];
-    if (records.isEmpty() || records[0].Status__c != 'Processing') {
+    if (
+      records.isEmpty() ||
+      records[0].Status__c != PromptContextContract.INPUT_PROCESSING
+    ) {
       throw PromptContextException.withReason(
         PromptContextReasonCodes.INPUT_LOG_STATE_CHANGED,
         'This Prompt Input Log is no longer in Processing status.'

@@ -8,6 +8,16 @@ public with sharing class PromptContextContract {
   /** First syntax version that prints labels, plain text, and fixed date formats. */
   public static final Integer SYNTAX_VERSION_READABLE_OUTPUT = 2;
 
+  /** Prompt Template Status__c values. */
+  public static final String TEMPLATE_DRAFT = 'Draft';
+  public static final String TEMPLATE_PUBLISHED = 'Published';
+  public static final String TEMPLATE_INACTIVE = 'Inactive';
+  /** Prompt Input Log Status__c values. */
+  public static final String INPUT_READY = 'Ready';
+  public static final String INPUT_PROCESSING = 'Processing';
+  public static final String INPUT_SENT = 'Sent';
+  public static final String INPUT_FAILED = 'Failed';
+
   public static final Integer MAX_SOURCES = 10;
   public static final Integer MAX_FIELDS_PER_SOURCE = 25;
   public static final Integer MAX_FILTERS_PER_SOURCE = 10;

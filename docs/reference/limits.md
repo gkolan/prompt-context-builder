@@ -15,7 +15,7 @@ These are hard safety and governor-limit boundaries owned by `PromptContextContr
 | Sort fields per source             |           3 | Use business order first; the service adds `Id` as a stable tiebreaker      |
 | Rows per source                    |          50 | Start with the default of 10 and raise only when the prompt needs more rows |
 | Rows across one prompt             |         200 | Later sources stop at the cap and return an explicit warning                |
-| Input rows per calculated source   |       1,000 | Narrow filters before calculating across a larger matching set              |
+| Input rows per calculated source   |       1,000 | Narrow filters; in Flow and Apex the cap covers every record in the request |
 | Relationship depth                 |           5 | Flatten deeper context into another supported source                        |
 | Template characters                |      20,000 | Remove repeated instructions or split the template                          |
 | Generated prompt characters        |      20,000 | Reduce fields or source row limits                                          |
@@ -31,7 +31,7 @@ These are hard safety and governor-limit boundaries owned by `PromptContextContr
 | Approved service review age        |     90 days | Recheck the service and update its Last Verified Date                       |
 | Logs claimed by one worker         |          25 | Run another worker for the remaining Ready records                          |
 | Delivery attempts per saved input  |           3 | Investigate the final failure before an administrator starts new work       |
-| Prompt Input Log retention         |     30 days | Purge or archive according to the organization's approved retention policy  |
+| Prompt Input Log retention         |     30 days | Schedule the purge job, or delete or archive under your retention policy    |
 | Template list page size            | 100 maximum | Page through results; the default is 50                                     |
 
 During generation, Prompt Context Builder can lower the safe record count when little Salesforce

@@ -282,6 +282,35 @@ private class PromptContextInputLifecycleTest {
     }
   }
 
+  @isTest
+  static void shouldPurgeOnlyExpiredInputs() {
+    System.runAs(configurator()) {
+      Id expiredId = createLog('purge-expired');
+      Id keptId = createLog('purge-kept');
+      update new Prompt_Input_Log__c(
+        Id = expiredId,
+        Retain_Until__c = System.now().addDays(-1)
+      );
+
+      Test.startTest();
+      System.enqueueJob(new PromptContextInputPurgeQueueable());
+      Test.stopTest();
+
+      Assert.areEqual(
+        new Set<Id>{ keptId },
+        new Map<Id, Prompt_Input_Log__c>(
+            [
+              SELECT Id
+              FROM Prompt_Input_Log__c
+              WHERE Id IN (:expiredId, :keptId)
+            ]
+          )
+          .keySet(),
+        'The purge deletes expired logs and keeps current ones.'
+      );
+    }
+  }
+
   private static User configurator() {
     return PromptContextTestDataFactory.createConfiguratorUser();
   }

@@ -70,6 +70,8 @@
     <classAccesses><apexClass
     >PromptTemplateHealthSchedulable</apexClass><enabled
     >true</enabled></classAccesses>
+    <classAccesses><apexClass>PromptContextSchedules</apexClass><enabled
+    >true</enabled></classAccesses>
     <description
   >Create, edit, validate, preview, and publish secure record-context prompt templates.</description>
     <customPermissions>

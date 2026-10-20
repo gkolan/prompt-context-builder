@@ -375,6 +375,32 @@ private class PromptContextInputApiTest {
   }
 
   @isTest
+  static void shouldAcceptADeliveryChoiceInAnyLetterCase() {
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
+    System.runAs(configurator) {
+      PromptContextInputApi.Request saved = requestForDelivery(
+        ' save_to_log ',
+        'any-case-save'
+      );
+      PromptContextInputApi.Request returned = requestForDelivery(
+        'Return_To_Apex',
+        null
+      );
+
+      Test.startTest();
+      List<PromptContextInputApi.Result> results = PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{ saved, returned }
+      );
+      Test.stopTest();
+
+      Assert.isTrue(results[0].success, results[0].reasonCode);
+      Assert.isNotNull(results[0].inputLogId, 'The save choice must save.');
+      Assert.isTrue(results[1].success, results[1].reasonCode);
+      Assert.isNull(results[1].inputLogId, 'The return choice must not save.');
+    }
+  }
+
+  @isTest
   static void shouldRejectRequestWhenDeliveryChoiceIsMissing() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();
     System.runAs(configurator) {

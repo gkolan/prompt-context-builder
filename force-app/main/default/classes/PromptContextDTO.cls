@@ -185,11 +185,14 @@ public with sharing class PromptContextDTO {
     public Boolean fileCitationsEnabled { get; set; }
     @AuraEnabled
     public List<SourceConfig> sources { get; set; }
+    /** True when a live template's saved draft differs from the version users receive. */
+    @AuraEnabled
+    public Boolean hasUnpublishedChanges { get; set; }
 
     /** Creates a draft template with an empty source list. */
     public TemplateConfig() {
       sources = new List<SourceConfig>();
-      status = 'Draft';
+      status = PromptContextContract.TEMPLATE_DRAFT;
       version = 0;
       syntaxVersion = PromptContextContract.SYNTAX_VERSION;
       contractVersion = PromptContextContract.CONTRACT_VERSION;
@@ -470,6 +473,9 @@ public with sharing class PromptContextDTO {
     public Id id { get; set; }
     @AuraEnabled
     public Integer versionNumber { get; set; }
+    /** Merge-language version the publication renders with. */
+    @AuraEnabled
+    public Integer syntaxVersion { get; set; }
     @AuraEnabled
     public Datetime publishedAt { get; set; }
     @AuraEnabled

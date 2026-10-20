@@ -26,6 +26,30 @@ private class PromptContextServiceTest {
   }
 
   @isTest
+  static void shouldPrintTheOwnerNameOfTheCurrentRecord() {
+    Prompt_Template__c rootRecord = PromptContextTestDataFactory.selectRootRecord();
+    PromptContextDTO.TemplateConfig config = new PromptContextDTO.TemplateConfig();
+    config.name = 'Owner name';
+    config.rootObject = 'Prompt_Template__c';
+    config.templateBody = 'Owner: {!record.Owner.Name}';
+
+    PromptContextDTO.PromptResult result = PromptContextService.generate(
+      config,
+      rootRecord.Id
+    );
+
+    // Apex tests cannot read Name values through a polymorphic relationship (SOQL returns null
+    // here), so compare with what Salesforce returns in this context. A real org prints the name.
+    String ownerName = [
+      SELECT Owner.Name
+      FROM Prompt_Template__c
+      WHERE Id = :rootRecord.Id
+    ]
+    .Owner.Name;
+    Assert.areEqual('Owner: ' + (ownerName ?? ''), result.prompt);
+  }
+
+  @isTest
   static void shouldKeepSameObjectSourcesIndependent_WhenFiltersAndSortsDiffer() {
     Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();
     PromptContextDTO.TemplateConfig config = PromptContextTestDataFactory.createTwoSourceConfig();

@@ -146,12 +146,17 @@ public with sharing class PromptContextSchema {
     String requestedPath
   ) {
     if (String.isBlank(requestedPath)) {
+      // No reason: the validator names this with the setting's own code.
       throw new PromptContextException('A field name is required.');
     }
     List<String> segments = requestedPath.trim().split('\\.');
     if (segments.size() > PromptContextContract.MAX_RELATIONSHIP_DEPTH + 1) {
       throw new PromptContextException(
-        'Field path ' + requestedPath + ' is deeper than five relationships.'
+        'Field path ' +
+          requestedPath +
+          ' is deeper than ' +
+          PromptContextContract.MAX_RELATIONSHIP_DEPTH +
+          ' relationships.'
       );
     }
 
@@ -212,9 +217,25 @@ public with sharing class PromptContextSchema {
       }
       List<Schema.SObjectType> referenceTypes = relationshipDescription.getReferenceTo();
       if (referenceTypes.size() != 1) {
+        // Salesforce exposes Name across a relationship that can point to several objects, such
+        // as Owner. Allow only that field, and only when every target has a Name the user can read.
+        String relationshipName = relationshipDescription.getRelationshipName();
+        if (
+          index == segments.size() - 2 &&
+          segments[index + 1].equalsIgnoreCase('Name') &&
+          everyTargetHasReadableName(referenceTypes)
+        ) {
+          canonicalSegments.add(relationshipName);
+          canonicalSegments.add('Name');
+          return String.join(canonicalSegments, '.');
+        }
         throw PromptContextException.withReason(
           PromptContextReasonCodes.INVALID_CONFIGURATION,
-          'Relationship ' + segment + ' must reference one object type.'
+          'Relationship ' +
+            segment +
+            ' can point to several kinds of record. Use ' +
+            relationshipName +
+            '.Name, which works when every kind of record has a Name you can read.'
         );
       }
       canonicalSegments.add(relationshipDescription.getRelationshipName());
@@ -348,37 +369,44 @@ public with sharing class PromptContextSchema {
       !BLOCKED_TYPES.contains(description.getType());
   }
 
+  private static Boolean everyTargetHasReadableName(
+    List<Schema.SObjectType> targets
+  ) {
+    for (Schema.SObjectType target : targets) {
+      Schema.DescribeSObjectResult description = PromptContextSchemaCache.describeObject(
+        target
+      );
+      Schema.DescribeFieldResult nameField = PromptContextSchemaCache.describeField(
+        findField(description, 'Name')
+      );
+      if (
+        !description.isAccessible() ||
+        nameField == null ||
+        !nameField.isAccessible()
+      ) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static Schema.SObjectField findField(
     Schema.DescribeSObjectResult objectDescription,
     String requestedName
   ) {
-    for (String fieldName : objectDescription.fields.getMap().keySet()) {
-      if (fieldName.equalsIgnoreCase(requestedName)) {
-        return objectDescription.fields.getMap().get(fieldName);
-      }
-    }
-    return null;
+    // Describe field-map keys are lowercase API names.
+    return requestedName == null
+      ? null
+      : objectDescription.fields.getMap().get(requestedName.toLowerCase());
   }
 
   private static Schema.SObjectField findRelationshipField(
     Schema.DescribeSObjectResult objectDescription,
     String requestedName
   ) {
-    for (
-      Schema.SObjectField fieldToken : objectDescription.fields.getMap()
-        .values()
-    ) {
-      Schema.DescribeFieldResult fieldDescription = PromptContextSchemaCache.describeField(
-        fieldToken
-      );
-      if (
-        fieldDescription.getType() == Schema.DisplayType.Reference &&
-        fieldDescription.getRelationshipName() != null &&
-        fieldDescription.getRelationshipName().equalsIgnoreCase(requestedName)
-      ) {
-        return fieldToken;
-      }
-    }
-    return null;
+    return requestedName == null
+      ? null
+      : PromptContextSchemaCache.relationshipFields(objectDescription)
+          .get(requestedName.toLowerCase());
   }
 }

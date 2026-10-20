@@ -50,6 +50,53 @@ private class PromptContextPreparationServiceTest {
     );
   }
 
+  @isTest
+  static void shouldNotInferAReasonFromMessageText() {
+    Assert.areEqual(
+      PromptContextReasonCodes.UNEXPECTED_ERROR,
+      PromptContextPreparationService.classify(
+        new PromptContextException('The record was not found.')
+      ),
+      'Rewording a message must never change a public reason code.'
+    );
+    Assert.areEqual(
+      PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
+      PromptContextPreparationService.classify(
+        PromptContextException.withReason(
+          PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
+          'Any wording'
+        )
+      )
+    );
+  }
+
+  @isTest
+  static void shouldReportAMissingPublishedVersionAsTemplateNotFound() {
+    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
+    System.runAs(configurator) {
+      Prompt_Template__c templateRecord = [
+        SELECT Id
+        FROM Prompt_Template__c
+        WHERE Status__c = 'Published'
+        LIMIT 1
+      ];
+      update new Prompt_Template__c(Id = templateRecord.Id, Version__c = 99);
+      PromptContextPreparationService.Request request = new PromptContextPreparationService.Request();
+      request.templateId = templateRecord.Id;
+      request.recordId = PromptContextTestDataFactory.selectRootRecord().Id;
+
+      PromptContextPreparationService.Response response = PromptContextPreparationService.execute(
+        new List<PromptContextPreparationService.Request>{ request },
+        'APEX'
+      )[0];
+
+      Assert.areEqual(
+        PromptContextReasonCodes.TEMPLATE_NOT_FOUND,
+        response.reasonCode
+      );
+    }
+  }
+
   @TestSetup
   static void setupData() {
     User configurator = PromptContextTestDataFactory.createConfiguratorUser();

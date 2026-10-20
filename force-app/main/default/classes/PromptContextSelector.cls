@@ -12,7 +12,7 @@ public inherited sharing class PromptContextSelector {
       return [
         SELECT Id
         FROM Prompt_Template__c
-        WHERE Status__c = 'Published'
+        WHERE Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
         WITH USER_MODE
         ORDER BY Id
         LIMIT :queryLimit
@@ -21,7 +21,9 @@ public inherited sharing class PromptContextSelector {
     return [
       SELECT Id
       FROM Prompt_Template__c
-      WHERE Status__c = 'Published' AND Id > :afterId
+      WHERE
+        Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
+        AND Id > :afterId
       WITH USER_MODE
       ORDER BY Id
       LIMIT :queryLimit
@@ -243,7 +245,9 @@ public inherited sharing class PromptContextSelector {
         Allowed_File_Formats__c,
         Provider_Profile_Key__c
       FROM Prompt_Template__c
-      WHERE Root_Object__c = :rootObject AND Status__c = 'Published'
+      WHERE
+        Root_Object__c = :rootObject
+        AND Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
       WITH USER_MODE
       ORDER BY Name
       LIMIT 200
@@ -319,6 +323,22 @@ public inherited sharing class PromptContextSelector {
     try {
       return Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
     } catch (QueryException exceptionValue) {
+      // User mode names fields hidden from the running user; that is an access failure, which
+      // safe messages hide from people without Diagnostics.
+      Map<String, Set<String>> hiddenFields = exceptionValue.getInaccessibleFields();
+      if (hiddenFields != null && !hiddenFields.isEmpty()) {
+        List<String> names = new List<String>();
+        for (String objectName : hiddenFields.keySet()) {
+          for (String fieldName : hiddenFields.get(objectName)) {
+            names.add(objectName + '.' + fieldName);
+          }
+        }
+        names.sort();
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
+          'You do not have access to ' + String.join(names, ', ') + '.'
+        );
+      }
       // Some objects require special filters, and very large objects require selective filters.
       // Report a named reason instead of a raw platform error.
       throw PromptContextException.withReason(

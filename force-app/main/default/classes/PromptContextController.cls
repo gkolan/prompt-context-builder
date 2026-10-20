@@ -68,7 +68,7 @@ public with sharing class PromptContextController {
   public static PromptContextDTO.TemplateConfig getTemplate(Id templateId) {
     try {
       PromptContextAccess.requireConfigure();
-      return PromptTemplateService.getTemplate(templateId);
+      return withPublishState(PromptTemplateService.getTemplate(templateId));
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
     } catch (PromptContextException exceptionValue) {
@@ -148,10 +148,12 @@ public with sharing class PromptContextController {
   ) {
     try {
       PromptContextAccess.requireConfigure();
-      return PromptTemplateGovernanceService.restoreVersionAsDraft(
-        templateId,
-        versionNumber,
-        draftRevision
+      return withPublishState(
+        PromptTemplateGovernanceService.restoreVersionAsDraft(
+          templateId,
+          versionNumber,
+          draftRevision
+        )
       );
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
@@ -170,7 +172,9 @@ public with sharing class PromptContextController {
   public static PromptContextDTO.TemplateConfig saveDraft(String configJson) {
     try {
       PromptContextAccess.requireConfigure();
-      return PromptTemplateService.saveDraft(parseConfig(configJson));
+      return withPublishState(
+        PromptTemplateService.saveDraft(parseConfig(configJson))
+      );
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
     } catch (PromptContextException exceptionValue) {
@@ -264,7 +268,7 @@ public with sharing class PromptContextController {
   ) {
     try {
       PromptContextAccess.requireConfigure();
-      return PromptTemplateService.deactivate(templateId);
+      return withPublishState(PromptTemplateService.deactivate(templateId));
     } catch (PromptContextAccess.AuthorizationException exceptionValue) {
       throw safeException(Label.PCB_Access_Denied);
     } catch (PromptContextException exceptionValue) {
@@ -307,7 +311,7 @@ public with sharing class PromptContextController {
       PromptContextDTO.TemplateConfig header = PromptTemplateService.getRuntimeHeader(
         templateId
       );
-      if (header.status != 'Published') {
+      if (header.status != PromptContextContract.TEMPLATE_PUBLISHED) {
         throw new PromptContextException(
           'Only a published template can list Salesforce Files.'
         );
@@ -393,6 +397,16 @@ public with sharing class PromptContextController {
     signal.templateId = templateId;
     signal.correlationId = PromptContextTrace.newCorrelationId();
     PromptContextMetrics.publishOne(signal);
+  }
+
+  /** Adds whether saved draft changes are still waiting to be published. */
+  private static PromptContextDTO.TemplateConfig withPublishState(
+    PromptContextDTO.TemplateConfig config
+  ) {
+    config.hasUnpublishedChanges = PromptTemplateGovernanceService.hasUnpublishedChanges(
+      config
+    );
+    return config;
   }
 
   private static PromptContextDTO.TemplateConfig parseConfig(

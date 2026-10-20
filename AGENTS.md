@@ -18,9 +18,11 @@ source conflicts, Scheduled Apex recovery, deployment sequencing, and evidence l
 Apply these rules in every repository session:
 
 - Inspect `git status --short` before editing and preserve unexplained user changes.
-- Apex tests must not perform DML on `Account`, `Contact`, or `User`. In-memory standard records are
-  allowed for schema, parser, and rendering behavior. Persist package-owned fixtures only when the
-  test requires database behavior.
+- Apex tests in `force-app` must not perform DML on `Account`, `Contact`, or `User`. In-memory
+  standard records are allowed for schema, parser, and rendering behavior. Persist package-owned
+  fixtures only when the test requires database behavior. The one exception is the test-only
+  `integration-tests/security` suite, which inserts a minimum-access `User` that Salesforce rolls
+  back so security is tested as a real restricted user.
 - Do not use `SeeAllData=true`, profile display names, or org-existing business data as test setup.
 - Test queries must identify records by semantic keys or states. Do not use an unqualified
   `LIMIT 1` when more than one semantic record can exist; add `ORDER BY` when order matters.

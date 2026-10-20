@@ -700,9 +700,10 @@
           4. Salesforce Files
         </h2>
         <p class="slds-text-body_small slds-text-color_weak">
-          Choose whether this template can use current Salesforce Files linked
-          directly to the record. A separate permission controls who may send
-          them outside Salesforce.
+          Choose whether this template can reference current Salesforce Files
+          linked directly to the record. Prompt Context Builder records which
+          file versions were chosen; it never reads or sends file contents.
+          Sending files is left to a separately approved process.
         </p>
         <lightning-combobox
           name="fileInputMode"

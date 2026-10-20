@@ -52,7 +52,10 @@ public with sharing class PromptContextBulkService {
           String prompt = rendered.text;
           if (prompt.length() > PromptContextContract.MAX_PROMPT_CHARACTERS) {
             outcome.reasonCode = PromptContextReasonCodes.PROMPT_TOO_LONG;
-            outcome.message = 'The generated prompt is longer than 20,000 characters. Reduce fields, records, or template text.';
+            outcome.message =
+              'The generated prompt is longer than ' +
+              PromptContextContract.MAX_PROMPT_CHARACTERS.format() +
+              ' characters. Reduce fields, records, or template text.';
           } else {
             PromptContextDTO.PromptResult result = new PromptContextDTO.PromptResult();
             result.prompt = prompt;
@@ -186,12 +189,16 @@ public with sharing class PromptContextBulkService {
         continue;
       }
       RuntimeContext runtime = runtimeById.get(recordId);
-      List<SObject> matches = rowsByKey.get(keyByRecordId.get(recordId));
-      matches = matches == null ? new List<SObject>() : matches.clone();
       Integer available = Math.max(
         0,
         PromptContextContract.MAX_ROWS_PER_PROMPT - runtime.totalRows
       );
+      if (available == 0) {
+        addTotalRowLimit(runtime, source);
+        continue;
+      }
+      List<SObject> matches = rowsByKey.get(keyByRecordId.get(recordId));
+      matches = matches == null ? new List<SObject>() : matches.clone();
       Integer effectiveLimit = Math.min(perValueLimit, available);
       Boolean truncated = matches.size() > effectiveLimit;
       while (matches.size() > effectiveLimit) {
@@ -474,11 +481,15 @@ public with sharing class PromptContextBulkService {
       rows.remove(rows.size() - 1);
     }
     for (RuntimeContext runtime : runtimeById.values()) {
-      List<SObject> availableRows = rows.clone();
       Integer remaining = Math.max(
         0,
         PromptContextContract.MAX_ROWS_PER_PROMPT - runtime.totalRows
       );
+      if (remaining == 0) {
+        addTotalRowLimit(runtime, source);
+        continue;
+      }
+      List<SObject> availableRows = rows.clone();
       Boolean promptTruncated = availableRows.size() > remaining;
       while (availableRows.size() > remaining) {
         availableRows.remove(availableRows.size() - 1);
@@ -508,6 +519,24 @@ public with sharing class PromptContextBulkService {
         'A calculated data set matches too many records. Narrow its filters before generating.'
       );
     }
+  }
+
+  private static void addTotalRowLimit(
+    RuntimeContext runtime,
+    PromptContextDTO.SourceConfig source
+  ) {
+    runtime.relatedByAlias.put(source.referenceName, new List<SObject>());
+    runtime.countsByAlias.put(source.referenceName, 0);
+    runtime.messages.add(
+      new PromptContextDTO.Message(
+        'WARNING',
+        PromptContextReasonCodes.TOTAL_ROW_LIMIT,
+        'Data set ' + source.referenceName,
+        'The prompt reached its ' +
+          PromptContextContract.MAX_ROWS_PER_PROMPT +
+          '-record limit before adding this data set.'
+      )
+    );
   }
 
   private static void addNullMatch(

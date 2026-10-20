@@ -6,6 +6,24 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Added `integration-tests/security`, which runs generation, publishing, and lifecycle writes as a
+  minimum-access user who holds only the package Permission Sets, so Salesforce enforces sharing,
+  object access, and field access for real.
+- `npm run ci:gates` now runs Salesforce Code Analyzer and fails on any critical or high finding.
+  GitHub CI installs the Salesforce CLI for it and adds an `apex-validation` job that runs a
+  check-only deployment with local tests once an `SF_VALIDATION_AUTH_URL` secret is set.
+- Added a nightly Prompt Input Log purge and `PromptContextSchedules`, which registers the health
+  check and the purge once each. Scheduled classes start their worker by name, so a scheduled job no
+  longer blocks deploying the package; `check:apex-surface` enforces that.
+- Prompt Builder shows **Saved changes not published** while a live template's saved draft differs
+  from the version users receive, and warns when a restored version used an older syntax version.
+- `{!record.Owner.Name}` and other `Name` fields across a relationship that can point to more than
+  one kind of record now work when every target has a readable `Name`.
+- Validation warns with `SENSITIVE_FIELD_REVIEW` when a template prints long text, which can
+  contain instructions aimed at the model. The security and template guides describe the safe
+  pattern.
+- `check:docs` verifies that every field named in the first-template walkthrough is a real Prompt
+  Builder label.
 - Added syntax version 2. New publications print picklist labels, plain text from rich text, fixed
   ISO dates and UTC date-times, currency codes, and percent signs; reject Address and Location
   fields and impossible row indexes; and support `maxLength="n"` and the `{!!}` literal escape.

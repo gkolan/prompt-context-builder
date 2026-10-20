@@ -37,7 +37,8 @@ and removes Prompt Input Logs. It grants **Custom Permission: Prompt Context Pro
 private-object access needed by `PromptContextInputLifecycle`.
 
 Do not use this Permission Set as general record access. The worker receives only the Prompt Input
-Logs visible to its Salesforce user, and changed stored input fails verification before processing.
+Logs visible to its Salesforce user, and changed stored input fails its checksum before processing.
+The same Permission Set lets its user schedule the nightly purge of expired logs.
 
 ## Prompt Context Configure
 

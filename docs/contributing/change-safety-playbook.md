@@ -78,6 +78,12 @@ Deploy-critical package tests do not insert, update, upsert, delete, or undelete
 - `Contact`
 - `User`
 
+The test-only restricted-user suite in `integration-tests/security` is the one exception. It
+inserts one minimum-access `User`, chosen by license and permissions, never by profile name, so
+sharing and field access are enforced for a real restricted user. Salesforce rolls the user back
+after each test. The suite is never packaged and needs one free Salesforce user license in the
+validation org.
+
 Those records can be constructed without DML when a parser, renderer, describe operation, or schema
 validator needs their types. Keeping an `Account` or `Contact` in memory does not invoke subscriber
 automation.
@@ -171,7 +177,8 @@ npm run ci:gates
 ```
 
 The local gate covers formatting, documentation, repository contracts, Apex test-data isolation,
-LWC lint, LWC Jest behavior, and LWC coverage completeness. It does not authenticate to Salesforce,
+LWC lint, LWC Jest behavior, LWC coverage completeness, and critical or high Code Analyzer findings.
+It does not authenticate to Salesforce,
 compile Apex in an org, run `RunLocalTests`, deploy metadata, inspect Scheduled Apex, resolve source
 tracking, verify a browser, or install a package version.
 

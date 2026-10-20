@@ -11,16 +11,16 @@ The example creates Account context with a consistently ordered list of visible 
 
 ## 1. Create the template
 
-Create a template with these values:
+Set these fields:
 
-| Setting           | Value                   |
-| ----------------- | ----------------------- |
-| Name              | Account contact context |
-| Automation key    | Created after you save  |
-| Salesforce object | Account                 |
-| Status            | Draft                   |
+| Field in Prompt Builder | Value                   |
+| ----------------------- | ----------------------- |
+| Template name           | Account contact context |
+| Salesforce object       | Account                 |
 
-Use this body:
+A new template starts as Draft. Prompt Builder creates its **Automation key** when you first save.
+
+Enter this text in **Template body**:
 
 ```text
 Account: {!record.Name fallback="Unknown account"}
@@ -34,26 +34,27 @@ No visible contacts were found.
 
 ## 2. Add related data
 
-Add one data set:
+Select **Add related data**, then set:
 
-| Setting                    | Value           |
-| -------------------------- | --------------- |
-| Reference name             | `contacts`      |
-| Records to include         | Related         |
-| Related object             | Contact         |
-| Current record field       | `Id`            |
-| Related record match field | `AccountId`     |
-| Prompt fields              | `Name`, `Email` |
-| Sort                       | Name, Ascending |
-| Maximum records            | 10              |
+| Field in Prompt Builder        | Value                                          |
+| ------------------------------ | ---------------------------------------------- |
+| Reference name                 | `contacts`                                     |
+| Records to include             | Match a current record field                   |
+| Result type                    | Records                                        |
+| Object to query                | Contact                                        |
+| Current record field           | `Id`                                           |
+| Source match field             | `AccountId`                                    |
+| Fields available to the prompt | Move `Name` and `Email` to **Selected fields** |
+| Maximum records                | 10                                             |
+
+Then select **Add sort** and set **Field** to `Name` and **Direction** to Ascending.
 
 The reference name appears in the inserted field code. It is separate from the object name and lets
 two data sets include Contact records with different filters or sorting.
 
 ![Contact data set using current-record field matching](../screenshots/prompt-builder-related-data-current.png)
 
-The screenshot is browser evidence from the approved scratch-org baseline captured on September
-26, 2026. It does not claim that every current workspace change is deployed.
+Deployed scratch-org screenshot, September 26, 2026; see [screenshot evidence](../screenshots/README.md).
 
 ## 3. Validate and preview
 
@@ -70,6 +71,8 @@ Publish only after preview succeeds. Publishing creates a fixed version and reco
 signature. Saving later edits changes the editable settings. A live template keeps its Published
 status, and generation continues to use the latest fixed version until the edits are previewed and
 published as a new version.
+
+While saved edits wait to be published, the status badge shows **Saved changes not published**.
 
 If someone else saved the template after you opened it, Publish stops with `DRAFT_CHANGED` and
 publishes nothing. Reload the template, preview their changes, then publish again. **Restore as
