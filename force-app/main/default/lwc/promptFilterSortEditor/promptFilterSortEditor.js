@@ -103,6 +103,12 @@ let keySequence = 0;
 export default class PromptFilterSortEditor extends LightningElement {
   @api source;
   @api disabled = false;
+  /** Calculated values do not use sort order, so their editor shows only filters. */
+  @api hideSorts = false;
+
+  get showSorts() {
+    return !this.hideSorts;
+  }
   filterOperators = FILTER_OPERATORS;
   sortDirections = SORT_DIRECTIONS;
   nullsOptions = NULLS_OPTIONS;

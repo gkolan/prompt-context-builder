@@ -118,4 +118,17 @@ describe("c-prompt-filter-sort-editor", () => {
     join.dispatchEvent(new CustomEvent("change", { detail: { value: "OR" } }));
     expect(changes).toEqual([{ filterGroupJoin: "OR" }]);
   });
+  it("shows only filters for a calculated value", () => {
+    const { element } = mount();
+    element.hideSorts = true;
+    return Promise.resolve().then(() => {
+      const text = element.shadowRoot.textContent;
+      expect(text).not.toContain("Sort order");
+      expect(
+        [...element.shadowRoot.querySelectorAll("lightning-button")].some(
+          (candidate) => candidate.label === "Add filter"
+        )
+      ).toBe(true);
+    });
+  });
 });

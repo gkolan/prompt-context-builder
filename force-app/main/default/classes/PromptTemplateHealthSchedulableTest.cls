@@ -6,30 +6,24 @@
 private class PromptTemplateHealthSchedulableTest {
   @TestSetup
   static void setupTestUser() {
-    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
-    insert new PermissionSetAssignment(
-      AssigneeId = configurator.Id,
-      PermissionSetId = [
-        SELECT Id
-        FROM PermissionSet
-        WHERE Name = 'Prompt_Context_Process_Input'
-        LIMIT 1
-      ]
-      .Id
-    );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextTestDataFactory.assignPermissionSets(
+        new Set<String>{ 'Prompt_Context_Process_Input' }
+      );
+    }
   }
 
   @isTest
   static void shouldRegisterEachDailyJobOnce() {
     System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
-      // Registration is under test here; shouldRejectEachScheduleWithoutItsPermission covers access.
+      // Registration is under test here; shouldRejectEachScheduleWithoutItsPermission covers access,
+      // and the worker tests cover running each job. No Test.stopTest, so the jobs stay scheduled
+      // instead of running in a context that cannot see permission sets granted inside the test.
       PromptContextAccess.setProcessInputForTest(true);
-      Test.startTest();
       String healthId = PromptContextSchedules.scheduleHealthCheckDaily();
       String repeatedHealthId = PromptContextSchedules.scheduleHealthCheckDaily();
       String purgeId = PromptContextSchedules.scheduleInputPurgeDaily();
       String repeatedPurgeId = PromptContextSchedules.scheduleInputPurgeDaily();
-      Test.stopTest();
 
       Map<Id, CronTrigger> jobs = new Map<Id, CronTrigger>(
         [
@@ -54,27 +48,29 @@ private class PromptTemplateHealthSchedulableTest {
 
   @isTest
   static void shouldRejectEachScheduleWithoutItsPermission() {
-    PromptContextAccess.setConfigureForTest(false);
-    PromptContextAccess.setProcessInputForTest(false);
-    List<String> refused = new List<String>();
-    try {
-      PromptContextSchedules.scheduleHealthCheckDaily();
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      refused.add(expected.reasonCode);
-    }
-    try {
-      PromptContextSchedules.scheduleInputPurgeDaily();
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      refused.add(expected.reasonCode);
-    }
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextAccess.setConfigureForTest(false);
+      PromptContextAccess.setProcessInputForTest(false);
+      List<String> refused = new List<String>();
+      try {
+        PromptContextSchedules.scheduleHealthCheckDaily();
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        refused.add(expected.reasonCode);
+      }
+      try {
+        PromptContextSchedules.scheduleInputPurgeDaily();
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        refused.add(expected.reasonCode);
+      }
 
-    Assert.areEqual(
-      new List<String>{
-        PromptContextReasonCodes.NOT_AUTHORIZED,
-        PromptContextReasonCodes.NOT_AUTHORIZED
-      },
-      refused
-    );
+      Assert.areEqual(
+        new List<String>{
+          PromptContextReasonCodes.NOT_AUTHORIZED,
+          PromptContextReasonCodes.NOT_AUTHORIZED
+        },
+        refused
+      );
+    }
   }
 
   @isTest

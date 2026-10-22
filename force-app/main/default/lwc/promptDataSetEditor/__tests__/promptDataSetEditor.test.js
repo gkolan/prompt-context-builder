@@ -103,9 +103,11 @@ describe("c-prompt-data-set-editor", () => {
       "Contact: visible reference records; no extra filters; one SUM value."
     );
     expect(control(element, "lightning-input", "maxRows")).toBeUndefined();
-    expect(
-      element.shadowRoot.querySelector("c-prompt-filter-sort-editor")
-    ).toBeNull();
+    const rules = element.shadowRoot.querySelector(
+      "c-prompt-filter-sort-editor"
+    );
+    expect(rules).not.toBeNull();
+    expect(rules.hideSorts).toBe(true);
     change(
       control(element, "lightning-combobox", "aggregateOperation"),
       "COUNT"
@@ -245,5 +247,17 @@ describe("c-prompt-data-set-editor", () => {
     expect(saved.filterLogic).toBeNull();
     expect(saved).not.toHaveProperty("fieldOptions");
     expect(saved).not.toHaveProperty("mergeField");
+  });
+  it("numbers each data set by its position, not its processing order", () => {
+    const element = createElement("c-prompt-data-set-editor", {
+      is: PromptDataSetEditor
+    });
+    element.source = { ...SOURCE, referenceName: "opps", sequence: 1 };
+    element.position = 1;
+    document.body.appendChild(element);
+
+    expect(element.shadowRoot.querySelector("h3").textContent).toBe(
+      "Data set 2 (opps)"
+    );
   });
 });

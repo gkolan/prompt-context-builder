@@ -193,8 +193,18 @@ public with sharing class PromptContextQuery {
       'rowLimit' => queryLimit
     };
     List<String> conditions = buildConditions(source, correlationValue, binds);
+    String calculatedField = source.aggregateOperation == 'COUNT' ||
+      String.isBlank(source.aggregateField)
+      ? ''
+      : ', ' +
+        PromptContextSchema.requireReadableFieldPath(
+          source.relatedObject,
+          source.aggregateField
+        );
     return new Plan(
-      'SELECT Id FROM ' +
+      'SELECT Id' +
+        calculatedField +
+        ' FROM ' +
         source.relatedObject +
         (conditions.isEmpty()
           ? ''

@@ -84,6 +84,15 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Fixed
 
+- In a multi-currency org, a calculated SUM, AVG, MIN, or MAX of a currency field printed Salesforce's
+  corporate-currency conversion without a code (`1444.44` for 1,300 EUR). Syntax version 2 now
+  calculates from the matching records and prints the exact amount with the rule's currency
+  (`1300.00 EUR`); single-currency orgs print the org's code.
+- Prompt Builder numbered every data set with the same processing order (`Data set 1` twice); it now
+  shows each data set's position and reference name. Calculated data sets now show their filters,
+  including the required currency rule, without sort controls.
+- About ninety Apex tests passed only when the org administrator already held the package Permission
+  Sets. They now run as a user the test grants those Permission Sets to, so they pass in a new org.
 - Four Apex tests that picked a template version or data set version with an unqualified `LIMIT 1`
   now select it by its template and reference name, and `selectRootRecord()` fails instead of
   guessing when a test creates a second root record. The public-release scan no longer reads nested

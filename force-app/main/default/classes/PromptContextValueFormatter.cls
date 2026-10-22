@@ -33,6 +33,18 @@ public with sharing class PromptContextValueFormatter {
     '\\n[ \\t]*\\n(?:[ \\t]*\\n)+'
   );
 
+  /** A calculated currency amount and the ISO code it is expressed in. */
+  public class Money {
+    public Decimal amount;
+    public String currencyCode;
+
+    /** Creates an amount in one currency. */
+    public Money(Decimal amount, String currencyCode) {
+      this.amount = amount;
+      this.currencyCode = currencyCode;
+    }
+  }
+
   /** Field facts that decide how a value is printed. */
   public class FieldInfo {
     public Schema.DisplayType type;
@@ -92,6 +104,11 @@ public with sharing class PromptContextValueFormatter {
     FieldInfo field,
     String currencyCode
   ) {
+    if (value instanceof Money) {
+      Money money = (Money) value;
+      return money.amount.toPlainString() +
+        (String.isBlank(money.currencyCode) ? '' : ' ' + money.currencyCode);
+    }
     // Apex treats a Date as an instance of Datetime, so the Date check must come first.
     if (value instanceof Date) {
       return String.valueOf((Date) value);

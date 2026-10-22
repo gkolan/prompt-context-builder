@@ -496,16 +496,20 @@ private class PromptContextInputApiTest {
 
   @isTest
   static void shouldRejectGenerationWithoutCapability() {
-    PromptContextAccess.setGenerateForTest(false);
-    try {
-      PromptContextInputApi.prepare(new List<PromptContextInputApi.Request>());
-      Assert.fail('Generation must require the explicit custom permission.');
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      Assert.areEqual(
-        PromptContextReasonCodes.NOT_AUTHORIZED,
-        expected.reasonCode,
-        'The authorization exception should expose only the stable reason code.'
-      );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextAccess.setGenerateForTest(false);
+      try {
+        PromptContextInputApi.prepare(
+          new List<PromptContextInputApi.Request>()
+        );
+        Assert.fail('Generation must require the explicit custom permission.');
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        Assert.areEqual(
+          PromptContextReasonCodes.NOT_AUTHORIZED,
+          expected.reasonCode,
+          'The authorization exception should expose only the stable reason code.'
+        );
+      }
     }
   }
 
@@ -558,38 +562,43 @@ private class PromptContextInputApiTest {
 
   @isTest
   static void shouldRejectCollectionsAboveTheHardLimit() {
-    PromptContextAccess.setGenerateForTest(true);
-    List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>();
-    for (
-      Integer index = 0;
-      index <= PromptContextContract.MAX_RECORDS_PER_REQUEST;
-      index++
-    ) {
-      requests.add(new PromptContextInputApi.Request());
-    }
-    try {
-      PromptContextInputApi.prepare(requests);
-      Assert.fail(
-        'The hard request limit must be enforced before record queries.'
-      );
-    } catch (PromptContextException expected) {
-      Assert.isTrue(
-        expected.getMessage().contains('at most'),
-        'The hard-limit message should explain the maximum request size.'
-      );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextAccess.setGenerateForTest(true);
+      List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>();
+      for (
+        Integer index = 0;
+        index <= PromptContextContract.MAX_RECORDS_PER_REQUEST;
+        index++
+      ) {
+        requests.add(new PromptContextInputApi.Request());
+      }
+      try {
+        PromptContextInputApi.prepare(requests);
+        Assert.fail(
+          'The hard request limit must be enforced before record queries.'
+        );
+      } catch (PromptContextException expected) {
+        Assert.isTrue(
+          expected.getMessage().contains('at most'),
+          'The hard-limit message should explain the maximum request size.'
+        );
+      }
     }
   }
 
   @isTest
   static void shouldFailClosedForInaccessibleRootRecord() {
     User restrictedUser = PromptContextTestDataFactory.createRestrictedGeneratorUser();
-    String developerKey = [
-      SELECT Developer_Key__c
-      FROM Prompt_Template__c
-      WHERE Status__c = 'Published'
-      LIMIT 1
-    ]
-    .Developer_Key__c;
+    String developerKey;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      developerKey = [
+        SELECT Developer_Key__c
+        FROM Prompt_Template__c
+        WHERE Status__c = 'Published'
+        LIMIT 1
+      ]
+      .Developer_Key__c;
+    }
     Id accountId = PromptContextTestDataFactory.missingRootRecordId();
     System.runAs(restrictedUser) {
       PromptContextInputApi.Request request = new PromptContextInputApi.Request();
@@ -678,43 +687,45 @@ private class PromptContextInputApiTest {
 
   @isTest
   static void shouldGateBoundedDiagnosticsAndHideUnexpectedErrorDetails() {
-    PromptContextAccess.setGenerateForTest(true);
-    PromptContextInputApi.Request invalidRequest = new PromptContextInputApi.Request();
-    invalidRequest.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextAccess.setGenerateForTest(true);
+      PromptContextInputApi.Request invalidRequest = new PromptContextInputApi.Request();
+      invalidRequest.deliveryChoice = PromptContextInputApi.RETURN_TO_APEX;
 
-    PromptContextAccess.setDiagnosticsForTest(false);
-    List<PromptContextInputApi.Result> ordinaryResponses = PromptContextInputApi.prepare(
-      new List<PromptContextInputApi.Request>{ invalidRequest }
-    );
-    PromptContextAccess.setDiagnosticsForTest(true);
-    List<PromptContextInputApi.Result> diagnosticResponses = PromptContextInputApi.prepare(
-      new List<PromptContextInputApi.Request>{ invalidRequest }
-    );
+      PromptContextAccess.setDiagnosticsForTest(false);
+      List<PromptContextInputApi.Result> ordinaryResponses = PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{ invalidRequest }
+      );
+      PromptContextAccess.setDiagnosticsForTest(true);
+      List<PromptContextInputApi.Result> diagnosticResponses = PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{ invalidRequest }
+      );
 
-    Assert.isNull(
-      ordinaryResponses[0].diagnosticSummary,
-      'Generation permission alone must not expose diagnostics.'
-    );
-    Assert.isTrue(
-      diagnosticResponses[0].diagnosticSummary.contains('INVALID_REQUEST'),
-      'Authorized diagnostics should contain a stable outcome only.'
-    );
-    Assert.isTrue(
-      diagnosticResponses[0].diagnosticSummary.length() <= 200,
-      'Diagnostics should remain bounded.'
-    );
-    Assert.areEqual(
-      Label.PCB_Generation_Failed,
-      PromptContextTrace.safeMessage(
-        new SensitiveTestException('CANARY_CUSTOMER_VALUE')
-      ),
-      'Unexpected exception text must never escape.'
-    );
-    Assert.isFalse(
-      diagnosticResponses[0]
-        .diagnosticSummary.contains('CANARY_CUSTOMER_VALUE'),
-      'Diagnostics must not include exception or customer values.'
-    );
+      Assert.isNull(
+        ordinaryResponses[0].diagnosticSummary,
+        'Generation permission alone must not expose diagnostics.'
+      );
+      Assert.isTrue(
+        diagnosticResponses[0].diagnosticSummary.contains('INVALID_REQUEST'),
+        'Authorized diagnostics should contain a stable outcome only.'
+      );
+      Assert.isTrue(
+        diagnosticResponses[0].diagnosticSummary.length() <= 200,
+        'Diagnostics should remain bounded.'
+      );
+      Assert.areEqual(
+        Label.PCB_Generation_Failed,
+        PromptContextTrace.safeMessage(
+          new SensitiveTestException('CANARY_CUSTOMER_VALUE')
+        ),
+        'Unexpected exception text must never escape.'
+      );
+      Assert.isFalse(
+        diagnosticResponses[0]
+          .diagnosticSummary.contains('CANARY_CUSTOMER_VALUE'),
+        'Diagnostics must not include exception or customer values.'
+      );
+    }
   }
 
   private static PromptContextInputApi.Request requestForDelivery(

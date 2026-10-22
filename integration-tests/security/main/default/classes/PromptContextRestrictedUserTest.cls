@@ -306,11 +306,13 @@ private class PromptContextRestrictedUserTest {
       }
       Assert.isTrue(refused, 'The edit proof must stop a read-only user.');
     }
-    Assert.areEqual(
-      'Published',
-      [SELECT Status__c FROM Prompt_Template__c WHERE Id = :templateId]
-      .Status__c
-    );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Assert.areEqual(
+        'Published',
+        [SELECT Status__c FROM Prompt_Template__c WHERE Id = :templateId]
+        .Status__c
+      );
+    }
   }
 
   private static User restrictedUser(List<String> permissionSetNames) {

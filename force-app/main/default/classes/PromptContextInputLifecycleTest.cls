@@ -3,16 +3,9 @@
 private class PromptContextInputLifecycleTest {
   @TestSetup
   static void setupTemplate() {
-    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
-    PermissionSet processorPermission = [
-      SELECT Id
-      FROM PermissionSet
-      WHERE Name = 'Prompt_Context_Process_Input'
-      LIMIT 1
-    ];
-    insert new PermissionSetAssignment(
-      AssigneeId = configurator.Id,
-      PermissionSetId = processorPermission.Id
+    PromptContextTestDataFactory.createConfiguratorUser();
+    User configurator = PromptContextTestDataFactory.assignPermissionSets(
+      new Set<String>{ 'Prompt_Context_Process_Input' }
     );
     System.runAs(configurator) {
       Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(

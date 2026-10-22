@@ -152,6 +152,14 @@ export default class PromptDataSetEditor extends LightningElement {
   @api objectOptions = [];
   @api rootFieldOptions = [];
   @api disabled = false;
+  /** Zero-based position of this data set in the template. */
+  @api position;
+
+  get heading() {
+    const number = Number.isInteger(this.position) ? this.position + 1 : "";
+    const name = this.source?.referenceName;
+    return name ? `Data set ${number} (${name})` : `Data set ${number}`;
+  }
   sourceModeOptions = SOURCE_MODES;
   resultModeOptions = RESULT_MODES;
   aggregateOperationOptions = AGGREGATE_OPERATIONS;

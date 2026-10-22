@@ -10,15 +10,10 @@ private class PromptContextFormulaFieldTest {
 
   @TestSetup
   static void setupData() {
-    insert new PermissionSetAssignment(
-      AssigneeId = UserInfo.getUserId(),
-      PermissionSetId = [
-        SELECT Id
-        FROM PermissionSet
-        WHERE Name = 'PCB_Test_Formula_Fixtures'
-        LIMIT 1
-      ]
-      .Id
+    // Package fields need the Configure permission set; fixture fields need the fixture set.
+    PromptContextTestDataFactory.createConfiguratorUser();
+    PromptContextTestDataFactory.assignPermissionSets(
+      new Set<String>{ 'PCB_Test_Formula_Fixtures' }
     );
     System.runAs(new User(Id = UserInfo.getUserId())) {
       Prompt_Template__c root = new Prompt_Template__c(

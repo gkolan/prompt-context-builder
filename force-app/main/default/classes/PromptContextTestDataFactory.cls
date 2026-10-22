@@ -8,25 +8,35 @@ public with sharing class PromptContextTestDataFactory {
    * @return Configurator test user
    */
   public static User createConfiguratorUser() {
+    return assignPermissionSets(
+      new Set<String>{ 'Prompt_Context_Configure', 'Prompt_Context_Save_Input' }
+    );
+  }
+
+  /**
+   * Gives the running test user the named Permission Sets it does not already hold. Skipping
+   * existing assignments keeps tests passing in orgs where the administrator already has them.
+   * @param permissionSetNames Permission Set API names
+   * @return The running user
+   */
+  public static User assignPermissionSets(Set<String> permissionSetNames) {
     User testUser = new User(Id = UserInfo.getUserId());
-    List<PermissionSetAssignment> assignments = new List<PermissionSetAssignment>();
     Set<Id> assignedPermissionSetIds = new Set<Id>();
     for (PermissionSetAssignment existingAssignment : [
       SELECT PermissionSetId
       FROM PermissionSetAssignment
       WHERE
         AssigneeId = :testUser.Id
-        AND PermissionSet.Name IN (
-          'Prompt_Context_Configure',
-          'Prompt_Context_Save_Input'
-        )
+        AND PermissionSet.Name IN :permissionSetNames
     ]) {
       assignedPermissionSetIds.add(existingAssignment.PermissionSetId);
     }
+    List<PermissionSetAssignment> assignments = new List<PermissionSetAssignment>();
     for (PermissionSet permissionSetRecord : [
       SELECT Id
       FROM PermissionSet
-      WHERE Name IN ('Prompt_Context_Configure', 'Prompt_Context_Save_Input')
+      WHERE Name IN :permissionSetNames
+      ORDER BY Name
     ]) {
       if (!assignedPermissionSetIds.contains(permissionSetRecord.Id)) {
         assignments.add(

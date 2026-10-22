@@ -155,7 +155,13 @@ public with sharing class PromptContextBulkService {
       return;
     }
     if (source.resultMode == 'AGGREGATE') {
-      loadGroupedAggregate(source, runtimeById, keyByRecordId, valueByKey);
+      loadGroupedAggregate(
+        config,
+        source,
+        runtimeById,
+        keyByRecordId,
+        valueByKey
+      );
     } else {
       loadGroupedRecords(
         config,
@@ -296,6 +302,7 @@ public with sharing class PromptContextBulkService {
   }
 
   private static void loadGroupedAggregate(
+    PromptContextDTO.TemplateConfig config,
     PromptContextDTO.SourceConfig source,
     Map<Id, RuntimeContext> runtimeById,
     Map<Id, String> keyByRecordId,
@@ -313,8 +320,12 @@ public with sharing class PromptContextBulkService {
     requireAggregateCapacity(candidates);
     Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
     Map<String, Object> aggregateByKey = new Map<String, Object>();
-    if (!isGroupableMatch(source)) {
-      // Salesforce cannot GROUP BY this match field, so calculate from the rows already read.
+    String currencyCode = calculatedCurrencyCode(config, source);
+    if (
+      !isGroupableMatch(source) || calculatesInRecordCurrency(config, source)
+    ) {
+      // Salesforce cannot GROUP BY this match field, or would convert the amounts to the corporate
+      // currency, so calculate from the rows already read.
       aggregateByKey = calculateByKey(source, candidates);
     } else if (!candidateIds.isEmpty()) {
       PromptContextQuery.Plan plan = PromptContextQuery.buildAggregateBulk(
@@ -337,9 +348,81 @@ public with sharing class PromptContextBulkService {
       if (aggregateValue == null && source.aggregateOperation == 'COUNT') {
         aggregateValue = 0;
       }
-      runtime.aggregateByAlias.put(source.referenceName, aggregateValue);
+      runtime.aggregateByAlias.put(
+        source.referenceName,
+        withCurrency(aggregateValue, currencyCode)
+      );
       runtime.countsByAlias.put(source.referenceName, 1);
     }
+  }
+
+  /**
+   * In a multi-currency org Salesforce returns SUM, AVG, MIN, and MAX of a currency field in the
+   * corporate currency. Syntax version 2 calculates from the rows instead, which the required
+   * currency rule keeps in one currency, so the result is exact and in that currency.
+   */
+  private static Boolean calculatesInRecordCurrency(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source
+  ) {
+    return usesReadableOutput(config) &&
+      UserInfo.isMultiCurrencyOrganization() &&
+      isCurrencyCalculation(source);
+  }
+
+  /** Returns the ISO code a calculated currency value is in, or null when it has none. */
+  private static String calculatedCurrencyCode(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source
+  ) {
+    if (!usesReadableOutput(config) || !isCurrencyCalculation(source)) {
+      return null;
+    }
+    if (!UserInfo.isMultiCurrencyOrganization()) {
+      return UserInfo.getDefaultCurrency();
+    }
+    for (
+      PromptContextDTO.FilterRule filter : source.filters ??
+        new List<PromptContextDTO.FilterRule>()
+    ) {
+      if (
+        filter?.fieldName != null &&
+        filter.fieldName.equalsIgnoreCase('CurrencyIsoCode') &&
+        filter.operator == 'EQ'
+      ) {
+        return filter.value.trim().toUpperCase();
+      }
+    }
+    return null;
+  }
+
+  private static Boolean usesReadableOutput(
+    PromptContextDTO.TemplateConfig config
+  ) {
+    return (config.syntaxVersion ?? PromptContextContract.SYNTAX_VERSION) >=
+      PromptContextContract.SYNTAX_VERSION_READABLE_OUTPUT;
+  }
+
+  private static Boolean isCurrencyCalculation(
+    PromptContextDTO.SourceConfig source
+  ) {
+    return source.aggregateOperation != 'COUNT' &&
+      String.isNotBlank(source.aggregateField) &&
+      PromptContextSchema.getTerminalFieldDescription(
+          source.relatedObject,
+          source.aggregateField
+        )
+        .getType() == Schema.DisplayType.Currency;
+  }
+
+  private static Object withCurrency(Object value, String currencyCode) {
+    if (value == null || currencyCode == null) {
+      return value;
+    }
+    Decimal amount = value instanceof Decimal
+      ? (Decimal) value
+      : Decimal.valueOf(String.valueOf(value));
+    return new PromptContextValueFormatter.Money(amount, currencyCode);
   }
 
   private static Boolean isGroupableMatch(
@@ -448,7 +531,20 @@ public with sharing class PromptContextBulkService {
       requireAggregateCapacity(candidates);
       Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
       Object value = source.aggregateOperation == 'COUNT' ? 0 : null;
-      if (!candidateIds.isEmpty()) {
+      if (calculatesInRecordCurrency(config, source)) {
+        List<Object> amounts = new List<Object>();
+        String calculatedField = PromptContextSchema.requireReadableFieldPath(
+          source.relatedObject,
+          source.aggregateField
+        );
+        for (SObject candidate : candidates) {
+          Object amount = getPathValue(candidate, calculatedField);
+          if (amount != null) {
+            amounts.add(amount);
+          }
+        }
+        value = calculate(source.aggregateOperation, amounts);
+      } else if (!candidateIds.isEmpty()) {
         PromptContextQuery.Plan plan = PromptContextQuery.buildAggregate(
           source,
           null,
@@ -460,6 +556,7 @@ public with sharing class PromptContextBulkService {
         );
         value = rows.isEmpty() ? value : rows[0].get('metric');
       }
+      value = withCurrency(value, calculatedCurrencyCode(config, source));
       for (RuntimeContext runtime : runtimeById.values()) {
         runtime.aggregateByAlias.put(source.referenceName, value);
         runtime.countsByAlias.put(source.referenceName, 1);

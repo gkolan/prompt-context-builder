@@ -3,7 +3,7 @@
     <div
       class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
     >
-      <h3 class="slds-text-title_bold">Data set {source.sequence}</h3>
+      <h3 class="slds-text-title_bold">{heading}</h3>
       <lightning-button-icon
         icon-name="utility:delete"
         alternative-text="Remove data set"
@@ -180,13 +180,12 @@
         </div>
       </div>
 
-      <template lwc:if={isRecords}>
-        <c-prompt-filter-sort-editor
-          source={source}
-          disabled={disabled}
-          onruleschange={handleRulesChange}
-        ></c-prompt-filter-sort-editor>
-      </template>
+      <c-prompt-filter-sort-editor
+        source={source}
+        disabled={disabled}
+        hide-sorts={isAggregate}
+        onruleschange={handleRulesChange}
+      ></c-prompt-filter-sort-editor>
     </template>
     <h4 class="slds-text-title_bold subsection-heading">
       D. Insert this data into the prompt

@@ -119,70 +119,72 @@
     </template>
   </div>
 
-  <div class="subsection">
-    <div
-      class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
-    >
-      <h4 class="slds-text-title_bold">Sort order</h4>
-      <lightning-button
-        label="Add sort"
-        onclick={addSort}
-        disabled={disabled}
-      ></lightning-button>
-    </div>
-    <template for:each={source.sorts} for:item="sort" for:index="rowIndex">
+  <template lwc:if={showSorts}>
+    <div class="subsection">
       <div
-        key={sort.clientKey}
-        class="rule-row slds-grid slds-wrap slds-gutters_x-small"
+        class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
       >
-        <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
-          <lightning-combobox
-            name="fieldName"
-            label="Field"
-            variant="label-hidden"
-            value={sort.fieldName}
-            options={source.fieldOptions}
-            data-collection="sorts"
-            data-row-index={rowIndex}
-            onchange={handleRowField}
-          ></lightning-combobox>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
-          <lightning-combobox
-            name="direction"
-            label="Direction"
-            variant="label-hidden"
-            value={sort.direction}
-            options={sortDirections}
-            data-collection="sorts"
-            data-row-index={rowIndex}
-            onchange={handleRowField}
-          ></lightning-combobox>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
-          <lightning-combobox
-            name="nullsOrder"
-            label="Blank values"
-            variant="label-hidden"
-            value={sort.nullsOrder}
-            options={nullsOptions}
-            data-collection="sorts"
-            data-row-index={rowIndex}
-            onchange={handleRowField}
-          ></lightning-combobox>
-        </div>
-        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-12">
-          <lightning-button-icon
-            icon-name="utility:close"
-            alternative-text="Remove sort"
-            title="Remove sort"
-            disabled={disabled}
-            data-collection="sorts"
-            data-row-index={rowIndex}
-            onclick={removeRow}
-          ></lightning-button-icon>
-        </div>
+        <h4 class="slds-text-title_bold">Sort order</h4>
+        <lightning-button
+          label="Add sort"
+          onclick={addSort}
+          disabled={disabled}
+        ></lightning-button>
       </div>
-    </template>
-  </div>
+      <template for:each={source.sorts} for:item="sort" for:index="rowIndex">
+        <div
+          key={sort.clientKey}
+          class="rule-row slds-grid slds-wrap slds-gutters_x-small"
+        >
+          <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+            <lightning-combobox
+              name="fieldName"
+              label="Field"
+              variant="label-hidden"
+              value={sort.fieldName}
+              options={source.fieldOptions}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
+            <lightning-combobox
+              name="direction"
+              label="Direction"
+              variant="label-hidden"
+              value={sort.direction}
+              options={sortDirections}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+            <lightning-combobox
+              name="nullsOrder"
+              label="Blank values"
+              variant="label-hidden"
+              value={sort.nullsOrder}
+              options={nullsOptions}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-12">
+            <lightning-button-icon
+              icon-name="utility:close"
+              alternative-text="Remove sort"
+              title="Remove sort"
+              disabled={disabled}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onclick={removeRow}
+            ></lightning-button-icon>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
 </template>
