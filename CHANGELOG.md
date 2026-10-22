@@ -6,6 +6,33 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Added `npm run test:lesson-guards`, part of `ci:gates`, which proves every change-safety lesson's
+  guard passes compliant source and fails each planted regression. The test-data isolation gate now
+  scans every `@isTest` class in `force-app` and `integration-tests`, catches multiline, collection,
+  inline-query, and `Database` DML, and rejects `SeeAllData=true`, Profile selection by name, and an
+  inline `LIMIT 1` query with no `WHERE` or `ORDER BY`. The agent-guidance gate fails when automation
+  bypasses source conflicts, resets tracking, deploys, or creates or deletes a scratch org.
+- Added `integration-tests/security`, which runs generation, publishing, and lifecycle writes as a
+  minimum-access user who holds only the package Permission Sets, so Salesforce enforces sharing,
+  object access, and field access for real.
+- `npm run ci:gates` now runs Salesforce Code Analyzer and fails on any critical or high finding.
+  GitHub CI installs the Salesforce CLI for it and adds an `apex-validation` job that runs a
+  check-only deployment with local tests once an `SF_VALIDATION_AUTH_URL` secret is set.
+- Added a nightly Prompt Input Log purge and `PromptContextSchedules`, which registers the health
+  check and the purge once each. Scheduled classes start their worker by name, so a scheduled job no
+  longer blocks deploying the package; `check:apex-surface` enforces that.
+  `PromptTemplateHealthSchedulable.scheduleDaily()` is removed; call
+  `PromptContextSchedules.scheduleHealthCheckDaily()`. A health job scheduled by an earlier revision
+  can still block the upgrade deployment; see the upgrade guide.
+- Prompt Builder shows **Saved changes not published** while a live template's saved draft differs
+  from the version users receive, and warns when a restored version used an older syntax version.
+- `{!record.Owner.Name}` and other `Name` fields across a relationship that can point to more than
+  one kind of record now work when every target has a readable `Name`.
+- Validation warns with `SENSITIVE_FIELD_REVIEW` when a template prints long text, which can
+  contain instructions aimed at the model. The security and template guides describe the safe
+  pattern.
+- `check:docs` verifies that every field named in the first-template walkthrough is a real Prompt
+  Builder label.
 - Added syntax version 2. New publications print picklist labels, plain text from rich text, fixed
   ISO dates and UTC date-times, currency codes, and percent signs; reject Address and Location
   fields and impossible row indexes; and support `maxLength="n"` and the `{!!}` literal escape.
@@ -42,8 +69,47 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
   file extensions, and a screenshot contract gate for inventory, file signatures, evidence scope,
   and alternative text.
 
+### Security
+
+- Template status, published version, version signature, draft revision, and health fields are now
+  read-only in every Permission Set. Publish, deactivate, save, and the health check write them only
+  after a user-mode update proves the person can edit that template. An author can no longer
+  republish an inactive template, switch to an older version, or mark a template Healthy from the
+  standard record page.
+- Prompt Context Configure no longer grants Delete on Prompt Template, so a template's version
+  history cannot be erased. Deactivate retires a template. The Prompt Templates object tab is no
+  longer in the app navigation; edit templates in Prompt Builder.
+- Generation now reads only the template header and its fixed published version. Prompt Context
+  Generate no longer grants read access to draft template text or draft data sets.
+
 ### Fixed
 
+- In a multi-currency org, a calculated SUM, AVG, MIN, or MAX of a currency field printed Salesforce's
+  corporate-currency conversion without a code (`1444.44` for 1,300 EUR). Syntax version 2 now
+  calculates from the matching records and prints the exact amount with the rule's currency
+  (`1300.00 EUR`); single-currency orgs print the org's code.
+- Prompt Builder numbered every data set with the same processing order (`Data set 1` twice); it now
+  shows each data set's position and reference name. Calculated data sets now show their filters,
+  including the required currency rule, without sort controls.
+- About ninety Apex tests passed only when the org administrator already held the package Permission
+  Sets. They now run as a user the test grants those Permission Sets to, so they pass in a new org.
+- Four Apex tests that picked a template version or data set version with an unqualified `LIMIT 1`
+  now select it by its template and reference name, and `selectRootRecord()` fails instead of
+  guessing when a test creates a second root record. The public-release scan no longer reads nested
+  worktrees under `.claude/worktrees`.
+- Prompt Builder keeps each data set's field choices after **Save draft**, **Publish**, and
+  **Deactivate**. Before, "Fields available to the prompt", "Source match field", the filter and
+  sort field pickers, and "Field to calculate" stayed empty until the template was reopened.
+- Flow, Apex, and Batch requests no longer drop related records for a record whose match value
+  sorts after a busy one. A grouped query that fills its row limit is repeated for the match values
+  it could not settle, within the transaction's query and row budget; otherwise the request returns
+  `TRANSACTION_BUDGET_EXCEEDED` instead of an incomplete prompt.
+- Publish returns `DRAFT_CHANGED` when someone saved the draft after the publisher reviewed it, and
+  concurrent publishes of one template now run one at a time. Restoring a version over a newer draft
+  also returns `DRAFT_CHANGED` instead of erasing the newer edits.
+- `PromptContextInputLifecycle.claimAvailable` claims the longest-waiting logs first.
+- `diagnosticSummary` keeps the template version when a request fails after preparation, such as a
+  Request Key conflict or the Flow response-size limit.
 - Flow and Batch averages over a formula match field now print the same digits as the record page.
 - Added `npm run scan:sfge`, which runs Graph Engine field-security analysis on a parse-compatible copy
   and fails on engine errors. The misconfiguration matrix now requires a valid baseline and that
@@ -114,6 +180,10 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
   executable guards for the demo entry points and required ignore rules.
 - Split upgrade and removal guidance by source, package, and scratch-org lifecycle so evaluators do
   not apply package assumptions to source-deployed metadata.
+- Split the Prompt Builder component into section components for the template header, prompt body,
+  data sets, filters and sorting, Salesforce Files, validation and publishing, and version history.
+  Labels and behavior are unchanged. Each section has its own Jest tests and coverage floor, and
+  `check:docs` and `check:language` now read every section's labels.
 
 ## 1.0.3
 

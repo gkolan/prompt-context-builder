@@ -261,7 +261,7 @@ public with sharing class PromptContextInputLogService {
       Prompt_Text__c = request.promptText,
       Selected_Files_JSON__c = normalizeFiles(request.selectedFilesJson),
       Input_Format_Version__c = PromptContextContract.INPUT_FORMAT_VERSION,
-      Status__c = 'Ready',
+      Status__c = PromptContextContract.INPUT_READY,
       Available_At__c = nowValue,
       Attempt_Count__c = 0,
       Retain_Until__c = nowValue.addDays(

@@ -1,70 +1,127 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
+import { join, relative, sep } from "node:path";
+import {
+  inlineSoqlPattern,
+  lineOf,
+  stripCommentsAndStrings
+} from "./apex-source.mjs";
 
+// Enforces the Apex test-data lessons in docs/contributing/change-safety-playbook.md for every
+// @isTest class in force-app and integration-tests. scripts/lesson-guards.test.mjs proves each rule
+// passes compliant code and fails a planted violation.
 const root = process.cwd();
 const classesDirectory = join(root, "force-app/main/default/classes");
-const testFiles = readdirSync(classesDirectory)
-  .filter(
-    (fileName) =>
-      fileName.endsWith("Test.cls") ||
-      fileName === "PromptContextTestDataFactory.cls"
-  )
-  .sort();
-const subscriberObjects = ["Account", "Contact", "User"];
+const integrationRoot = join(root, "integration-tests");
+// The restricted-user suite inserts one minimum-access User so security is tested for real.
+const userDmlAllowedIn = join("integration-tests", "security") + sep;
+
+const files = readdirSync(classesDirectory)
+  .filter((name) => name.endsWith(".cls"))
+  .map((name) => join(classesDirectory, name));
+if (existsSync(integrationRoot)) {
+  for (const entry of readdirSync(integrationRoot, { recursive: true })) {
+    if (String(entry).endsWith(".cls")) {
+      files.push(join(integrationRoot, String(entry)));
+    }
+  }
+}
+
+// A variable whose type is, or is a collection of, a subscriber object: "Account a",
+// "Contact[] rows", "Map<String, List<User>> byName".
+const declarationPattern =
+  /\b(?:\w+\s*<[^;(){}=]*?\b(Account|Contact|User)\b[^;(){}=]*?>|(Account|Contact|User)\s*(?:\[\s*\])?)\s+(\w+)/g;
+// A DML target that creates or queries subscriber records in place.
+const inlineSubscriberPattern =
+  /\bnew\s+(?:(?:List|Set)\s*<\s*)?(Account|Contact|User)\b|^\s*\[\s*SELECT\b[^\]]*?\bFROM\s+(Account|Contact|User)\b/i;
 const failures = [];
 
-for (const fileName of testFiles) {
-  const source = readFileSync(join(classesDirectory, fileName), "utf8");
-  const subscriberVariables = new Set();
-  const declarationPattern = new RegExp(
-    `(?:List\\s*<\\s*)?(?:${subscriberObjects.join("|")})(?:\\s*>)?\\s+(\\w+)`,
-    "g"
-  );
+for (const file of files.sort()) {
+  const source = stripCommentsAndStrings(readFileSync(file, "utf8"));
+  if (!/@isTest\b/i.test(source)) continue;
+  const path = relative(root, file);
+  const fail = (index, message) =>
+    failures.push(`${path}:${lineOf(source, index)}: ${message}`);
+
+  // Lesson: tests failed only in an established org because subscriber validation rules, flows,
+  // and triggers ran on inserted standard records. Apex names are case-insensitive.
+  const variables = new Map();
   for (const match of source.matchAll(declarationPattern)) {
-    subscriberVariables.add(match[1]);
+    variables.set(match[3].toLowerCase(), match[1] ?? match[2]);
+  }
+  const dmlType = (target) => {
+    const inline = target.match(inlineSubscriberPattern);
+    if (inline) return inline[1] ?? inline[2];
+    // The target itself ("byId.values()"), or a subscriber variable passed as a value rather
+    // than read through ".Field" ("AssigneeId = runner.Id" is allowed).
+    const names = [
+      target.match(/^\s*(\w+)/)?.[1],
+      ...Array.from(
+        target.matchAll(/(?<![\w.])(\w+)\b(?!\s*[.(])/g),
+        (match) => match[1]
+      )
+    ];
+    for (const name of names) {
+      const type = name && variables.get(name.toLowerCase());
+      if (type) return type;
+    }
+    return null;
+  };
+  const checkDml = (index, target) => {
+    const type = dmlType(target);
+    if (!type) return;
+    if (type === "User" && path.startsWith(userDmlAllowedIn)) return;
+    fail(
+      index,
+      `${type} DML makes tests depend on subscriber validation rules and automation; keep it in memory or use a package-owned fixture.`
+    );
+  };
+  for (const match of source.matchAll(
+    /(?<![\w.])(?:insert|update|upsert|delete|undelete|merge)\s+(?:as\s+(?:user|system)\s+)?([^;]*);/gi
+  )) {
+    checkDml(match.index, match[1]);
+  }
+  for (const match of source.matchAll(
+    /\bDatabase\s*\.\s*(?:insert|update|upsert|delete|undelete|merge)(?:Async|Immediate)?\s*\(([^;]*)/gi
+  )) {
+    checkDml(match.index, match[1]);
   }
 
-  const lines = source.split(/\r?\n/);
-  lines.forEach((line, index) => {
-    const normalized = line.trim();
+  // Lesson: tests must not depend on records outside their own transaction.
+  for (const match of source.matchAll(
+    /@isTest\s*\([^)]*\bSeeAllData\s*=\s*true\b/gi
+  )) {
+    fail(
+      match.index,
+      "SeeAllData=true makes tests depend on org data the source does not own."
+    );
+  }
+
+  for (const match of source.matchAll(inlineSoqlPattern)) {
+    const query = match[0];
+    // Lesson: profile display names differ by org, edition, and locale.
     if (
-      /PromptContextTestDataFactory\.createAccount\(true\)/.test(normalized) ||
-      /PromptContextTestDataFactory\.createContacts\([^;]*,\s*true\)/.test(
-        normalized
-      )
+      /\bFROM\s+Profile\b[\s\S]*\bWHERE\b[\s\S]*(?<![\w.])Name\s*(?:=|!=|<>|\bIN\b|\bLIKE\b)/i.test(
+        query
+      ) ||
+      /\bProfile\s*\.\s*Name\s*(?:=|!=|<>|\bIN\b|\bLIKE\b)/i.test(query)
     ) {
-      failures.push(
-        `${fileName}:${index + 1}: customer-object test data must stay in memory.`
+      fail(
+        match.index,
+        "select a Profile by license and permissions, never by display name."
       );
     }
-
-    const directDml = normalized.match(
-      /\b(?:insert|update|upsert|delete|undelete)\s+(?:new\s+)?(Account|Contact|User)\b/
-    );
-    if (directDml) {
-      failures.push(
-        `${fileName}:${index + 1}: ${directDml[1]} DML makes tests depend on subscriber validation rules and automation.`
+    // Lesson: a published-template test resolved a draft fixture because LIMIT 1 picked any row.
+    const outerQuery = query.replace(/\(\s*SELECT\b[^()]*\)/gi, "");
+    if (
+      /\bLIMIT\s+1\b/i.test(outerQuery) &&
+      !/\b(?:WHERE|ORDER\s+BY)\b/i.test(outerQuery)
+    ) {
+      fail(
+        match.index,
+        "LIMIT 1 without WHERE or ORDER BY selects an arbitrary row once a sibling fixture exists."
       );
     }
-
-    const variableDml = normalized.match(
-      /\b(?:insert|update|upsert|delete|undelete)\s+(\w+)\s*;/
-    );
-    if (variableDml && subscriberVariables.has(variableDml[1])) {
-      failures.push(
-        `${fileName}:${index + 1}: DML on ${variableDml[1]} makes tests depend on subscriber automation.`
-      );
-    }
-
-    const databaseDml = normalized.match(
-      /\bDatabase\.(?:insert|update|upsert|delete|undelete)\(\s*(\w+)/
-    );
-    if (databaseDml && subscriberVariables.has(databaseDml[1])) {
-      failures.push(
-        `${fileName}:${index + 1}: Database DML on ${databaseDml[1]} makes tests depend on subscriber automation.`
-      );
-    }
-  });
+  }
 }
 
 if (failures.length > 0) {
@@ -75,5 +132,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "Apex tests do not perform DML on subscriber-owned Account, Contact, or User records."
+  "Apex tests avoid subscriber Account, Contact, and User DML, SeeAllData, profile names, and unqualified LIMIT 1."
 );

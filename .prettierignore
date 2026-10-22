@@ -10,3 +10,4 @@ code-analyzer-results-*.json
 .vscode
 
 coverage/
+.claude

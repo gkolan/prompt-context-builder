@@ -12,7 +12,7 @@ public inherited sharing class PromptContextSelector {
       return [
         SELECT Id
         FROM Prompt_Template__c
-        WHERE Status__c = 'Published'
+        WHERE Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
         WITH USER_MODE
         ORDER BY Id
         LIMIT :queryLimit
@@ -21,7 +21,9 @@ public inherited sharing class PromptContextSelector {
     return [
       SELECT Id
       FROM Prompt_Template__c
-      WHERE Status__c = 'Published' AND Id > :afterId
+      WHERE
+        Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
+        AND Id > :afterId
       WITH USER_MODE
       ORDER BY Id
       LIMIT :queryLimit
@@ -174,6 +176,18 @@ public inherited sharing class PromptContextSelector {
     return templates.isEmpty() ? null : templates[0];
   }
 
+  /** Returns only what generation needs to find a fixed publication, without draft settings. */
+  public static Prompt_Template__c selectTemplateHeader(Id templateId) {
+    List<Prompt_Template__c> templates = [
+      SELECT Id, Name, Developer_Key__c, Description__c, Status__c, Version__c
+      FROM Prompt_Template__c
+      WHERE Id = :templateId
+      WITH USER_MODE
+      LIMIT 1
+    ];
+    return templates.isEmpty() ? null : templates[0];
+  }
+
   /** Locks one template row while its draft is saved, so concurrent saves run one at a time. */
   public static Prompt_Template__c selectTemplateForDraftSave(Id templateId) {
     List<Prompt_Template__c> templates = [
@@ -195,28 +209,9 @@ public inherited sharing class PromptContextSelector {
     if (developerKeys == null || developerKeys.isEmpty()) {
       return byKey;
     }
+    // Only the Id is used: generation then loads the header and its fixed publication.
     for (Prompt_Template__c templateRecord : [
-      SELECT
-        Id,
-        Name,
-        Developer_Key__c,
-        Description__c,
-        Root_Object__c,
-        Template_Body__c,
-        Status__c,
-        Version__c,
-        Fingerprint__c,
-        Published_At__c,
-        Last_Health_Status__c,
-        Last_Health_Checked_At__c,
-        Last_Health_Codes__c,
-        Last_Health_Version__c,
-        File_Input_Mode__c,
-        Maximum_Files__c,
-        Require_File__c,
-        Allowed_File_Formats__c,
-        Provider_Profile_Key__c,
-        File_Citations_Enabled__c
+      SELECT Id, Developer_Key__c
       FROM Prompt_Template__c
       WHERE Developer_Key__c IN :developerKeys
       WITH USER_MODE
@@ -250,7 +245,9 @@ public inherited sharing class PromptContextSelector {
         Allowed_File_Formats__c,
         Provider_Profile_Key__c
       FROM Prompt_Template__c
-      WHERE Root_Object__c = :rootObject AND Status__c = 'Published'
+      WHERE
+        Root_Object__c = :rootObject
+        AND Status__c = :PromptContextContract.TEMPLATE_PUBLISHED
       WITH USER_MODE
       ORDER BY Name
       LIMIT 200
@@ -326,6 +323,22 @@ public inherited sharing class PromptContextSelector {
     try {
       return Database.queryWithBinds(soql, binds, AccessLevel.USER_MODE);
     } catch (QueryException exceptionValue) {
+      // User mode names fields hidden from the running user; that is an access failure, which
+      // safe messages hide from people without Diagnostics.
+      Map<String, Set<String>> hiddenFields = exceptionValue.getInaccessibleFields();
+      if (hiddenFields != null && !hiddenFields.isEmpty()) {
+        List<String> names = new List<String>();
+        for (String objectName : hiddenFields.keySet()) {
+          for (String fieldName : hiddenFields.get(objectName)) {
+            names.add(objectName + '.' + fieldName);
+          }
+        }
+        names.sort();
+        throw PromptContextException.withReason(
+          PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
+          'You do not have access to ' + String.join(names, ', ') + '.'
+        );
+      }
       // Some objects require special filters, and very large objects require selective filters.
       // Report a named reason instead of a raw platform error.
       throw PromptContextException.withReason(

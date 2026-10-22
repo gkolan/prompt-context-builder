@@ -3,16 +3,9 @@
 private class PromptContextInputLifecycleTest {
   @TestSetup
   static void setupTemplate() {
-    User configurator = PromptContextTestDataFactory.createConfiguratorUser();
-    PermissionSet processorPermission = [
-      SELECT Id
-      FROM PermissionSet
-      WHERE Name = 'Prompt_Context_Process_Input'
-      LIMIT 1
-    ];
-    insert new PermissionSetAssignment(
-      AssigneeId = configurator.Id,
-      PermissionSetId = processorPermission.Id
+    PromptContextTestDataFactory.createConfiguratorUser();
+    User configurator = PromptContextTestDataFactory.assignPermissionSets(
+      new Set<String>{ 'Prompt_Context_Process_Input' }
     );
     System.runAs(configurator) {
       Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
@@ -244,15 +237,86 @@ private class PromptContextInputLifecycleTest {
     }
   }
 
+  @isTest
+  static void shouldClaimTheOldestReadyInputFirst() {
+    System.runAs(configurator()) {
+      Id newerId = createLog('claim-order-newer');
+      Id middleId = createLog('claim-order-middle');
+      // Inserted last but waiting longest, so insertion order cannot pick it by accident.
+      Id oldestId = createLog('claim-order-oldest');
+      Datetime nowValue = System.now();
+      update new List<Prompt_Input_Log__c>{
+        new Prompt_Input_Log__c(
+          Id = newerId,
+          Available_At__c = nowValue.addMinutes(-1)
+        ),
+        new Prompt_Input_Log__c(
+          Id = middleId,
+          Available_At__c = nowValue.addMinutes(-30)
+        ),
+        new Prompt_Input_Log__c(
+          Id = oldestId,
+          Available_At__c = nowValue.addDays(-1)
+        )
+      };
+
+      Test.startTest();
+      List<Prompt_Input_Log__c> first = PromptContextInputLifecycle.claimAvailable(
+        1
+      );
+      List<Prompt_Input_Log__c> next = PromptContextInputLifecycle.claimAvailable(
+        2
+      );
+      Test.stopTest();
+
+      Assert.areEqual(oldestId, first[0].Id, 'The oldest work goes first.');
+      Assert.areEqual(middleId, next[0].Id, 'Claims follow waiting time.');
+      Assert.areEqual(newerId, next[1].Id);
+    }
+  }
+
+  @isTest
+  static void shouldPurgeOnlyExpiredInputs() {
+    System.runAs(configurator()) {
+      Id expiredId = createLog('purge-expired');
+      Id keptId = createLog('purge-kept');
+      update new Prompt_Input_Log__c(
+        Id = expiredId,
+        Retain_Until__c = System.now().addDays(-1)
+      );
+
+      Test.startTest();
+      System.enqueueJob(new PromptContextInputPurgeQueueable());
+      Test.stopTest();
+
+      Assert.areEqual(
+        new Set<Id>{ keptId },
+        new Map<Id, Prompt_Input_Log__c>(
+            [
+              SELECT Id
+              FROM Prompt_Input_Log__c
+              WHERE Id IN (:expiredId, :keptId)
+            ]
+          )
+          .keySet(),
+        'The purge deletes expired logs and keeps current ones.'
+      );
+    }
+  }
+
   private static User configurator() {
     return PromptContextTestDataFactory.createConfiguratorUser();
   }
 
   private static Id createLog(String requestKey) {
     PromptContextAccess.setSaveInputForTest(true);
+    String templateName = PromptContextTestDataFactory.createTwoSourceConfig()
+      .name;
     Prompt_Template_Version__c versionRecord = [
       SELECT Id
       FROM Prompt_Template_Version__c
+      WHERE Prompt_Template__r.Name = :templateName
+      ORDER BY Version_Number__c DESC
       LIMIT 1
     ];
     Prompt_Template__c accountRecord = PromptContextTestDataFactory.selectRootRecord();

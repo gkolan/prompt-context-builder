@@ -2,12 +2,19 @@
 
 `npm run ci:gates` is the local pull-request gate. It verifies formatting, documentation links and
 navigation, screenshot inventory and file signatures, the Permission Set custom-permission
-boundary, a description for every Salesforce custom field, the namespace fixture contract, Apex
-test-data isolation, LWC lint, LWC Jest behavior, and enforced JavaScript coverage floors.
+boundary, a description for every Salesforce custom field, the namespace fixture contract,
+plain-language and public-release hygiene, the entry-point, file, input-log, and bulk-matching
+source contracts, Apex test-data isolation, the Apex security surface, the positive and negative
+scenarios for every change-safety lesson, LWC lint, LWC Jest behavior, enforced JavaScript coverage
+floors, and Salesforce Code Analyzer. It needs Node.js 22, the
+Salesforce CLI, and the Code Analyzer plugin (`sf plugins install code-analyzer`), but no
+Salesforce org.
 
-The coverage command disables Jest's transform cache and then verifies that both shipped LWC
-controllers are present in `coverage-final.json`. A green percentage threshold is not accepted when
-coverage data for a component is missing.
+The coverage command disables Jest's transform cache and then verifies that the controller of every
+component folder under `force-app/main/default/lwc` is present in `coverage-final.json`. A green
+percentage threshold is not accepted when coverage data for a component is missing. Prompt Builder
+is split into section components, and each one keeps its own line-coverage floor in
+`jest.config.js`.
 
 ## Evidence by change type
 
@@ -21,13 +28,18 @@ coverage data for a component is missing.
 | Package boundary  | Package-version test and clean install/upgrade evidence approved by the release owner |
 
 Code Analyzer uses `code-analyzer.yml` to apply the repository's ESLint configuration and keep
-Node-only repository scripts out of LWC rule scope. Do not suppress a finding merely because it is
+Node-only repository scripts out of LWC rule scope. `npm run scan:code-analyzer` runs the Recommended
+rules on `force-app` and fails on any critical or high finding. Moderate and low findings are
+advisory; review them in changed files as the change safety playbook describes. Do not suppress a finding merely because it is
 inconvenient; document and narrowly bound any genuine engine false positive.
 
-The Apex test-data isolation gate rejects Account, Contact, and User DML in package test classes.
-Tests may construct those records in memory for language and schema behavior, reuse the running test
-user, and persist only package-owned fixtures. Deploy-critical tests therefore do not depend on
-subscriber validation rules, flows, or triggers on those org-owned records.
+The Apex test-data isolation gate rejects Account, Contact, and User DML in every `@isTest` class in
+`force-app` and `integration-tests`. The one exception is the `User` insert in
+`integration-tests/security`. Tests may construct those records in memory for language and schema
+behavior, reuse the running test user, and persist only package-owned fixtures. Deploy-critical tests
+therefore do not depend on subscriber validation rules, flows, or triggers on those org-owned
+records. The same gate rejects `SeeAllData=true`, a Profile selected by name, and an inline
+`LIMIT 1` query that has no `WHERE` or `ORDER BY`.
 
 The Apex security-surface gate (`check:apex-surface`) fails when production Apex declares an
 unreviewed `without sharing` class or changes the reviewed `SYSTEM_MODE` count. It also fails on a
@@ -46,25 +58,43 @@ not part of `ci:gates`; run it before release and after changing data access.
 The agent-guidance gate verifies that `AGENTS.md` retains the mandatory session link and that the
 [change safety playbook](../contributing/change-safety-playbook.md) remains connected to contributor
 and quality documentation. Repository-aware agents receive `AGENTS.md` at session start; the linked
-playbook is mandatory reading for Apex, metadata, validation, and deployment work.
+playbook is mandatory reading for Apex, metadata, validation, and deployment work. The gate also
+fails when an npm script or GitHub workflow passes `--ignore-conflicts`, resets source tracking,
+runs a mutating deployment, or creates or deletes a scratch org, and when the CI org validation
+stops being a check-only `deploy validate` with `RunLocalTests`.
+
+`npm run test:lesson-guards` runs `scripts/lesson-guards.test.mjs` with the Node.js test runner. For
+each lesson in the [change safety playbook](../contributing/change-safety-playbook.md), it runs the
+real guard against a temporary copy of its inputs and requires compliant source to pass and each
+planted regression to fail. The playbook lists every scenario.
 
 ## Automated and external evidence
 
-| Check                                              | In `ci:gates` and GitHub CI | Requires an approved Salesforce org           |
-| -------------------------------------------------- | --------------------------- | --------------------------------------------- |
-| Formatting and documentation links                 | Yes                         | No                                            |
-| Screenshot inventory, signatures, and references   | Yes                         | No                                            |
-| Agent-guidance presence and navigation             | Yes                         | No                                            |
-| Apex test-data isolation source check              | Yes                         | No                                            |
-| Apex security-surface source check                 | Yes                         | No                                            |
-| LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                            |
-| Salesforce Code Analyzer                           | No                          | No, although some engines can use org context |
-| Apex compilation and `RunLocalTests`               | No                          | Yes                                           |
-| Check-only deployment                              | No                          | Yes                                           |
-| Source-conflict inspection and resolution          | No                          | Yes                                           |
-| Scheduled Apex inventory and restoration           | No                          | Yes                                           |
-| Mutating deployment                                | No                          | Yes                                           |
-| Browser or package verification                    | No                          | Yes                                           |
+| Check                                              | In `ci:gates` and GitHub CI | Requires an approved Salesforce org |
+| -------------------------------------------------- | --------------------------- | ----------------------------------- |
+| Formatting and documentation links                 | Yes                         | No                                  |
+| Screenshot inventory, signatures, and references   | Yes                         | No                                  |
+| Agent-guidance presence and navigation             | Yes                         | No                                  |
+| Lesson-guard positive and negative scenarios       | Yes                         | No                                  |
+| Apex test-data isolation source check              | Yes                         | No                                  |
+| Apex security-surface source check                 | Yes                         | No                                  |
+| LWC lint, Jest behavior, and coverage completeness | Yes                         | No                                  |
+| Salesforce Code Analyzer, critical and high        | Yes                         | No                                  |
+| Apex compilation and `RunLocalTests`               | CI only, once configured    | Yes                                 |
+| Check-only deployment                              | CI only, once configured    | Yes                                 |
+| Source-conflict inspection and resolution          | No                          | Yes                                 |
+| Scheduled Apex inventory and restoration           | No                          | Yes                                 |
+| Mutating deployment                                | No                          | Yes                                 |
+| Browser or package verification                    | No                          | Yes                                 |
+
+The `apex-validation` CI job runs a check-only deployment of `force-app` and the three test-only
+suites in `integration-tests/flow-runtime`, `integration-tests/formula-fixtures`, and
+`integration-tests/security` with `RunLocalTests`. The security suite needs one free Salesforce user
+license in the validation org. The job is skipped until the repository owner stores an SFDX
+authorization URL for an approved validation org in the `SF_VALIDATION_AUTH_URL` repository
+secret, and it never deploys. Use an org reserved
+for validation: pull requests from this repository run their Apex tests there, and secrets are not
+available to pull requests from forks.
 
 The local gate cannot prove Apex compilation, Salesforce test results, source-conflict safety,
 deployment, schedule restoration, browser behavior, or package installation. Follow the
@@ -84,12 +114,14 @@ image and the capture notes. Use the [UI screenshot evidence](../screenshots/REA
 
 ## Isolation-gate boundary
 
-`check:test-data-isolation` is a structural guard, not a complete Apex parser. It detects direct and
-typed-variable DML patterns for `Account`, `Contact`, and `User` in test classes and the shared test
-factory. Reviewers must also inspect indirect factory calls, multiline expressions, generic
-`SObject` aliases, dynamic Apex, and new subscriber-owned object types. A package-owned fixture can
-still be affected by subscriber additions in some installation models, so any-org compatibility
-claims must name their prerequisites and tested org shapes.
+`check:test-data-isolation` is a structural guard, not a complete Apex parser. It detects direct,
+typed-variable, collection, inline-query, and `Database` DML for `Account`, `Contact`, and `User` in
+`@isTest` classes, across lines and with comments and strings removed. Reviewers must also inspect
+DML reached through a non-test class, dynamic Apex and dynamic SOQL, and new subscriber-owned object
+types. The `LIMIT 1` rule cannot tell whether a `WHERE` clause matches exactly one record, so
+reviewers still confirm that a filter is a semantic key or state. A package-owned fixture can still
+be affected by subscriber additions in some installation models, so any-org compatibility claims
+must name their prerequisites and tested org shapes.
 
 ## Regression-first rule
 

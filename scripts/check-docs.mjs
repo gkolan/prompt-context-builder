@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { promptBuilderSourceFiles } from "./prompt-builder-files.mjs";
 
 const workspace = process.cwd();
 const roots = [
@@ -142,6 +143,38 @@ for (const directory of fs.readdirSync(path.join(workspace, "docs"), {
     !fs.existsSync(path.join(workspace, "docs", directory.name, "README.md"))
   ) {
     failures.push(`docs/${directory.name}: missing README.md`);
+  }
+}
+
+// A junior administrator follows the walkthrough literally, so every field it names must be a real
+// Prompt Builder label, including labels rendered by its child components.
+const builderSource = promptBuilderSourceFiles(workspace)
+  .map((relativeFile) =>
+    fs.readFileSync(path.join(workspace, relativeFile), "utf8")
+  )
+  .join("\n");
+const builderLabels = new Set(
+  [
+    ...builderSource.matchAll(
+      /(?:label|source-label|selected-label)="([^"]+)"/g
+    ),
+    ...builderSource.matchAll(/\blabel:\s*"([^"]+)"/g)
+  ].map((match) => match[1])
+);
+const walkthrough = fs.readFileSync(
+  path.join(workspace, "docs/step-by-step-guide/README.md"),
+  "utf8"
+);
+for (const table of walkthrough.matchAll(
+  /^\| Field in Prompt Builder[^\n]*\n\|[-| ]+\|\n((?:\|[^\n]*\n)+)/gm
+)) {
+  for (const row of table[1].trim().split("\n")) {
+    const fieldLabel = row.split("|")[1].trim();
+    if (!builderLabels.has(fieldLabel)) {
+      failures.push(
+        `docs/step-by-step-guide/README.md: "${fieldLabel}" is not a Prompt Builder label`
+      );
+    }
   }
 }
 

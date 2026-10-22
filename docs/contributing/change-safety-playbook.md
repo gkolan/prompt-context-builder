@@ -21,9 +21,39 @@ relied on state that the source did not own.
 | An Apex class cannot be compiled during deployment                       | A scheduled job still references the class                                                       | Inventory affected jobs, pause only what is necessary, and restore every job after validation or failure |
 | Static analysis reports hundreds of findings without a useful conclusion | Style debt, possible defects, and engine false positives were treated as one category            | Review findings by severity and relevance, fix defects, and report remaining advisory debt honestly      |
 | A green local command is described as deployed behavior                  | Evidence from different environments was combined                                                | Keep local, validation, deployment, browser, and package evidence separate                               |
+| Local gates fail on files from another branch                            | Jest and the release scan read nested worktrees under `.claude/worktrees`                        | Local gates read only this checkout                                                                      |
 
 These rules reduce known risk. They do not prove that no defect exists, and they do not make every
 Salesforce org identical.
+
+### Executable guard for each lesson
+
+Every lesson above has a local guard, and `scripts/lesson-guards.test.mjs` proves each guard in both
+directions: a positive scenario where compliant source passes, and negative scenarios where each
+planted regression fails. `npm run test:lesson-guards` runs it inside `npm run ci:gates`, and
+`check:agent-guidance` fails if it leaves `ci:gates`.
+
+| Lesson                                | Guard                           | Positive scenario                                                                    | Negative scenarios                                                                                                                                                                                                                       |
+| ------------------------------------- | ------------------------------- | ------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Subscriber record DML                 | `check:test-data-isolation`     | In-memory `Account`, `Contact`, and `User`; package-object DML; DML text in comments | Direct, variable, multiline, array, collection, map-values, inline-query, `as user`, `merge`, `SObject`-list, and `Database` DML; an `@isTest` helper; `Account` DML in the security suite; `User` DML in any other suite                |
+| Restricted-user exception             | `check:test-data-isolation`     | One `User` insert in `integration-tests/security`                                    | The same insert in `integration-tests/flow-runtime`                                                                                                                                                                                      |
+| Org data dependency                   | `check:test-data-isolation`     | `@isTest(SeeAllData=false)`; a commented mention                                     | `SeeAllData=true` on a class, on a method in mixed case, and in an integration suite                                                                                                                                                     |
+| Profile display names                 | `check:test-data-isolation`     | Profile chosen by license and permissions; reading `Profile.Name`                    | `Profile` filtered by `Name` with `=`, `IN`, or `LIKE`; `User` filtered by `Profile.Name`                                                                                                                                                |
+| Draft fixture selected by `LIMIT 1`   | `check:test-data-isolation`     | `WHERE` key, `ORDER BY`, bracket bind, `LIMIT 10`, `COUNT()`                         | `LIMIT 1` with no `WHERE` or `ORDER BY`, in lowercase across lines, or with `WHERE` only in a subquery                                                                                                                                   |
+| Source conflicts and deployment scope | `check:agent-guidance`          | Current `AGENTS.md`, playbook, workflow, and npm scripts                             | `--ignore-conflicts`, a tracking reset, `project deploy start`, scratch org creation, or validation without `RunLocalTests` in automation; the approval rule or conflict section removed; the lesson-guard tests removed from `ci:gates` |
+| Scheduled Apex blocks deployment      | `check:apex-surface`            | Current Schedulables start workers through `Type.forName`                            | A Schedulable that constructs its worker; one that reads another class's constant                                                                                                                                                        |
+| Static-analysis severity              | `scan:code-analyzer`            | Moderate and lower findings stay advisory                                            | A critical or high finding; an analyzer that exits with an error or writes no results                                                                                                                                                    |
+| Analyzer output in the repository     | `check:release`                 | A clean tree                                                                         | A committed `code-analyzer-results-*` file; the ignore rule removed                                                                                                                                                                      |
+| Local evidence described as deployed  | `check:screenshots`             | The current manifest scoped to deployed-org state                                    | A widened evidence scope; a username in place of an org alias; the evidence vocabulary removed from this page                                                                                                                            |
+| Nested worktrees                      | Jest, Prettier, `check:release` | This checkout's tests, modules, files, and `.claude/settings.json` are checked       | Tests, modules, and files under `.claude/worktrees` are skipped                                                                                                                                                                          |
+
+The Code Analyzer scenarios replace the Salesforce CLI with a stand-in that writes fixed results, so
+they test the gate's threshold and failure handling, not the analyzer. Org-only lessons keep their
+Apex tests as well: `PromptTemplateHealthSchedulableTest` covers one registration per job, refusal
+without permission, and start by name, and `PromptContextTestDataFactory.selectRootRecord()` fails
+when more than one `test_root_` record exists. Those Apex guards run only in an approved org.
+
+When you add a lesson to the table, add its guard and both scenarios in the same change.
 
 ## Session-start checklist
 
@@ -78,6 +108,12 @@ Deploy-critical package tests do not insert, update, upsert, delete, or undelete
 - `Contact`
 - `User`
 
+The test-only restricted-user suite in `integration-tests/security` is the one exception. It
+inserts one minimum-access `User`, chosen by license and permissions, never by profile name, so
+sharing and field access are enforced for a real restricted user. Salesforce rolls the user back
+after each test. The suite is never packaged and needs one free Salesforce user license in the
+validation org.
+
 Those records can be constructed without DML when a parser, renderer, describe operation, or schema
 validator needs their types. Keeping an `Account` or `Contact` in memory does not invoke subscriber
 automation.
@@ -87,10 +123,12 @@ profile availability, org email policies, User validation rules, or User automat
 tests can use package Permission Sets, custom-permission test overrides, or a deliberately scoped
 test seam that does not weaken production authorization.
 
-The current executable guard is `npm run check:test-data-isolation`. It scans every `*Test.cls` file
-and `PromptContextTestDataFactory.cls`. A passing scan proves only the patterns the scanner covers;
-reviewers must still inspect indirect factory calls, multiline DML, `SObject` aliases, dynamic Apex,
-and newly introduced subscriber object types.
+The current executable guard is `npm run check:test-data-isolation`. It scans every `@isTest` class
+in `force-app` and `integration-tests`, ignoring comments and string literals, and also rejects
+`SeeAllData=true`, Profile selection by name, and an inline `LIMIT 1` query with no `WHERE` or
+`ORDER BY`. A passing scan proves only the patterns the scanner covers; reviewers must still inspect
+DML reached through a non-test class, dynamic Apex and dynamic SOQL, and newly introduced subscriber
+object types.
 
 ### Package-owned fixtures
 
@@ -171,7 +209,8 @@ npm run ci:gates
 ```
 
 The local gate covers formatting, documentation, repository contracts, Apex test-data isolation,
-LWC lint, LWC Jest behavior, and LWC coverage completeness. It does not authenticate to Salesforce,
+LWC lint, LWC Jest behavior, LWC coverage completeness, and critical or high Code Analyzer findings.
+It does not authenticate to Salesforce,
 compile Apex in an org, run `RunLocalTests`, deploy metadata, inspect Scheduled Apex, resolve source
 tracking, verify a browser, or install a package version.
 

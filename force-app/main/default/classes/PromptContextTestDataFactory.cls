@@ -8,25 +8,35 @@ public with sharing class PromptContextTestDataFactory {
    * @return Configurator test user
    */
   public static User createConfiguratorUser() {
+    return assignPermissionSets(
+      new Set<String>{ 'Prompt_Context_Configure', 'Prompt_Context_Save_Input' }
+    );
+  }
+
+  /**
+   * Gives the running test user the named Permission Sets it does not already hold. Skipping
+   * existing assignments keeps tests passing in orgs where the administrator already has them.
+   * @param permissionSetNames Permission Set API names
+   * @return The running user
+   */
+  public static User assignPermissionSets(Set<String> permissionSetNames) {
     User testUser = new User(Id = UserInfo.getUserId());
-    List<PermissionSetAssignment> assignments = new List<PermissionSetAssignment>();
     Set<Id> assignedPermissionSetIds = new Set<Id>();
     for (PermissionSetAssignment existingAssignment : [
       SELECT PermissionSetId
       FROM PermissionSetAssignment
       WHERE
         AssigneeId = :testUser.Id
-        AND PermissionSet.Name IN (
-          'Prompt_Context_Configure',
-          'Prompt_Context_Save_Input'
-        )
+        AND PermissionSet.Name IN :permissionSetNames
     ]) {
       assignedPermissionSetIds.add(existingAssignment.PermissionSetId);
     }
+    List<PermissionSetAssignment> assignments = new List<PermissionSetAssignment>();
     for (PermissionSet permissionSetRecord : [
       SELECT Id
       FROM PermissionSet
-      WHERE Name IN ('Prompt_Context_Configure', 'Prompt_Context_Save_Input')
+      WHERE Name IN :permissionSetNames
+      ORDER BY Name
     ]) {
       if (!assignedPermissionSetIds.contains(permissionSetRecord.Id)) {
         assignments.add(
@@ -73,15 +83,25 @@ public with sharing class PromptContextTestDataFactory {
     return rootRecord;
   }
 
-  /** Returns the package-owned current record created for the test. */
+  /**
+   * Returns the one package-owned current record created for the test. Fails instead of guessing
+   * when a sibling root exists; keep that sibling's Id from createRootRecord instead.
+   * @return the only record whose Developer_Key__c starts with test_root_
+   */
   public static Prompt_Template__c selectRootRecord() {
-    return [
+    List<Prompt_Template__c> roots = [
       SELECT Id, Name
       FROM Prompt_Template__c
       WHERE Developer_Key__c LIKE 'test_root_%'
       WITH SYSTEM_MODE
-      LIMIT 1
+      LIMIT 2
     ];
+    Assert.areEqual(
+      1,
+      roots.size(),
+      'selectRootRecord needs exactly one test_root_ record.'
+    );
+    return roots[0];
   }
 
   /** Creates package-owned roots without touching customer business objects. */

@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const root = process.cwd();
@@ -95,6 +95,57 @@ if (!packageJson.scripts?.["ci:gates"]?.includes("check:agent-guidance")) {
 if (!packageJson.scripts?.["ci:gates"]?.includes("check:screenshots")) {
   failures.push("package.json: ci:gates must include check:screenshots");
 }
+if (!packageJson.scripts?.["ci:gates"]?.includes("test:lesson-guards")) {
+  failures.push("package.json: ci:gates must include test:lesson-guards");
+}
+
+// Lessons: conflict protection is bypassed only with explicit user approval, a check-only
+// validation is not a deployment, and scratch orgs are created or deleted only when authorized.
+// No unattended automation may do any of these.
+const workflowDirectory = join(root, ".github", "workflows");
+const automation = [
+  ["package.json", JSON.stringify(packageJson.scripts ?? {})],
+  ...(existsSync(workflowDirectory) ? readdirSync(workflowDirectory) : []).map(
+    (name) => [
+      `.github/workflows/${name}`,
+      readFileSync(join(workflowDirectory, name), "utf8")
+    ]
+  )
+];
+const forbiddenAutomation = [
+  [/--ignore-conflicts\b/, "bypasses source-conflict protection"],
+  [
+    /\breset\s+tracking\b|force:source:tracking:reset/,
+    "resets source tracking"
+  ],
+  [
+    /\bproject\s+deploy\s+(?:start|quick)\b|force:source:(?:deploy|push)\b|force:mdapi:deploy\b/,
+    "deploys instead of validating"
+  ],
+  [
+    /\borg\s+(?:create|delete)\s+scratch\b|force:org:(?:create|delete)\b/,
+    "creates or deletes a scratch org"
+  ]
+];
+for (const [relativePath, source] of automation) {
+  for (const [pattern, reason] of forbiddenAutomation) {
+    if (pattern.test(source)) {
+      failures.push(`${relativePath}: automation ${reason}`);
+    }
+  }
+}
+const quality = automation.find(
+  ([relativePath]) => relativePath === ".github/workflows/quality.yml"
+)?.[1];
+if (
+  !/sf project deploy validate\b[^\n]*--test-level RunLocalTests/.test(
+    quality ?? ""
+  )
+) {
+  failures.push(
+    ".github/workflows/quality.yml: org validation must be a check-only deploy validate with RunLocalTests"
+  );
+}
 
 if (failures.length > 0) {
   console.error("Agent-guidance checks failed:\n" + failures.join("\n"));
@@ -102,5 +153,5 @@ if (failures.length > 0) {
 }
 
 console.log(
-  "Mandatory agent and contributor change-safety guidance is present and linked."
+  "Mandatory change-safety guidance is present and linked, and automation cannot bypass it."
 );

@@ -31,9 +31,9 @@ scratch-org baseline. The selected template has file input disabled.
 
 1. Choose a published template.
 2. Optionally enter text in **Add instructions at the top (optional)**.
-3. If the published template uses **User selects files**, choose the eligible Salesforce Files. Use
-   **Show more Files** to load another page without clearing prior selections. A template using
-   **All eligible files** selects the limited eligible set automatically.
+3. If the published template uses **Let the user choose Files**, choose the eligible Salesforce
+   Files. Use **Show more Files** to load another page without clearing prior selections. A template
+   using **Include all eligible Files** selects the limited eligible set automatically.
 4. Select **Generate record context**.
 5. Review and edit **Generated record context (editable)**.
 6. Optionally enter text in **Add instructions at the bottom (optional)**.

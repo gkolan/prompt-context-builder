@@ -31,15 +31,17 @@ The prompt remains usable, but the Flow should decide whether that limited data 
 
 ## Inputs
 
-| Flow input                  | Required | Meaning                                                      |
-| --------------------------- | -------- | ------------------------------------------------------------ |
-| **Record Id**               | Yes      | Record whose object must match the published template        |
-| **Template Automation Key** | One of   | Stable template identity recommended for deployed automation |
-| **Published Template Id**   | One of   | Environment-specific Salesforce Id of the published template |
-| **Delivery Choice**         | Yes      | `RETURN_TO_APEX` or `SAVE_TO_LOG`; case does not matter      |
-| **Request Key**             | For save | Stable caller key used to make a retry safe                  |
+| Flow input                               | Required  | Meaning                                                                                                                   |
+| ---------------------------------------- | --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| **Record Id**                            | Yes       | Record whose object must match the published template                                                                     |
+| **Template Automation Key**              | One of    | Stable template identity recommended for deployed automation                                                              |
+| **Published Template Id**                | One of    | Environment-specific Salesforce Id of the published template                                                              |
+| **Delivery Choice**                      | Yes       | `RETURN_TO_APEX` or `SAVE_TO_LOG`; case does not matter                                                                   |
+| **Request Key**                          | For save  | Stable caller key used to make a retry safe                                                                               |
+| **Selected Salesforce File Version Ids** | For files | Exact current `ContentVersion` Ids for a template that lets the user choose Files; requires **Prompt Context Send Files** |
 
-Delivery Choice matches the API value regardless of case. A label such as `Save to log` returns
+Delivery Choice matches the API value regardless of case and surrounding spaces. A label such as
+`Save to log` returns
 `INVALID_DELIVERY_CHOICE`; the action reports it as a failed result and does not fault the Flow.
 
 Existing Process Builder processes call this same action with the same inputs. Salesforce no longer
@@ -54,7 +56,10 @@ allows new processes, so build new automation in Flow.
 | `message`           | Safe explanation for the primary outcome                               |
 | `warningCodes`      | Comma-separated successful-result warnings                             |
 | `warningMessage`    | Safe explanation of successful-result warnings                         |
+| `templateId`        | Template that answered the request                                     |
+| `recordId`          | Record Id from the request                                             |
 | `prompt`            | Generated text; null when the item failed                              |
+| `selectedFilesJson` | Server-built list of selected File versions; null without files        |
 | `inputLogId`        | Saved Prompt Input Log Id; null when input was returned to Apex        |
 | `templateVersionId` | Exact published template version used                                  |
 | `templateVersion`   | Fixed published version used                                           |
@@ -68,6 +73,12 @@ allows new processes, so build new automation in Flow.
 One invocation accepts at most 200 requests and 10 distinct templates. Successful prompts in one
 Flow response are limited to 1,000,000 combined characters. The resource planner can return
 `TRANSACTION_BUDGET_EXCEEDED` for later records before Salesforce governor limits would be crossed.
+
+When some records have many more related records than a data set's maximum, preparation runs extra
+grouped queries so every record still gets its own complete rows. If those queries would exceed the
+transaction's capacity, every request for that template returns `TRANSACTION_BUDGET_EXCEEDED`; no
+prompt is returned with records missing. Reduce the collection size or the data set's maximum
+records.
 
 The response order matches the request order. One failed record does not discard successful
 neighbors. For each response:

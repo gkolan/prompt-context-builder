@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Prompt File Settings</masterLabel>
+    <description
+  >Edits whether a Prompt Builder template can reference Salesforce Files and how many.</description>
+</LightningComponentBundle>

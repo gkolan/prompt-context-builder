@@ -4,7 +4,7 @@
     <description
   >Preserves the maximum Salesforce File count approved for this published prompt version.</description>
     <inlineHelpText
-  >This published value cannot exceed five. Requests over the limit fail without omitting files.</inlineHelpText>
+  >This published value cannot exceed five. Choosing more files than the limit stops the request. All Eligible Files uses only the first eligible files by title, up to the limit.</inlineHelpText>
     <label>Maximum Files</label>
     <precision>1</precision>
     <scale>0</scale>

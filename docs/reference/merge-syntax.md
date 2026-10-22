@@ -15,6 +15,12 @@ as inert text and are never parsed again.
 
 Indexes are zero-based. The configured source must expose every referenced related field.
 
+A field path can follow up to five relationships. A relationship that can point to more than one
+kind of record, such as a Case or Lead `Owner` (a user or a queue) or a Task `Who` (a contact or a
+lead), supports only `Name`: `{!record.Owner.Name}`. It works when every kind of record it can point
+to has a `Name` field you can read. Other fields across such a relationship, and `What` on Tasks and
+Events, which can point to records without a `Name` field, return `INVALID_CONFIGURATION`.
+
 ## Blocks
 
 ```text
@@ -82,12 +88,20 @@ stored version, so republishing is the only way a live template changes its outp
 | Address or Location   | Accepted                                      | Rejected; use the individual parts                                                       |
 | Row index past limit  | Always prints its fallback                    | Rejected with `INDEX_OUT_OF_RANGE`                                                       |
 
-In a multi-currency org, each currency value prints the record's own `CurrencyIsoCode`. Calculated
-values print as plain numbers without trailing zeros, so a sum prints `180`; the required currency rule on a calculated data set names their
-currency. A picklist value that is no longer defined prints as stored.
+In a multi-currency org, each currency value prints the record's own `CurrencyIsoCode`. A calculated
+data set that sums, averages, or finds the minimum or maximum of a currency field must include a
+required `CurrencyIsoCode` equals rule. Salesforce would return such a calculation converted to the
+corporate currency, so syntax version 2 calculates from the matching records instead and prints the
+exact amount in the rule's currency, such as `1300.00 EUR`. In a single-currency org the value prints
+with the org's currency code. Other calculated values print as plain numbers without trailing zeros,
+so a count or a sum of a number field prints `180`. A picklist value that is no longer defined prints
+as stored, and labels appear in the running person's language only where the org has translations
+for them.
 
 To adopt version 2, open the template, preview it, review the changed output, and publish. Version
-comparison lists `Syntax version changed.` for that publication.
+comparison lists `Syntax version changed.` for that publication. Restoring a version published
+with syntax version 1 also publishes as version 2, and Prompt Builder warns about the change after
+the restore.
 
 ## Authoring checks added in syntax version 2
 

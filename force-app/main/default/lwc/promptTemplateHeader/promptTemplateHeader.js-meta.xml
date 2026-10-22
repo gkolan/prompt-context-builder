@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<LightningComponentBundle xmlns="http://soap.sforce.com/2006/04/metadata">
+    <apiVersion>67.0</apiVersion>
+    <isExposed>false</isExposed>
+    <masterLabel>Prompt Template Header</masterLabel>
+    <description
+  >Finds and opens Prompt Builder templates and shows the open template's status.</description>
+</LightningComponentBundle>

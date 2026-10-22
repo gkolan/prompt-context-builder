@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
+import { stripCommentsAndStrings } from "./apex-source.mjs";
 
 // Pins the production Apex security surface. Each exception below is reviewed in
 // docs/architecture/security-and-data-access.md; changing a count requires the same review.
@@ -8,25 +9,18 @@ const approvedWithoutSharing = new Set(["PromptContextInputLogSelector"]);
 const approvedSystemModeUses = new Map([
   // Digest-checked recovery of the caller's own user-scoped request key after Save Input authorization.
   ["PromptContextInputLogSelector", 1],
-  // Immutable version and source-version inserts during an authorized publish.
-  ["PromptTemplateService", 2]
+  // Immutable version and source-version inserts during an authorized publish, and the one
+  // lifecycle-field writer that runs only after a user-mode edit proof on the same rows.
+  ["PromptTemplateService", 3]
 ]);
 // Entry classes that authorize by delegating every call to a class that calls PromptContextAccess.
 const approvedDelegation = new Map([
-  ["PromptContextInputApi", "PromptContextPreparationService"]
+  ["PromptContextInputApi", "PromptContextPreparationService"],
+  // Scheduled classes start their worker by name; each worker authorizes itself.
+  ["PromptTemplateHealthSchedulable", "PromptTemplateHealthQueueable"],
+  ["PromptContextInputPurgeSchedulable", "PromptContextInputPurgeQueueable"]
 ]);
 const failures = [];
-
-// One pass so a "//" inside a string, or a quote inside a comment, cannot hide code.
-function stripCommentsAndStrings(source, keepStrings = false) {
-  return source.replace(
-    /\/\*[\s\S]*?\*\/|\/\/[^\n]*|'(?:[^'\\\n]|\\.)*'/g,
-    (token) => {
-      if (token.startsWith("'")) return keepStrings ? token : "''";
-      return token.replace(/[^\n]/g, " ");
-    }
-  );
-}
 const sources = new Map();
 
 for (const fileName of readdirSync(classesDirectory).sort()) {
@@ -104,6 +98,24 @@ for (const [className, source] of sources) {
     if (!delegate || !authorizes(sources.get(delegate) ?? "")) {
       failures.push(
         `${className}: entry class must call PromptContextAccess.require*().`
+      );
+    }
+  }
+}
+
+// Salesforce refuses to deploy any class a pending scheduled job depends on. A Schedulable that
+// names no other package class (it starts its worker through Type.forName) leaves every other
+// class deployable while the job stays scheduled.
+for (const [className, source] of sources) {
+  if (!/implements\s+[^{]*\bSchedulable\b/.test(source)) continue;
+  const code = stripCommentsAndStrings(source);
+  for (const otherClass of sources.keys()) {
+    if (
+      otherClass !== className &&
+      new RegExp(`\\b${otherClass}\\b`).test(code)
+    ) {
+      failures.push(
+        `${className}: a Schedulable must not reference ${otherClass}; start the worker with Type.forName so a pending job never blocks deployment.`
       );
     }
   }

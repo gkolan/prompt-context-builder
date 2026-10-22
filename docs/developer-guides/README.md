@@ -45,14 +45,17 @@ log. Reusing that key for different input fails with `REQUEST_KEY_CONFLICT`.
 The returned `correlationId` identifies this result for diagnostics. Do not log `prompt`, Request
 Keys, or customer values in production.
 
-For a file-enabled published template, assign **Prompt Context Send Files** and provide exact current
-Salesforce File version IDs in `request.selectedContentVersionIds`. A successful result returns the
-server-built `selectedFilesJson`. Callers cannot provide their own file JSON. The same managed value
+For a file-enabled published template, assign **Prompt Context Send Files**. When the template lets
+the user choose Files, provide exact current Salesforce File version IDs in
+`request.selectedContentVersionIds`. When it includes all eligible Files, leave that list empty; a
+supplied ID returns `INVALID_REQUEST`. A successful result returns the server-built
+`selectedFilesJson`. Callers cannot provide their own file JSON. The same managed value
 is stored when Delivery Choice is `SAVE_TO_LOG`.
 
 The file list contains metadata only. `PromptContextInputApi` does not read file bodies or call an
 external service. Code that chooses `RETURN_TO_APEX` owns any later approved action. Code that chooses
 `SAVE_TO_LOG` can use `PromptContextInputLifecycle` to claim and update saved work.
+`claimAvailable` returns the longest-waiting logs first.
 
 `warningCodes` is a comma-separated list of stable codes. A successful response may carry warnings
 when a configured source limit or the combined prompt row limit bounds the returned context.
@@ -70,9 +73,9 @@ Queueable, Batch, and Scheduled Apex do not elevate record access. The executing
 generation capability and read access to every required customer object and field.
 
 Every entry point checks the user Salesforce runs the transaction as. A record-triggered Flow runs as
-the person who saved the record. Some automation runs as a different user, for example the
-Automated Process user for some event-driven Flows, or the user who scheduled a job. That user needs
-the Prompt Context Permission Sets and record access; otherwise the request returns
+the person who saved the record. Schedule-triggered and platform-event Flows run as a user that org
+settings decide; in the verification orgs both ran as the System Administrator who activated them.
+That user needs the Prompt Context Permission Sets and record access; otherwise the request returns
 `NOT_AUTHORIZED` or an access reason. Confirm the running user for each Flow type in the target org
 before relying on it.
 
@@ -99,7 +102,10 @@ or create a process.
 
 `PromptContextFlowRuntimeTest` and its two test-only Flows live in `integration-tests/flow-runtime`;
 `PromptContextFormulaFieldTest`, its test-only formula fields, and its permission set live in
-`integration-tests/formula-fixtures`. Include both directories when validating against an org; neither
-is packaged.
+`integration-tests/formula-fixtures`. `PromptContextRestrictedUserTest` in `integration-tests/security`
+runs generation, publishing, and lifecycle writes as a minimum-access user who holds only the package
+Permission Sets, so Salesforce enforces sharing, object access, and field access for real. It creates
+that user inside the test, Salesforce rolls it back, and it needs one free Salesforce user license.
+Include all three directories when validating against an org; none is packaged.
 
 See [Reason codes](../reference/reason-codes.md) and [Limits](../reference/limits.md).

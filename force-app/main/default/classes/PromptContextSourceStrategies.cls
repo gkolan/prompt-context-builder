@@ -8,7 +8,8 @@ public with sharing class PromptContextSourceStrategies {
   public static PromptContextSourceStrategy forMode(String sourceMode) {
     PromptContextSourceStrategy strategy = STRATEGIES.get(sourceMode);
     if (strategy == null) {
-      throw new PromptContextException(
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
         'This data set uses an unsupported record selection: ' +
           sourceMode +
           '.'

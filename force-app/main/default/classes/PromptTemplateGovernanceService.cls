@@ -171,6 +171,9 @@ public with sharing class PromptTemplateGovernanceService {
       summary.id = versionRecord.Id;
       summary.versionNumber = Integer.valueOf(versionRecord.Version_Number__c);
       summary.publishedAt = versionRecord.Published_At__c;
+      summary.syntaxVersion = Integer.valueOf(
+        versionRecord.Syntax_Version__c ?? 1
+      );
       summary.fingerprint = versionRecord.Fingerprint__c;
       summaries.add(summary);
     }
@@ -192,9 +195,47 @@ public with sharing class PromptTemplateGovernanceService {
       header,
       toVersion
     );
-    PromptContextDTO.VersionComparison comparison = new PromptContextDTO.VersionComparison();
+    PromptContextDTO.VersionComparison comparison = compareConfigs(
+      beforeConfig,
+      afterConfig
+    );
     comparison.fromVersion = fromVersion;
     comparison.toVersion = toVersion;
+    if (comparison.changes.isEmpty()) {
+      comparison.changes.add('No configuration differences were found.');
+    }
+    return comparison;
+  }
+
+  /**
+   * Reports whether a live template's saved draft differs from the published version users get.
+   * @param draft Saved draft settings loaded with the template header
+   * @return False for a template that was never published
+   */
+  public static Boolean hasUnpublishedChanges(
+    PromptContextDTO.TemplateConfig draft
+  ) {
+    if (draft?.publishedAt == null) {
+      return false;
+    }
+    try {
+      return !compareConfigs(
+          PromptTemplateService.getPublishedConfig(draft),
+          draft
+        )
+        .changes.isEmpty();
+    } catch (PromptContextException unavailablePublication) {
+      // A display hint only: an unreadable publication must not stop the admin opening the
+      // template to repair it. Generation still fails closed on the same publication.
+      return false;
+    }
+  }
+
+  private static PromptContextDTO.VersionComparison compareConfigs(
+    PromptContextDTO.TemplateConfig beforeConfig,
+    PromptContextDTO.TemplateConfig afterConfig
+  ) {
+    PromptContextDTO.VersionComparison comparison = new PromptContextDTO.VersionComparison();
     compareValue(
       comparison,
       'Syntax version',
@@ -250,9 +291,6 @@ public with sharing class PromptTemplateGovernanceService {
       afterConfig.fileCitationsEnabled
     );
     compareSources(comparison, beforeConfig.sources, afterConfig.sources);
-    if (comparison.changes.isEmpty()) {
-      comparison.changes.add('No configuration differences were found.');
-    }
     return comparison;
   }
 
@@ -263,6 +301,18 @@ public with sharing class PromptTemplateGovernanceService {
     Id templateId,
     Integer versionNumber
   ) {
+    return restoreVersionAsDraft(templateId, versionNumber, null);
+  }
+
+  /**
+   * Copies a fixed published version into the editable draft.
+   * @param expectedDraftRevision Draft revision the editor loaded; null restores over the stored draft
+   */
+  public static PromptContextDTO.TemplateConfig restoreVersionAsDraft(
+    Id templateId,
+    Integer versionNumber,
+    Integer expectedDraftRevision
+  ) {
     PromptContextDTO.TemplateConfig header = requireTemplate(templateId);
     PromptContextDTO.TemplateConfig restored = getVersionConfig(
       header,
@@ -272,11 +322,12 @@ public with sharing class PromptTemplateGovernanceService {
     restored.developerKey = header.developerKey;
     restored.name = header.name;
     restored.description = header.description;
-    restored.status = 'Draft';
+    restored.status = PromptContextContract.TEMPLATE_DRAFT;
     restored.version = header.version;
     restored.fingerprint = null;
     restored.publishedAt = null;
-    restored.draftRevision = header.draftRevision;
+    // saveDraft rejects a revision that no longer matches, so a stale restore cannot erase edits.
+    restored.draftRevision = expectedDraftRevision ?? header.draftRevision;
     return PromptTemplateService.saveDraft(restored);
   }
 
@@ -341,9 +392,30 @@ public with sharing class PromptTemplateGovernanceService {
       item.sensitivity = 'Encrypted';
     } else if (CONTACT_DATA_TYPES.contains(description.getType())) {
       item.sensitivity = 'Contact data';
+    } else if (
+      usage == 'Prompt value' &&
+      description.getType() == Schema.DisplayType.TextArea &&
+      description.getLength() > 255
+    ) {
+      item.sensitivity = 'Free text';
     }
     manifest.items.add(item);
-    if (!String.isBlank(item.sensitivity)) {
+    if (item.sensitivity == 'Free text') {
+      // Customer-written text reaches the model beside the administrator's instructions.
+      manifest.warnings.add(
+        new PromptContextDTO.Message(
+          'WARNING',
+          'SENSITIVE_FIELD_REVIEW',
+          (String.isBlank(sourceAlias)
+            ? 'Current record'
+            : 'Data set ' + sourceAlias),
+          canonicalPath +
+            ' is free text people write. It can contain instructions aimed at the model, so ' +
+            'place it after your own instructions, inside clearly labeled delimiters, and treat ' +
+            'it as data.'
+        )
+      );
+    } else if (!String.isBlank(item.sensitivity)) {
       manifest.warnings.add(
         new PromptContextDTO.Message(
           'WARNING',

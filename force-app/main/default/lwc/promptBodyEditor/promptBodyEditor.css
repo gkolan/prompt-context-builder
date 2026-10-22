@@ -1,0 +1,51 @@
+:host {
+  display: block;
+}
+
+.prompt-editor {
+  display: block;
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.editor-grid {
+  display: grid;
+  gap: var(--slds-g-spacing-4, 1rem);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.live-preview,
+.recipe-panel {
+  background: var(--slds-g-color-surface-container-1, #f3f3f3);
+  border-radius: var(--slds-g-radius-border-1, 0.25rem);
+  color: var(--slds-g-color-on-surface-1, #181818);
+  padding: var(--slds-g-spacing-4, 1rem);
+}
+
+.live-preview pre {
+  margin-top: var(--slds-g-spacing-2, 0.5rem);
+  max-height: 18rem;
+  overflow: auto;
+  white-space: pre-wrap;
+}
+
+.editor-guidance {
+  margin-top: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.syntax-list {
+  display: grid;
+  gap: var(--slds-g-spacing-2, 0.5rem) var(--slds-g-spacing-4, 1rem);
+  grid-template-columns: max-content 1fr;
+}
+
+code {
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  .syntax-list,
+  .editor-grid {
+    grid-template-columns: 1fr;
+  }
+}

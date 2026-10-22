@@ -4,7 +4,7 @@
     <description
   >Sets the largest number of Salesforce Files this prompt can use, up to the package limit of five.</description>
     <inlineHelpText
-  >Enter 1 through 5 when file input is enabled. A request over this number fails without omitting files.</inlineHelpText>
+  >Enter 1 through 5 when file input is enabled. Choosing more files than this stops the request. All Eligible Files uses only the first eligible files by title, up to this number.</inlineHelpText>
     <label>Maximum Files</label>
     <precision>1</precision>
     <scale>0</scale>

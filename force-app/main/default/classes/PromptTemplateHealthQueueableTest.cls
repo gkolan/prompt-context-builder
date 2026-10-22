@@ -61,7 +61,7 @@ private class PromptTemplateHealthQueueableTest {
     PromptContextAccess.setConfigureForTest(false);
     Test.startTest();
     try {
-      new PromptTemplateHealthQueueable().execute(null);
+      new PromptTemplateHealthQueueable().execute((QueueableContext) null);
       Assert.fail('Scheduled health must require Configure permission.');
     } catch (PromptContextAccess.AuthorizationException expected) {
       Assert.areEqual(

@@ -1,0 +1,190 @@
+<template>
+  <div class="subsection">
+    <div
+      class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
+    >
+      <h4 class="slds-text-title_bold">Filter groups</h4>
+      <lightning-button
+        label="Add filter"
+        onclick={addFilter}
+        disabled={disabled}
+      ></lightning-button>
+    </div>
+    <lightning-combobox
+      name="filterGroupJoin"
+      label="How groups combine"
+      value={source.filterGroupJoin}
+      options={filterGroupJoinOptions}
+      onchange={handleSetting}
+      disabled={usesFilterLogic}
+      field-level-help="Rules in one named group always use AND. Choose whether every group or any group must match."
+    ></lightning-combobox>
+    <lightning-input
+      name="filterLogic"
+      label="Filter logic (optional)"
+      value={source.filterLogic}
+      placeholder="1 AND (2 OR NOT 3)"
+      max-length="255"
+      onchange={handleSetting}
+      field-level-help="Use the filter numbers with AND, OR, NOT, and parentheses. Logic replaces groups; use parentheses when mixing AND with OR."
+    ></lightning-input>
+    <template for:each={filters} for:item="filter" for:index="rowIndex">
+      <div
+        key={filter.clientKey}
+        class="rule-row slds-grid slds-wrap slds-gutters_x-small"
+      >
+        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          <span class="filter-number">Filter {filter.number}</span>
+          <lightning-input
+            name="groupName"
+            label="Group"
+            variant="label-hidden"
+            value={filter.groupName}
+            placeholder="group_1"
+            disabled={filter.groupDisabled}
+            data-collection="filters"
+            data-row-index={rowIndex}
+            onchange={handleRowField}
+          ></lightning-input>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
+          <lightning-combobox
+            name="fieldName"
+            label="Field"
+            variant="label-hidden"
+            value={filter.fieldName}
+            options={source.fieldOptions}
+            data-collection="filters"
+            data-row-index={rowIndex}
+            onchange={handleRowField}
+          ></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_2-of-12">
+          <lightning-combobox
+            name="operator"
+            label="Rule"
+            variant="label-hidden"
+            value={filter.operator}
+            options={filterOperators}
+            data-collection="filters"
+            data-row-index={rowIndex}
+            onchange={handleRowField}
+          ></lightning-combobox>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+          <template lwc:if={filter.isTextValue}>
+            <lightning-input
+              name="value"
+              label="Value"
+              variant="label-hidden"
+              value={filter.value}
+              placeholder={filter.valuePlaceholder}
+              disabled={filter.valueDisabled}
+              data-collection="filters"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-input>
+          </template>
+          <template lwc:else>
+            <lightning-combobox
+              name="value"
+              label="Value"
+              variant="label-hidden"
+              value={filter.value}
+              options={filter.valueChoices}
+              data-collection="filters"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </template>
+          <p
+            lwc:if={filter.valueHelp}
+            class="slds-text-body_small slds-text-color_weak"
+          >
+            {filter.valueHelp}
+          </p>
+        </div>
+        <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-12">
+          <lightning-button-icon
+            icon-name="utility:close"
+            alternative-text="Remove filter"
+            title="Remove filter"
+            disabled={disabled}
+            data-collection="filters"
+            data-row-index={rowIndex}
+            onclick={removeRow}
+          ></lightning-button-icon>
+        </div>
+      </div>
+    </template>
+  </div>
+
+  <template lwc:if={showSorts}>
+    <div class="subsection">
+      <div
+        class="slds-grid slds-grid_align-spread slds-grid_vertical-align-center"
+      >
+        <h4 class="slds-text-title_bold">Sort order</h4>
+        <lightning-button
+          label="Add sort"
+          onclick={addSort}
+          disabled={disabled}
+        ></lightning-button>
+      </div>
+      <template for:each={source.sorts} for:item="sort" for:index="rowIndex">
+        <div
+          key={sort.clientKey}
+          class="rule-row slds-grid slds-wrap slds-gutters_x-small"
+        >
+          <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+            <lightning-combobox
+              name="fieldName"
+              label="Field"
+              variant="label-hidden"
+              value={sort.fieldName}
+              options={source.fieldOptions}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_3-of-12">
+            <lightning-combobox
+              name="direction"
+              label="Direction"
+              variant="label-hidden"
+              value={sort.direction}
+              options={sortDirections}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_4-of-12">
+            <lightning-combobox
+              name="nullsOrder"
+              label="Blank values"
+              variant="label-hidden"
+              value={sort.nullsOrder}
+              options={nullsOptions}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onchange={handleRowField}
+            ></lightning-combobox>
+          </div>
+          <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-12">
+            <lightning-button-icon
+              icon-name="utility:close"
+              alternative-text="Remove sort"
+              title="Remove sort"
+              disabled={disabled}
+              data-collection="sorts"
+              data-row-index={rowIndex}
+              onclick={removeRow}
+            ></lightning-button-icon>
+          </div>
+        </div>
+      </template>
+    </div>
+  </template>
+</template>

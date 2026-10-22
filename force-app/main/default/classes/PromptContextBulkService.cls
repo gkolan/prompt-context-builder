@@ -52,7 +52,10 @@ public with sharing class PromptContextBulkService {
           String prompt = rendered.text;
           if (prompt.length() > PromptContextContract.MAX_PROMPT_CHARACTERS) {
             outcome.reasonCode = PromptContextReasonCodes.PROMPT_TOO_LONG;
-            outcome.message = 'The generated prompt is longer than 20,000 characters. Reduce fields, records, or template text.';
+            outcome.message =
+              'The generated prompt is longer than ' +
+              PromptContextContract.MAX_PROMPT_CHARACTERS.format() +
+              ' characters. Reduce fields, records, or template text.';
           } else {
             PromptContextDTO.PromptResult result = new PromptContextDTO.PromptResult();
             result.prompt = prompt;
@@ -152,7 +155,13 @@ public with sharing class PromptContextBulkService {
       return;
     }
     if (source.resultMode == 'AGGREGATE') {
-      loadGroupedAggregate(source, runtimeById, keyByRecordId, valueByKey);
+      loadGroupedAggregate(
+        config,
+        source,
+        runtimeById,
+        keyByRecordId,
+        valueByKey
+      );
     } else {
       loadGroupedRecords(
         config,
@@ -175,48 +184,27 @@ public with sharing class PromptContextBulkService {
       source.maxRows,
       PromptContextContract.MAX_ROWS_PER_SOURCE
     );
-    Integer candidateLimit = valueByKey.size() * (perValueLimit + 1);
-    Integer remainingRows = Math.max(
-      0,
-      Limits.getLimitQueryRows() -
-        Limits.getQueryRows() -
-        PromptContextContract.QUERY_ROW_HEADROOM
-    );
-    if (candidateLimit + 1 > remainingRows) {
-      throw PromptContextException.withReason(
-        PromptContextReasonCodes.TRANSACTION_BUDGET_EXCEEDED,
-        'This request could read too many matching records. Reduce the record collection or the data set record limit.'
-      );
-    }
-    PromptContextQuery.Plan plan = PromptContextQuery.buildBulk(
+    Map<String, List<SObject>> rowsByKey = selectGroupedRows(
+      config,
       source,
-      requireTypedValues(source, valueByKey.values()),
-      config.templateBody,
-      candidateLimit + 1
+      valueByKey,
+      perValueLimit
     );
-    List<SObject> rows = PromptContextSelector.selectDynamic(
-      plan.soql,
-      plan.binds
-    );
-    Map<String, List<SObject>> rowsByKey = new Map<String, List<SObject>>();
-    for (SObject row : rows) {
-      String key = matchKey(getPathValue(row, source.correlationField));
-      if (!rowsByKey.containsKey(key)) {
-        rowsByKey.put(key, new List<SObject>());
-      }
-      rowsByKey.get(key).add(row);
-    }
     for (Id recordId : runtimeById.keySet()) {
       if (!keyByRecordId.containsKey(recordId)) {
         continue;
       }
       RuntimeContext runtime = runtimeById.get(recordId);
-      List<SObject> matches = rowsByKey.get(keyByRecordId.get(recordId));
-      matches = matches == null ? new List<SObject>() : matches.clone();
       Integer available = Math.max(
         0,
         PromptContextContract.MAX_ROWS_PER_PROMPT - runtime.totalRows
       );
+      if (available == 0) {
+        addTotalRowLimit(runtime, source);
+        continue;
+      }
+      List<SObject> matches = rowsByKey.get(keyByRecordId.get(recordId));
+      matches = matches == null ? new List<SObject>() : matches.clone();
       Integer effectiveLimit = Math.min(perValueLimit, available);
       Boolean truncated = matches.size() > effectiveLimit;
       while (matches.size() > effectiveLimit) {
@@ -240,7 +228,81 @@ public with sharing class PromptContextBulkService {
     }
   }
 
+  /**
+   * Reads up to perValueLimit + 1 rows for every match value with grouped queries. One shared
+   * LIMIT can be filled by an early busy value, so a full result settles only the values that
+   * already have an overflow row; the rest are queried again. Each full result settles at least
+   * one value, so the loop ends, and both Salesforce budgets are checked before every query.
+   */
+  private static Map<String, List<SObject>> selectGroupedRows(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source,
+    Map<String, Object> valueByKey,
+    Integer perValueLimit
+  ) {
+    Map<String, List<SObject>> rowsByKey = new Map<String, List<SObject>>();
+    Map<String, Object> pendingByKey = valueByKey.clone();
+    while (!pendingByKey.isEmpty()) {
+      Integer candidateLimit = pendingByKey.size() * (perValueLimit + 1);
+      requireGroupedQueryCapacity(candidateLimit + 1);
+      PromptContextQuery.Plan plan = PromptContextQuery.buildBulk(
+        source,
+        requireTypedValues(source, pendingByKey.values()),
+        config.templateBody,
+        candidateLimit + 1
+      );
+      List<SObject> rows = PromptContextSelector.selectDynamic(
+        plan.soql,
+        plan.binds
+      );
+      Map<String, List<SObject>> roundRows = new Map<String, List<SObject>>();
+      for (SObject row : rows) {
+        String key = matchKey(getPathValue(row, source.correlationField));
+        if (!roundRows.containsKey(key)) {
+          roundRows.put(key, new List<SObject>());
+        }
+        roundRows.get(key).add(row);
+      }
+      Boolean filled = rows.size() > candidateLimit;
+      Integer settled = 0;
+      for (String key : new List<String>(pendingByKey.keySet())) {
+        List<SObject> keyRows = roundRows.get(key) ?? new List<SObject>();
+        if (!filled || keyRows.size() > perValueLimit) {
+          rowsByKey.put(key, keyRows);
+          pendingByKey.remove(key);
+          settled++;
+        }
+      }
+      if (settled == 0) {
+        throw transactionBudgetExceeded();
+      }
+    }
+    return rowsByKey;
+  }
+
+  private static void requireGroupedQueryCapacity(Integer rowLimit) {
+    Integer remainingRows =
+      Limits.getLimitQueryRows() -
+      Limits.getQueryRows() -
+      PromptContextContract.QUERY_ROW_HEADROOM;
+    Integer remainingQueries =
+      Limits.getLimitQueries() -
+      Limits.getQueries() -
+      PromptContextContract.QUERY_HEADROOM;
+    if (rowLimit > remainingRows || remainingQueries < 1) {
+      throw transactionBudgetExceeded();
+    }
+  }
+
+  private static PromptContextException transactionBudgetExceeded() {
+    return PromptContextException.withReason(
+      PromptContextReasonCodes.TRANSACTION_BUDGET_EXCEEDED,
+      'This request could read too many matching records. Reduce the record collection or the data set record limit.'
+    );
+  }
+
   private static void loadGroupedAggregate(
+    PromptContextDTO.TemplateConfig config,
     PromptContextDTO.SourceConfig source,
     Map<Id, RuntimeContext> runtimeById,
     Map<Id, String> keyByRecordId,
@@ -258,8 +320,12 @@ public with sharing class PromptContextBulkService {
     requireAggregateCapacity(candidates);
     Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
     Map<String, Object> aggregateByKey = new Map<String, Object>();
-    if (!isGroupableMatch(source)) {
-      // Salesforce cannot GROUP BY this match field, so calculate from the rows already read.
+    String currencyCode = calculatedCurrencyCode(config, source);
+    if (
+      !isGroupableMatch(source) || calculatesInRecordCurrency(config, source)
+    ) {
+      // Salesforce cannot GROUP BY this match field, or would convert the amounts to the corporate
+      // currency, so calculate from the rows already read.
       aggregateByKey = calculateByKey(source, candidates);
     } else if (!candidateIds.isEmpty()) {
       PromptContextQuery.Plan plan = PromptContextQuery.buildAggregateBulk(
@@ -282,9 +348,81 @@ public with sharing class PromptContextBulkService {
       if (aggregateValue == null && source.aggregateOperation == 'COUNT') {
         aggregateValue = 0;
       }
-      runtime.aggregateByAlias.put(source.referenceName, aggregateValue);
+      runtime.aggregateByAlias.put(
+        source.referenceName,
+        withCurrency(aggregateValue, currencyCode)
+      );
       runtime.countsByAlias.put(source.referenceName, 1);
     }
+  }
+
+  /**
+   * In a multi-currency org Salesforce returns SUM, AVG, MIN, and MAX of a currency field in the
+   * corporate currency. Syntax version 2 calculates from the rows instead, which the required
+   * currency rule keeps in one currency, so the result is exact and in that currency.
+   */
+  private static Boolean calculatesInRecordCurrency(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source
+  ) {
+    return usesReadableOutput(config) &&
+      UserInfo.isMultiCurrencyOrganization() &&
+      isCurrencyCalculation(source);
+  }
+
+  /** Returns the ISO code a calculated currency value is in, or null when it has none. */
+  private static String calculatedCurrencyCode(
+    PromptContextDTO.TemplateConfig config,
+    PromptContextDTO.SourceConfig source
+  ) {
+    if (!usesReadableOutput(config) || !isCurrencyCalculation(source)) {
+      return null;
+    }
+    if (!UserInfo.isMultiCurrencyOrganization()) {
+      return UserInfo.getDefaultCurrency();
+    }
+    for (
+      PromptContextDTO.FilterRule filter : source.filters ??
+        new List<PromptContextDTO.FilterRule>()
+    ) {
+      if (
+        filter?.fieldName != null &&
+        filter.fieldName.equalsIgnoreCase('CurrencyIsoCode') &&
+        filter.operator == 'EQ'
+      ) {
+        return filter.value.trim().toUpperCase();
+      }
+    }
+    return null;
+  }
+
+  private static Boolean usesReadableOutput(
+    PromptContextDTO.TemplateConfig config
+  ) {
+    return (config.syntaxVersion ?? PromptContextContract.SYNTAX_VERSION) >=
+      PromptContextContract.SYNTAX_VERSION_READABLE_OUTPUT;
+  }
+
+  private static Boolean isCurrencyCalculation(
+    PromptContextDTO.SourceConfig source
+  ) {
+    return source.aggregateOperation != 'COUNT' &&
+      String.isNotBlank(source.aggregateField) &&
+      PromptContextSchema.getTerminalFieldDescription(
+          source.relatedObject,
+          source.aggregateField
+        )
+        .getType() == Schema.DisplayType.Currency;
+  }
+
+  private static Object withCurrency(Object value, String currencyCode) {
+    if (value == null || currencyCode == null) {
+      return value;
+    }
+    Decimal amount = value instanceof Decimal
+      ? (Decimal) value
+      : Decimal.valueOf(String.valueOf(value));
+    return new PromptContextValueFormatter.Money(amount, currencyCode);
   }
 
   private static Boolean isGroupableMatch(
@@ -393,7 +531,20 @@ public with sharing class PromptContextBulkService {
       requireAggregateCapacity(candidates);
       Set<Id> candidateIds = new Map<Id, SObject>(candidates).keySet();
       Object value = source.aggregateOperation == 'COUNT' ? 0 : null;
-      if (!candidateIds.isEmpty()) {
+      if (calculatesInRecordCurrency(config, source)) {
+        List<Object> amounts = new List<Object>();
+        String calculatedField = PromptContextSchema.requireReadableFieldPath(
+          source.relatedObject,
+          source.aggregateField
+        );
+        for (SObject candidate : candidates) {
+          Object amount = getPathValue(candidate, calculatedField);
+          if (amount != null) {
+            amounts.add(amount);
+          }
+        }
+        value = calculate(source.aggregateOperation, amounts);
+      } else if (!candidateIds.isEmpty()) {
         PromptContextQuery.Plan plan = PromptContextQuery.buildAggregate(
           source,
           null,
@@ -405,6 +556,7 @@ public with sharing class PromptContextBulkService {
         );
         value = rows.isEmpty() ? value : rows[0].get('metric');
       }
+      value = withCurrency(value, calculatedCurrencyCode(config, source));
       for (RuntimeContext runtime : runtimeById.values()) {
         runtime.aggregateByAlias.put(source.referenceName, value);
         runtime.countsByAlias.put(source.referenceName, 1);
@@ -426,11 +578,15 @@ public with sharing class PromptContextBulkService {
       rows.remove(rows.size() - 1);
     }
     for (RuntimeContext runtime : runtimeById.values()) {
-      List<SObject> availableRows = rows.clone();
       Integer remaining = Math.max(
         0,
         PromptContextContract.MAX_ROWS_PER_PROMPT - runtime.totalRows
       );
+      if (remaining == 0) {
+        addTotalRowLimit(runtime, source);
+        continue;
+      }
+      List<SObject> availableRows = rows.clone();
       Boolean promptTruncated = availableRows.size() > remaining;
       while (availableRows.size() > remaining) {
         availableRows.remove(availableRows.size() - 1);
@@ -460,6 +616,24 @@ public with sharing class PromptContextBulkService {
         'A calculated data set matches too many records. Narrow its filters before generating.'
       );
     }
+  }
+
+  private static void addTotalRowLimit(
+    RuntimeContext runtime,
+    PromptContextDTO.SourceConfig source
+  ) {
+    runtime.relatedByAlias.put(source.referenceName, new List<SObject>());
+    runtime.countsByAlias.put(source.referenceName, 0);
+    runtime.messages.add(
+      new PromptContextDTO.Message(
+        'WARNING',
+        PromptContextReasonCodes.TOTAL_ROW_LIMIT,
+        'Data set ' + source.referenceName,
+        'The prompt reached its ' +
+          PromptContextContract.MAX_ROWS_PER_PROMPT +
+          '-record limit before adding this data set.'
+      )
+    );
   }
 
   private static void addNullMatch(

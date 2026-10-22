@@ -2,6 +2,20 @@
  * Coordinates template persistence, loading, publishing, and generation.
  */
 public with sharing class PromptTemplateService {
+  /** The only fields writeLifecycle may set; every Permission Set keeps them read-only. */
+  private static final Set<String> LIFECYCLE_FIELDS = new Set<String>{
+    'id',
+    'status__c',
+    'version__c',
+    'fingerprint__c',
+    'published_at__c',
+    'draft_revision__c',
+    'last_health_checked_at__c',
+    'last_health_codes__c',
+    'last_health_status__c',
+    'last_health_version__c'
+  };
+
   /** Loads one limited page in a consistent order without loading prompt text or data sets. */
   public static PromptContextDTO.TemplateSummaryPage getTemplateSummaryPage(
     String searchText,
@@ -77,6 +91,34 @@ public with sharing class PromptTemplateService {
   }
 
   /**
+   * Loads the template header generation needs to find its fixed publication. It reads no draft
+   * text or draft data sets, so people who only generate prompts need no access to them.
+   * @param templateId Template Id
+   * @return Header with identity, status, and published version number
+   */
+  public static PromptContextDTO.TemplateConfig getRuntimeHeader(
+    Id templateId
+  ) {
+    Prompt_Template__c templateRecord = PromptContextSelector.selectTemplateHeader(
+      templateId
+    );
+    if (templateRecord == null) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.TEMPLATE_NOT_FOUND,
+        'The requested template was not found or is not accessible.'
+      );
+    }
+    PromptContextDTO.TemplateConfig header = new PromptContextDTO.TemplateConfig();
+    header.id = templateRecord.Id;
+    header.developerKey = templateRecord.Developer_Key__c;
+    header.name = templateRecord.Name;
+    header.description = templateRecord.Description__c;
+    header.status = templateRecord.Status__c;
+    header.version = Integer.valueOf(templateRecord.Version__c ?? 0);
+    return header;
+  }
+
+  /**
    * Saves a draft and replaces its child source configuration atomically.
    * @param config Editable template configuration
    * @return Reloaded saved configuration
@@ -84,8 +126,10 @@ public with sharing class PromptTemplateService {
   public static PromptContextDTO.TemplateConfig saveDraft(
     PromptContextDTO.TemplateConfig config
   ) {
+    // Status and revision are written in system mode below, so this service authorizes itself.
+    PromptContextAccess.requireConfigure();
     requireSavable(config);
-    String persistedStatus = 'Draft';
+    String persistedStatus = PromptContextContract.TEMPLATE_DRAFT;
     Integer nextRevision = 1;
     if (config.id != null) {
       Prompt_Template__c existingTemplate = PromptContextSelector.selectTemplateForDraftSave(
@@ -105,7 +149,8 @@ public with sharing class PromptTemplateService {
           'Someone saved newer changes to this template after you opened it. Reload the template, then reapply your edits.'
         );
       }
-      persistedStatus = existingTemplate.Status__c ?? 'Draft';
+      persistedStatus = existingTemplate.Status__c ??
+        PromptContextContract.TEMPLATE_DRAFT;
       nextRevision = storedRevision + 1;
     }
     Savepoint savepointValue = Database.setSavepoint();
@@ -121,9 +166,7 @@ public with sharing class PromptTemplateService {
         Require_File__c = config.requireAtLeastOneFile == true,
         Allowed_File_Formats__c = config.allowedFileFormats,
         Provider_Profile_Key__c = config.providerProfileKey,
-        File_Citations_Enabled__c = config.fileCitationsEnabled == true,
-        Status__c = persistedStatus,
-        Draft_Revision__c = nextRevision
+        File_Citations_Enabled__c = config.fileCitationsEnabled == true
       );
       if (config.id == null) {
         templateRecord.Developer_Key__c = String.isBlank(config.developerKey)
@@ -148,13 +191,30 @@ public with sharing class PromptTemplateService {
           Database.delete(existingSources, true, AccessLevel.USER_MODE);
         }
       }
+      writeLifecycle(
+        new List<Prompt_Template__c>{
+          new Prompt_Template__c(
+            Id = templateRecord.Id,
+            Status__c = persistedStatus,
+            Draft_Revision__c = nextRevision
+          )
+        },
+        true
+      );
 
       List<Prompt_Context_Source__c> sourceRecords = new List<Prompt_Context_Source__c>();
       for (
         PromptContextDTO.SourceConfig source : config.sources ??
           new List<PromptContextDTO.SourceConfig>()
       ) {
-        sourceRecords.add(mapSourceForSave(templateRecord.Id, source));
+        sourceRecords.add(
+          (Prompt_Context_Source__c) putSourceFields(
+            new Prompt_Context_Source__c(
+              Prompt_Template__c = templateRecord.Id
+            ),
+            source
+          )
+        );
       }
       if (!sourceRecords.isEmpty()) {
         Database.insert(sourceRecords, true, AccessLevel.USER_MODE);
@@ -171,20 +231,49 @@ public with sharing class PromptTemplateService {
     }
   }
 
+  /** Publishes the stored draft as it is now, for automation that has just saved it. */
+  public static PromptContextDTO.PromptResult publish(
+    Id templateId,
+    Id sampleRecordId
+  ) {
+    return publish(templateId, sampleRecordId, null);
+  }
+
   /**
    * Validates and previews a stored template, then publishes that exact configuration.
    * @param templateId Template Id
    * @param sampleRecordId Current Salesforce record used for the required successful preview
+   * @param expectedDraftRevision Draft revision the publisher reviewed; null skips the check
    * @return Preview generated from the published configuration
    */
   public static PromptContextDTO.PromptResult publish(
     Id templateId,
-    Id sampleRecordId
+    Id sampleRecordId,
+    Integer expectedDraftRevision
   ) {
     // The version writes below use system mode, so this service authorizes them itself.
     PromptContextAccess.requireConfigure();
     if (sampleRecordId == null) {
       throw new PromptContextException(Label.PCB_Publish_Requires_Preview);
+    }
+    // The row lock makes concurrent publishes run one at a time, so each gets its own version.
+    Prompt_Template__c lockedTemplate = PromptContextSelector.selectTemplateForDraftSave(
+      templateId
+    );
+    if (lockedTemplate == null) {
+      throw new PromptContextException(
+        'The requested template was not found or is not accessible.'
+      );
+    }
+    if (
+      expectedDraftRevision != null &&
+      expectedDraftRevision !=
+      Integer.valueOf(lockedTemplate.Draft_Revision__c ?? 0)
+    ) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.DRAFT_CHANGED,
+        'Someone saved newer changes to this template after you reviewed it. Reload the template, preview it, then publish.'
+      );
     }
     PromptContextDTO.TemplateConfig config = getTemplate(templateId);
     PromptContextDTO.TemplateHealth health = PromptTemplateGovernanceService.checkHealth(
@@ -209,6 +298,19 @@ public with sharing class PromptTemplateService {
     Datetime publishedAt = System.now();
     Savepoint savepointValue = Database.setSavepoint();
     try {
+      // Runs first: its user-mode edit proof must pass before any system-mode version insert.
+      writeLifecycle(
+        new List<Prompt_Template__c>{
+          new Prompt_Template__c(
+            Id = templateId,
+            Status__c = PromptContextContract.TEMPLATE_PUBLISHED,
+            Version__c = nextVersion,
+            Fingerprint__c = fingerprint,
+            Published_At__c = publishedAt
+          )
+        },
+        true
+      );
       Prompt_Template_Version__c versionRecord = new Prompt_Template_Version__c(
         Prompt_Template__c = templateId,
         Version_Key__c = config.developerKey + ':' + nextVersion,
@@ -237,24 +339,18 @@ public with sharing class PromptTemplateService {
         PromptContextDTO.SourceConfig source : config.sources ??
           new List<PromptContextDTO.SourceConfig>()
       ) {
-        sourceVersions.add(mapSourceVersion(versionRecord.Id, source));
+        sourceVersions.add(
+          (Prompt_Context_Source_Version__c) putSourceFields(
+            new Prompt_Context_Source_Version__c(
+              Prompt_Template_Version__c = versionRecord.Id
+            ),
+            source
+          )
+        );
       }
       if (!sourceVersions.isEmpty()) {
         Database.insert(sourceVersions, true, AccessLevel.SYSTEM_MODE);
       }
-      Database.update(
-        new List<Prompt_Template__c>{
-          new Prompt_Template__c(
-            Id = templateId,
-            Status__c = 'Published',
-            Version__c = nextVersion,
-            Fingerprint__c = fingerprint,
-            Published_At__c = publishedAt
-          )
-        },
-        true,
-        AccessLevel.USER_MODE
-      );
     } catch (DmlException exceptionValue) {
       Database.rollback(savepointValue);
       throw new PromptContextException(
@@ -321,9 +417,10 @@ public with sharing class PromptTemplateService {
     Id templateId,
     Id recordId
   ) {
-    PromptContextDTO.TemplateConfig header = getTemplate(templateId);
-    if (header.status != 'Published') {
-      throw new PromptContextException(
+    PromptContextDTO.TemplateConfig header = getRuntimeHeader(templateId);
+    if (header.status != PromptContextContract.TEMPLATE_PUBLISHED) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.TEMPLATE_NOT_PUBLISHED,
         'Only a published template can generate a record-page prompt.'
       );
     }
@@ -339,16 +436,21 @@ public with sharing class PromptTemplateService {
    * @return Reloaded inactive configuration
    */
   public static PromptContextDTO.TemplateConfig deactivate(Id templateId) {
-    if (getTemplate(templateId).status == 'Inactive') {
-      return getTemplate(templateId);
+    // Status is written in system mode, so this service authorizes itself.
+    PromptContextAccess.requireConfigure();
+    PromptContextDTO.TemplateConfig current = getTemplate(templateId);
+    if (current.status == PromptContextContract.TEMPLATE_INACTIVE) {
+      return current;
     }
     try {
-      Database.update(
+      writeLifecycle(
         new List<Prompt_Template__c>{
-          new Prompt_Template__c(Id = templateId, Status__c = 'Inactive')
+          new Prompt_Template__c(
+            Id = templateId,
+            Status__c = PromptContextContract.TEMPLATE_INACTIVE
+          )
         },
-        true,
-        AccessLevel.USER_MODE
+        true
       );
       return getTemplate(templateId);
     } catch (DmlException exceptionValue) {
@@ -357,6 +459,47 @@ public with sharing class PromptTemplateService {
       );
     } catch (SecurityException exceptionValue) {
       throw new PromptContextException(Label.PCB_Access_Denied);
+    }
+  }
+
+  /**
+   * Writes lifecycle fields that authors cannot edit directly: status, version, signature, draft
+   * revision, and health. Each row first gets a user-mode update with no field changes, which
+   * succeeds only when the running user can edit that template; only those rows are then written
+   * in system mode.
+   * @param updates Template rows carrying only lifecycle fields
+   * @param allOrNone True to fail on the first row the user cannot edit; false to skip such rows
+   */
+  public static void writeLifecycle(
+    List<Prompt_Template__c> updates,
+    Boolean allOrNone
+  ) {
+    PromptContextAccess.requireConfigure();
+    List<Prompt_Template__c> editProofs = new List<Prompt_Template__c>();
+    for (Prompt_Template__c updateRecord : updates) {
+      // System mode skips field access, so it must never carry an author-editable field.
+      for (String fieldName : updateRecord.getPopulatedFieldsAsMap().keySet()) {
+        if (!LIFECYCLE_FIELDS.contains(fieldName.toLowerCase())) {
+          throw new PromptContextException(
+            'Only template lifecycle fields can be written by the lifecycle service.'
+          );
+        }
+      }
+      editProofs.add(new Prompt_Template__c(Id = updateRecord.Id));
+    }
+    List<Database.SaveResult> proofResults = Database.update(
+      editProofs,
+      allOrNone,
+      AccessLevel.USER_MODE
+    );
+    List<Prompt_Template__c> editable = new List<Prompt_Template__c>();
+    for (Integer index = 0; index < updates.size(); index++) {
+      if (proofResults[index].isSuccess()) {
+        editable.add(updates[index]);
+      }
+    }
+    if (!editable.isEmpty()) {
+      Database.update(editable, allOrNone, AccessLevel.SYSTEM_MODE);
     }
   }
 
@@ -430,106 +573,85 @@ public with sharing class PromptTemplateService {
     return config;
   }
 
-  private static PromptContextDTO.SourceConfig mapSource(
-    Prompt_Context_Source__c sourceRecord
-  ) {
+  /** Reads a draft or published data set row; both objects use the same field names. */
+  private static PromptContextDTO.SourceConfig mapSource(SObject sourceRecord) {
     PromptContextDTO.SourceConfig source = new PromptContextDTO.SourceConfig();
     source.id = sourceRecord.Id;
-    source.referenceName = sourceRecord.Reference_Name__c;
-    source.sourceMode = sourceRecord.Source_Mode__c;
-    source.resultMode = sourceRecord.Result_Mode__c;
-    source.aggregateOperation = sourceRecord.Aggregate_Operation__c;
-    source.aggregateField = sourceRecord.Aggregate_Field__c;
-    source.relatedObject = sourceRecord.Related_Object__c;
-    source.correlationField = sourceRecord.Correlation_Field__c;
-    source.rootField = sourceRecord.Root_Field__c;
-    source.selectedFields = splitFields(sourceRecord.Selected_Fields__c);
-    source.filters = String.isBlank(sourceRecord.Filters_JSON__c)
+    source.referenceName = (String) sourceRecord.get('Reference_Name__c');
+    source.sourceMode = (String) sourceRecord.get('Source_Mode__c');
+    source.resultMode = (String) sourceRecord.get('Result_Mode__c');
+    source.aggregateOperation = (String) sourceRecord.get(
+      'Aggregate_Operation__c'
+    );
+    source.aggregateField = (String) sourceRecord.get('Aggregate_Field__c');
+    source.relatedObject = (String) sourceRecord.get('Related_Object__c');
+    source.correlationField = (String) sourceRecord.get('Correlation_Field__c');
+    source.rootField = (String) sourceRecord.get('Root_Field__c');
+    source.selectedFields = splitFields(
+      (String) sourceRecord.get('Selected_Fields__c')
+    );
+    String filtersJson = (String) sourceRecord.get('Filters_JSON__c');
+    source.filters = String.isBlank(filtersJson)
       ? new List<PromptContextDTO.FilterRule>()
       : (List<PromptContextDTO.FilterRule>) JSON.deserialize(
-          sourceRecord.Filters_JSON__c,
+          filtersJson,
           List<PromptContextDTO.FilterRule>.class
         );
-    source.filterGroupJoin = sourceRecord.Filter_Group_Join__c ?? 'AND';
-    source.filterLogic = sourceRecord.Filter_Logic__c;
-    source.sorts = String.isBlank(sourceRecord.Sort_JSON__c)
+    source.filterGroupJoin = (String) sourceRecord.get(
+      'Filter_Group_Join__c'
+    ) ?? 'AND';
+    source.filterLogic = (String) sourceRecord.get('Filter_Logic__c');
+    String sortJson = (String) sourceRecord.get('Sort_JSON__c');
+    source.sorts = String.isBlank(sortJson)
       ? new List<PromptContextDTO.SortRule>()
       : (List<PromptContextDTO.SortRule>) JSON.deserialize(
-          sourceRecord.Sort_JSON__c,
+          sortJson,
           List<PromptContextDTO.SortRule>.class
         );
-    source.maxRows = Integer.valueOf(sourceRecord.Max_Rows__c ?? 10);
-    source.sequence = Integer.valueOf(sourceRecord.Sequence__c ?? 1);
-    source.active = sourceRecord.Active__c;
+    source.maxRows = Integer.valueOf(
+      (Decimal) sourceRecord.get('Max_Rows__c') ?? 10
+    );
+    source.sequence = Integer.valueOf(
+      (Decimal) sourceRecord.get('Sequence__c') ?? 1
+    );
+    source.active = (Boolean) sourceRecord.get('Active__c');
     return source;
   }
 
-  private static Prompt_Context_Source__c mapSourceForSave(
-    Id templateId,
+  /** Writes a data set's settings onto a draft or published row; both objects share field names. */
+  private static SObject putSourceFields(
+    SObject target,
     PromptContextDTO.SourceConfig source
   ) {
-    return new Prompt_Context_Source__c(
-      Prompt_Template__c = templateId,
-      Reference_Name__c = source.referenceName,
-      Source_Mode__c = source.sourceMode ?? 'RELATED',
-      Result_Mode__c = source.resultMode ?? 'RECORDS',
-      Aggregate_Operation__c = source.aggregateOperation,
-      Aggregate_Field__c = source.aggregateField,
-      Related_Object__c = source.relatedObject,
-      Correlation_Field__c = source.correlationField,
-      Root_Field__c = source.rootField,
-      Selected_Fields__c = String.join(
-        source.selectedFields ?? new List<String>(),
-        ','
-      ),
-      Filters_JSON__c = JSON.serialize(
-        source.filters ?? new List<PromptContextDTO.FilterRule>()
-      ),
-      Filter_Group_Join__c = source.filterGroupJoin ?? 'AND',
-      Filter_Logic__c = String.isBlank(source.filterLogic)
-        ? null
-        : source.filterLogic.trim(),
-      Sort_JSON__c = JSON.serialize(
-        source.sorts ?? new List<PromptContextDTO.SortRule>()
-      ),
-      Max_Rows__c = source.maxRows ?? 10,
-      Sequence__c = source.sequence ?? 1,
-      Active__c = source.active != false
+    target.put('Reference_Name__c', source.referenceName);
+    target.put('Source_Mode__c', source.sourceMode ?? 'RELATED');
+    target.put('Result_Mode__c', source.resultMode ?? 'RECORDS');
+    target.put('Aggregate_Operation__c', source.aggregateOperation);
+    target.put('Aggregate_Field__c', source.aggregateField);
+    target.put('Related_Object__c', source.relatedObject);
+    target.put('Correlation_Field__c', source.correlationField);
+    target.put('Root_Field__c', source.rootField);
+    target.put(
+      'Selected_Fields__c',
+      String.join(source.selectedFields ?? new List<String>(), ',')
     );
-  }
-
-  private static Prompt_Context_Source_Version__c mapSourceVersion(
-    Id templateVersionId,
-    PromptContextDTO.SourceConfig source
-  ) {
-    return new Prompt_Context_Source_Version__c(
-      Prompt_Template_Version__c = templateVersionId,
-      Reference_Name__c = source.referenceName,
-      Source_Mode__c = source.sourceMode ?? 'RELATED',
-      Result_Mode__c = source.resultMode ?? 'RECORDS',
-      Aggregate_Operation__c = source.aggregateOperation,
-      Aggregate_Field__c = source.aggregateField,
-      Related_Object__c = source.relatedObject,
-      Correlation_Field__c = source.correlationField,
-      Root_Field__c = source.rootField,
-      Selected_Fields__c = String.join(
-        source.selectedFields ?? new List<String>(),
-        ','
-      ),
-      Filters_JSON__c = JSON.serialize(
-        source.filters ?? new List<PromptContextDTO.FilterRule>()
-      ),
-      Filter_Group_Join__c = source.filterGroupJoin ?? 'AND',
-      Filter_Logic__c = String.isBlank(source.filterLogic)
-        ? null
-        : source.filterLogic.trim(),
-      Sort_JSON__c = JSON.serialize(
-        source.sorts ?? new List<PromptContextDTO.SortRule>()
-      ),
-      Max_Rows__c = source.maxRows ?? 10,
-      Sequence__c = source.sequence ?? 1,
-      Active__c = source.active != false
+    target.put(
+      'Filters_JSON__c',
+      JSON.serialize(source.filters ?? new List<PromptContextDTO.FilterRule>())
     );
+    target.put('Filter_Group_Join__c', source.filterGroupJoin ?? 'AND');
+    target.put(
+      'Filter_Logic__c',
+      String.isBlank(source.filterLogic) ? null : source.filterLogic.trim()
+    );
+    target.put(
+      'Sort_JSON__c',
+      JSON.serialize(source.sorts ?? new List<PromptContextDTO.SortRule>())
+    );
+    target.put('Max_Rows__c', Decimal.valueOf(source.maxRows ?? 10));
+    target.put('Sequence__c', Decimal.valueOf(source.sequence ?? 1));
+    target.put('Active__c', source.active != false);
+    return target;
   }
 
   public static PromptContextDTO.TemplateConfig getPublishedConfig(
@@ -548,7 +670,8 @@ public with sharing class PromptTemplateService {
       versionNumber
     );
     if (versionRecord == null) {
-      throw new PromptContextException(
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.TEMPLATE_NOT_FOUND,
         'The published template version was not found or is not accessible.'
       );
     }
@@ -560,7 +683,7 @@ public with sharing class PromptTemplateService {
     config.description = header.description;
     config.rootObject = versionRecord.Root_Object__c;
     config.templateBody = versionRecord.Template_Body__c;
-    config.status = 'Published';
+    config.status = PromptContextContract.TEMPLATE_PUBLISHED;
     config.version = Integer.valueOf(versionRecord.Version_Number__c);
     config.syntaxVersion = Integer.valueOf(versionRecord.Syntax_Version__c);
     config.contractVersion = versionRecord.Contract_Version__c;
@@ -579,43 +702,9 @@ public with sharing class PromptTemplateService {
         versionRecord.Id
       )
     ) {
-      config.sources.add(mapSourceVersion(sourceRecord));
+      config.sources.add(mapSource(sourceRecord));
     }
     return config;
-  }
-
-  private static PromptContextDTO.SourceConfig mapSourceVersion(
-    Prompt_Context_Source_Version__c sourceRecord
-  ) {
-    PromptContextDTO.SourceConfig source = new PromptContextDTO.SourceConfig();
-    source.id = sourceRecord.Id;
-    source.referenceName = sourceRecord.Reference_Name__c;
-    source.sourceMode = sourceRecord.Source_Mode__c;
-    source.resultMode = sourceRecord.Result_Mode__c;
-    source.aggregateOperation = sourceRecord.Aggregate_Operation__c;
-    source.aggregateField = sourceRecord.Aggregate_Field__c;
-    source.relatedObject = sourceRecord.Related_Object__c;
-    source.correlationField = sourceRecord.Correlation_Field__c;
-    source.rootField = sourceRecord.Root_Field__c;
-    source.selectedFields = splitFields(sourceRecord.Selected_Fields__c);
-    source.filters = String.isBlank(sourceRecord.Filters_JSON__c)
-      ? new List<PromptContextDTO.FilterRule>()
-      : (List<PromptContextDTO.FilterRule>) JSON.deserialize(
-          sourceRecord.Filters_JSON__c,
-          List<PromptContextDTO.FilterRule>.class
-        );
-    source.filterGroupJoin = sourceRecord.Filter_Group_Join__c ?? 'AND';
-    source.filterLogic = sourceRecord.Filter_Logic__c;
-    source.sorts = String.isBlank(sourceRecord.Sort_JSON__c)
-      ? new List<PromptContextDTO.SortRule>()
-      : (List<PromptContextDTO.SortRule>) JSON.deserialize(
-          sourceRecord.Sort_JSON__c,
-          List<PromptContextDTO.SortRule>.class
-        );
-    source.maxRows = Integer.valueOf(sourceRecord.Max_Rows__c ?? 10);
-    source.sequence = Integer.valueOf(sourceRecord.Sequence__c ?? 1);
-    source.active = sourceRecord.Active__c;
-    return source;
   }
 
   private static String generateDeveloperKey(String templateName) {
@@ -673,6 +762,7 @@ public with sharing class PromptTemplateService {
     normalized.lastHealthCheckedAt = null;
     normalized.lastHealthCodes = null;
     normalized.lastHealthVersion = null;
+    normalized.hasUnpublishedChanges = null;
     for (PromptContextDTO.SourceConfig source : normalized.sources) {
       source.id = null;
     }

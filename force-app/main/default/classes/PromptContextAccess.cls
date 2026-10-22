@@ -41,7 +41,7 @@ public with sharing class PromptContextAccess {
       : saveInputOverride;
   }
 
-  /** Returns whether the running user may send Salesforce Files outside Salesforce. */
+  /** Returns whether the running user may include Salesforce File references in prepared input. */
   public static Boolean canSendFiles() {
     return sendFilesOverride == null
       ? FeatureManagement.checkPermission('Prompt_Context_Send_Files')

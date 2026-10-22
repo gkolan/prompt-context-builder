@@ -1,0 +1,66 @@
+<template>
+  <p class="slds-text-body_small slds-text-color_weak">
+    Choose whether this template can reference current Salesforce Files linked
+    directly to the record. Prompt Context Builder records which file versions
+    were chosen; it never reads or sends file contents. Sending files is left to
+    a separately approved process.
+  </p>
+  <lightning-combobox
+    name="fileInputMode"
+    label="Files to include"
+    value={config.fileInputMode}
+    options={fileInputModeOptions}
+    required
+    onchange={handleField}
+  ></lightning-combobox>
+  <template lwc:if={filesEnabled}>
+    <div class="slds-grid slds-wrap slds-gutters_small">
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-input
+          type="number"
+          name="maxFiles"
+          label="Maximum Files"
+          value={config.maxFiles}
+          min="1"
+          max="5"
+          required
+          onchange={handleField}
+          field-level-help="Amazon Bedrock accepts no more than five documents in one request."
+        ></lightning-input>
+      </div>
+      <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
+        <lightning-input
+          name="allowedFileFormats"
+          label="Allowed file formats"
+          value={config.allowedFileFormats}
+          placeholder="pdf,docx,txt"
+          required
+          onchange={handleField}
+          field-level-help="Use a comma-separated list chosen from pdf, csv, doc, docx, xls, xlsx, html, txt, and md."
+        ></lightning-input>
+      </div>
+    </div>
+    <lightning-input
+      name="providerProfileKey"
+      label="Approved service setup name"
+      value={config.providerProfileKey}
+      required
+      onchange={handleField}
+      field-level-help="Enter the Developer Name of the provider settings approved by your Salesforce administrator."
+    ></lightning-input>
+    <lightning-input
+      type="checkbox"
+      name="requireAtLeastOneFile"
+      label="Require at least one eligible File"
+      checked={config.requireAtLeastOneFile}
+      onchange={handleField}
+    ></lightning-input>
+    <lightning-input
+      type="checkbox"
+      name="fileCitationsEnabled"
+      label="Request file citations when the approved model supports them"
+      checked={config.fileCitationsEnabled}
+      onchange={handleField}
+    ></lightning-input>
+  </template>
+</template>

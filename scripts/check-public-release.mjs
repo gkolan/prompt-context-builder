@@ -36,6 +36,9 @@ const forbiddenContent = [
   }
 ];
 
+// Nested git worktrees hold other branches' checkouts, not this release.
+const nestedWorktrees = join(root, ".claude", "worktrees");
+
 function walk(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     if (entry.isDirectory() && excludedDirectories.has(entry.name)) {
@@ -43,6 +46,9 @@ function walk(directory) {
     }
 
     const path = join(directory, entry.name);
+    if (path === nestedWorktrees) {
+      return [];
+    }
     if (entry.isDirectory()) {
       return walk(path);
     }

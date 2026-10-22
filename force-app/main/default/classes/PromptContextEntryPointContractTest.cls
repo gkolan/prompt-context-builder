@@ -158,120 +158,124 @@ private class PromptContextEntryPointContractTest {
 
   @isTest
   static void shouldGrantAGenerateOnlyRunnerNothingBeyondPreparation() {
-    Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
-    Id templateId = publishedTemplateId();
-    PromptContextAccess.setGenerateForTest(true);
-    PromptContextAccess.setConfigureForTest(false);
-    PromptContextAccess.setSaveInputForTest(false);
-    PromptContextAccess.setSendFilesForTest(false);
-    PromptContextAccess.setDiagnosticsForTest(false);
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      Id templateId = publishedTemplateId();
+      PromptContextAccess.setGenerateForTest(true);
+      PromptContextAccess.setConfigureForTest(false);
+      PromptContextAccess.setSaveInputForTest(false);
+      PromptContextAccess.setSendFilesForTest(false);
+      PromptContextAccess.setDiagnosticsForTest(false);
 
-    Test.startTest();
-    List<PromptContextInputApi.Result> results = PromptContextInputApi.prepare(
-      new List<PromptContextInputApi.Request>{
-        request(
-          TEMPLATE_KEY,
-          rootId,
-          PromptContextInputApi.RETURN_TO_APEX,
-          null
-        ),
-        request(
-          TEMPLATE_KEY,
-          rootId,
-          PromptContextInputApi.SAVE_TO_LOG,
-          'generate-only'
-        )
+      Test.startTest();
+      List<PromptContextInputApi.Result> results = PromptContextInputApi.prepare(
+        new List<PromptContextInputApi.Request>{
+          request(
+            TEMPLATE_KEY,
+            rootId,
+            PromptContextInputApi.RETURN_TO_APEX,
+            null
+          ),
+          request(
+            TEMPLATE_KEY,
+            rootId,
+            PromptContextInputApi.SAVE_TO_LOG,
+            'generate-only'
+          )
+        }
+      );
+      PromptContextDTO.PromptResult lightningResult = PromptContextController.generatePrompt(
+        templateId,
+        rootId,
+        null
+      );
+      Boolean configureDenied = false;
+      try {
+        PromptContextController.getObjectOptions();
+      } catch (AuraHandledException expected) {
+        configureDenied = true;
       }
-    );
-    PromptContextDTO.PromptResult lightningResult = PromptContextController.generatePrompt(
-      templateId,
-      rootId,
-      null
-    );
-    Boolean configureDenied = false;
-    try {
-      PromptContextController.getObjectOptions();
-    } catch (AuraHandledException expected) {
-      configureDenied = true;
-    }
-    Boolean publishDenied = false;
-    try {
-      PromptTemplateService.publish(templateId, rootId);
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      publishDenied = true;
-    }
-    Test.stopTest();
+      Boolean publishDenied = false;
+      try {
+        PromptTemplateService.publish(templateId, rootId);
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        publishDenied = true;
+      }
+      Test.stopTest();
 
-    Assert.isTrue(results[0].success, 'Generate alone may prepare a prompt.');
-    Assert.isNull(
-      results[0].diagnosticSummary,
-      'Generate alone must not expose diagnostics.'
-    );
-    Assert.areEqual(
-      PromptContextReasonCodes.NOT_AUTHORIZED,
-      results[1].reasonCode,
-      'Generate alone must not save prepared input.'
-    );
-    Assert.areEqual(
-      0,
-      [SELECT COUNT() FROM Prompt_Input_Log__c],
-      'A denied save must not write a log.'
-    );
-    Assert.isNotNull(
-      lightningResult.prompt,
-      'The record page uses the same Generate capability.'
-    );
-    Assert.isTrue(
-      configureDenied,
-      'Generate alone must not reach the builder.'
-    );
-    Assert.isTrue(publishDenied, 'Generate alone must not publish.');
+      Assert.isTrue(results[0].success, 'Generate alone may prepare a prompt.');
+      Assert.isNull(
+        results[0].diagnosticSummary,
+        'Generate alone must not expose diagnostics.'
+      );
+      Assert.areEqual(
+        PromptContextReasonCodes.NOT_AUTHORIZED,
+        results[1].reasonCode,
+        'Generate alone must not save prepared input.'
+      );
+      Assert.areEqual(
+        0,
+        [SELECT COUNT() FROM Prompt_Input_Log__c],
+        'A denied save must not write a log.'
+      );
+      Assert.isNotNull(
+        lightningResult.prompt,
+        'The record page uses the same Generate capability.'
+      );
+      Assert.isTrue(
+        configureDenied,
+        'Generate alone must not reach the builder.'
+      );
+      Assert.isTrue(publishDenied, 'Generate alone must not publish.');
+    }
   }
 
   @isTest
   static void shouldDenyEveryPreparationEntryWithoutGenerate() {
-    Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
-    Id templateId = publishedTemplateId();
-    // Every other capability is granted so only the missing Generate permission can deny.
-    PromptContextAccess.setGenerateForTest(false);
-    PromptContextAccess.setConfigureForTest(true);
-    PromptContextAccess.setSaveInputForTest(true);
-    PromptContextAccess.setSendFilesForTest(true);
-    PromptContextAccess.setProcessInputForTest(true);
-    List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>{
-      request(
-        TEMPLATE_KEY,
-        rootId,
-        PromptContextInputApi.SAVE_TO_LOG,
-        'no-generate'
-      )
-    };
-    Integer denials = 0;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Id rootId = PromptContextTestDataFactory.selectRootRecord().Id;
+      Id templateId = publishedTemplateId();
+      // Every other capability is granted so only the missing Generate permission can deny.
+      PromptContextAccess.setGenerateForTest(false);
+      PromptContextAccess.setConfigureForTest(true);
+      PromptContextAccess.setSaveInputForTest(true);
+      PromptContextAccess.setSendFilesForTest(true);
+      PromptContextAccess.setProcessInputForTest(true);
+      List<PromptContextInputApi.Request> requests = new List<PromptContextInputApi.Request>{
+        request(
+          TEMPLATE_KEY,
+          rootId,
+          PromptContextInputApi.SAVE_TO_LOG,
+          'no-generate'
+        )
+      };
+      Integer denials = 0;
 
-    Test.startTest();
-    try {
-      PromptContextInputApi.prepare(requests);
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      denials++;
-    }
-    try {
-      PromptContextInputApi.prepareForFlow(requests);
-    } catch (PromptContextAccess.AuthorizationException expected) {
-      denials++;
-    }
-    try {
-      PromptContextController.generatePrompt(templateId, rootId, null);
-    } catch (AuraHandledException expected) {
-      denials++;
-    }
-    Test.stopTest();
+      Test.startTest();
+      try {
+        PromptContextInputApi.prepare(requests);
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        denials++;
+      }
+      try {
+        PromptContextInputApi.prepareForFlow(requests);
+      } catch (PromptContextAccess.AuthorizationException expected) {
+        denials++;
+      }
+      try {
+        PromptContextController.generatePrompt(templateId, rootId, null);
+      } catch (AuraHandledException expected) {
+        denials++;
+      }
+      Test.stopTest();
 
-    Assert.areEqual(3, denials, 'Apex, Flow, and Lightning must all deny.');
-    Assert.areEqual(
-      0,
-      [SELECT COUNT() FROM Prompt_Input_Log__c],
-      'A denied request must not write a log.'
-    );
+      Assert.areEqual(3, denials, 'Apex, Flow, and Lightning must all deny.');
+      Assert.areEqual(
+        0,
+        [SELECT COUNT() FROM Prompt_Input_Log__c],
+        'A denied request must not write a log.'
+      );
+    }
   }
 
   @isTest

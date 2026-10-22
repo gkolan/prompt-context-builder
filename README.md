@@ -37,9 +37,8 @@ records are release evidence, not a promise that a version is publicly supported
 
 ![Published template open in Prompt Builder](./docs/screenshots/prompt-builder-current-overview.png)
 
-This browser capture was taken from the approved `promptcontextbuilder` scratch org on September
-26, 2026. It proves the deployed-org UI shown here, not deployment of every current workspace
-change. See the screenshot evidence page for the exact boundary.
+Deployed scratch-org screenshot, September 26, 2026; see
+[screenshot evidence](./docs/screenshots/README.md).
 
 The prepared demo creates the same Account and Contacts each time, along with 12 numbered templates. Nine
 templates are published and runnable; two remain Draft to teach validation behavior, and one is
@@ -84,7 +83,8 @@ No open contacts were found.
 
 ## Try the prepared demo
 
-You need Git, Node.js 22, Salesforce CLI, and access to a Dev Hub that can create scratch orgs.
+You need Git, Node.js 22, Salesforce CLI with the Code Analyzer plugin
+(`sf plugins install code-analyzer`), and access to a Dev Hub that can create scratch orgs.
 Creating a scratch org consumes Dev Hub capacity. Run these commands only with the Dev Hub owner's
 approval, replacing `TARGET_DEV_HUB` with an authenticated alias:
 

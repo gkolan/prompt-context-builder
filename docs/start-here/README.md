@@ -19,7 +19,8 @@ Administrators choose fields, filters, sorting, and limits in Prompt Builder. Th
 the Salesforce searches from those choices.
 
 A template can also allow Salesforce Files linked directly to the current record. The running user
-chooses up to five eligible current versions, or the template can require all eligible files. The
+chooses up to five eligible current versions, or the template includes the first eligible files
+automatically, up to five. The
 package stores their exact version details with the prepared input; it does not read or store file
 contents.
 

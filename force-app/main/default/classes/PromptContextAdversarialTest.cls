@@ -6,269 +6,296 @@
 private class PromptContextAdversarialTest {
   @TestSetup
   static void setupData() {
-    Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
-      true
-    );
-    PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Prompt_Template__c rootRecord = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      PromptContextTestDataFactory.createRelatedRecords(rootRecord.Id, true);
+    }
   }
 
   @isTest
   static void shouldNameEveryMisconfiguration() {
-    PromptContextDTO.ValidationResult baseline = PromptContextValidator.validate(
-      baseConfig()
-    );
-    Assert.isTrue(
-      baseline.isValid,
-      'Each case must start from a valid template: ' + codes(baseline.messages)
-    );
-    Map<String, String> failures = new Map<String, String>();
-    for (MisconfiguredCase item : misconfiguredCases()) {
-      PromptContextDTO.TemplateConfig config = baseConfig();
-      item.apply(config);
-      PromptContextDTO.ValidationResult result;
-      try {
-        result = PromptContextValidator.validate(config);
-      } catch (Exception unexpected) {
-        failures.put(
-          item.label,
-          'validator threw ' +
-            unexpected.getTypeName() +
-            ': ' +
-            unexpected.getMessage()
-        );
-        continue;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.ValidationResult baseline = PromptContextValidator.validate(
+        baseConfig()
+      );
+      Assert.isTrue(
+        baseline.isValid,
+        'Each case must start from a valid template: ' +
+        codes(baseline.messages)
+      );
+      Map<String, String> failures = new Map<String, String>();
+      for (MisconfiguredCase item : misconfiguredCases()) {
+        PromptContextDTO.TemplateConfig config = baseConfig();
+        item.apply(config);
+        PromptContextDTO.ValidationResult result;
+        try {
+          result = PromptContextValidator.validate(config);
+        } catch (Exception unexpected) {
+          failures.put(
+            item.label,
+            'validator threw ' +
+              unexpected.getTypeName() +
+              ': ' +
+              unexpected.getMessage()
+          );
+          continue;
+        }
+        if (result.isValid || !hasCode(result.messages, item.expectedCode)) {
+          failures.put(
+            item.label,
+            'expected ' +
+              item.expectedCode +
+              ' but got ' +
+              codes(result.messages)
+          );
+        } else if (
+          item.expectedCode == PromptContextReasonCodes.INVALID_CONFIGURATION &&
+          String.isNotBlank(item.mention) &&
+          !hasCodeMentioning(result.messages, item.expectedCode, item.mention)
+        ) {
+          // A generic code must come from the changed setting, not an unrelated problem.
+          failures.put(
+            item.label,
+            item.expectedCode +
+              ' did not name ' +
+              item.mention +
+              ': ' +
+              JSON.serialize(result.messages)
+          );
+        }
       }
-      if (result.isValid || !hasCode(result.messages, item.expectedCode)) {
-        failures.put(
-          item.label,
-          'expected ' + item.expectedCode + ' but got ' + codes(result.messages)
-        );
-      } else if (
-        item.expectedCode == PromptContextReasonCodes.INVALID_CONFIGURATION &&
-        String.isNotBlank(item.mention) &&
-        !hasCodeMentioning(result.messages, item.expectedCode, item.mention)
-      ) {
-        // A generic code must come from the changed setting, not an unrelated problem.
-        failures.put(
-          item.label,
-          item.expectedCode +
-            ' did not name ' +
-            item.mention +
-            ': ' +
-            JSON.serialize(result.messages)
-        );
-      }
+      Assert.isTrue(
+        failures.isEmpty(),
+        'Unnamed misconfigurations: ' + failures
+      );
     }
-    Assert.isTrue(failures.isEmpty(), 'Unnamed misconfigurations: ' + failures);
   }
 
   @isTest
   static void shouldNeverReachTheDatabaseWithHostileQuerySettings() {
-    Map<String, String> failures = new Map<String, String>();
-    for (HostileCase item : hostileCases()) {
-      PromptContextDTO.TemplateConfig config = baseConfig();
-      item.apply(config);
-      try {
-        PromptContextService.generate(
-          config,
-          PromptContextTestDataFactory.selectRootRecord().Id
-        );
-        failures.put(item.label, 'generated a prompt');
-      } catch (PromptContextException expected) {
-        // A safe, named stop is the required outcome.
-      } catch (Exception unexpected) {
-        failures.put(
-          item.label,
-          unexpected.getTypeName() + ': ' + unexpected.getMessage()
-        );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Map<String, String> failures = new Map<String, String>();
+      for (HostileCase item : hostileCases()) {
+        PromptContextDTO.TemplateConfig config = baseConfig();
+        item.apply(config);
+        try {
+          PromptContextService.generate(
+            config,
+            PromptContextTestDataFactory.selectRootRecord().Id
+          );
+          failures.put(item.label, 'generated a prompt');
+        } catch (PromptContextException expected) {
+          // A safe, named stop is the required outcome.
+        } catch (Exception unexpected) {
+          failures.put(
+            item.label,
+            unexpected.getTypeName() + ': ' + unexpected.getMessage()
+          );
+        }
       }
+      Assert.isTrue(failures.isEmpty(), 'Unsafe outcomes: ' + failures);
     }
-    Assert.isTrue(failures.isEmpty(), 'Unsafe outcomes: ' + failures);
   }
 
   @isTest
   static void shouldIgnoreAForgedSyntaxVersionFromTheBrowser() {
-    PromptContextAccess.setConfigureForTest(true);
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    config.syntaxVersion = 1;
-    config.templateBody = 'Ship to {!record.ShippingAddress}';
-    config.rootObject = 'Account';
-    config.sources.clear();
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextAccess.setConfigureForTest(true);
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.syntaxVersion = 1;
+      config.templateBody = 'Ship to {!record.ShippingAddress}';
+      config.rootObject = 'Account';
+      config.sources.clear();
 
-    PromptContextDTO.ValidationResult result = PromptContextController.validateConfig(
-      JSON.serialize(config)
-    );
+      PromptContextDTO.ValidationResult result = PromptContextController.validateConfig(
+        JSON.serialize(config)
+      );
 
-    Assert.isTrue(
-      hasCode(result.messages, 'COMPOUND_FIELD_NOT_SUPPORTED'),
-      'A browser cannot opt a draft out of the current rules.'
-    );
+      Assert.isTrue(
+        hasCode(result.messages, 'COMPOUND_FIELD_NOT_SUPPORTED'),
+        'A browser cannot opt a draft out of the current rules.'
+      );
+    }
   }
 
   @isTest
   static void shouldStopForAWrongObjectOrDeletedRecord() {
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    Prompt_Context_Source__c otherObject = [
-      SELECT Id
-      FROM Prompt_Context_Source__c
-      WHERE Reference_Name__c = 'Alpha'
-      LIMIT 1
-    ];
-    Prompt_Template__c doomed = PromptContextTestDataFactory.createRootRecord(
-      true
-    );
-    Id deletedId = doomed.Id;
-    delete doomed;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      Prompt_Context_Source__c otherObject = [
+        SELECT Id
+        FROM Prompt_Context_Source__c
+        WHERE Reference_Name__c = 'Alpha'
+        LIMIT 1
+      ];
+      Prompt_Template__c doomed = PromptContextTestDataFactory.createRootRecord(
+        true
+      );
+      Id deletedId = doomed.Id;
+      delete doomed;
 
-    for (Id recordId : new List<Id>{ otherObject.Id, deletedId }) {
-      try {
-        PromptContextService.generate(config, recordId);
-        Assert.fail('No prompt may be built for ' + recordId);
-      } catch (PromptContextException expected) {
-        Assert.isNotNull(expected.getMessage());
+      for (Id recordId : new List<Id>{ otherObject.Id, deletedId }) {
+        try {
+          PromptContextService.generate(config, recordId);
+          Assert.fail('No prompt may be built for ' + recordId);
+        } catch (PromptContextException expected) {
+          Assert.isNotNull(expected.getMessage());
+        }
       }
     }
   }
 
   @isTest
   static void shouldRejectATemplateThatUsesAnExcludedDataSet() {
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    config.sources[0].active = false;
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.sources[0].active = false;
 
-    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
-      config
-    );
+      PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+        config
+      );
 
-    Assert.isTrue(
-      hasCode(result.messages, 'UNKNOWN_SOURCE'),
-      'Using a data set that is switched off must be named: ' +
-      codes(result.messages)
-    );
+      Assert.isTrue(
+        hasCode(result.messages, 'UNKNOWN_SOURCE'),
+        'Using a data set that is switched off must be named: ' +
+        codes(result.messages)
+      );
+    }
   }
 
   @isTest
   static void shouldExplainTooManyBlocksBeforePublishing() {
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    config.templateBody =
-      '{!#if related.recent_contacts.hasRecords}x{!/if}'
-        .repeat(PromptContextContract.MAX_BLOCK_ITERATIONS + 1) +
-      '{!related.recent_contacts.count}';
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.templateBody =
+        '{!#if related.recent_contacts.hasRecords}x{!/if}'
+          .repeat(PromptContextContract.MAX_BLOCK_ITERATIONS + 1) +
+        '{!related.recent_contacts.count}';
 
-    PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
-      config
-    );
+      PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+        config
+      );
 
-    Assert.isFalse(
-      result.isValid,
-      'More blocks than the renderer allows must fail validation, not only at generation.'
-    );
-    Assert.isTrue(
-      hasCode(result.messages, 'TOO_MANY_BLOCKS'),
-      codes(result.messages)
-    );
+      Assert.isFalse(
+        result.isValid,
+        'More blocks than the renderer allows must fail validation, not only at generation.'
+      );
+      Assert.isTrue(
+        hasCode(result.messages, 'TOO_MANY_BLOCKS'),
+        codes(result.messages)
+      );
+    }
   }
 
   @isTest
   static void shouldHandleMalformedAttributeQuotingSafely() {
-    for (
-      String body : new List<String>{
-        '{!record.Name fallback="a}b"}',
-        '{!record.Name fallback="{!record.Name}"}',
-        '{!record.Name fallback=unquoted}',
-        '{!record.Name fallback="x" fallback="y"}',
-        '{!record.Name  maxLength="5"   format="upper" }',
-        '{!record.Name fallback=""}',
-        '{!}',
-        '{!   }',
-        '{!!!}',
-        '{!record.}',
-        '{!record..Name}',
-        '{!related.recent_contacts[-1].Reference_Name__c}',
-        '{!related.recent_contacts[99999999999].Reference_Name__c}'
-      }
-    ) {
-      PromptContextDTO.TemplateConfig config = baseConfig();
-      config.templateBody = body + ' {!related.recent_contacts.count}';
-      try {
-        PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
-          config
-        );
-        if (result.isValid) {
-          PromptContextService.generate(
-            config,
-            PromptContextTestDataFactory.selectRootRecord().Id
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      for (
+        String body : new List<String>{
+          '{!record.Name fallback="a}b"}',
+          '{!record.Name fallback="{!record.Name}"}',
+          '{!record.Name fallback=unquoted}',
+          '{!record.Name fallback="x" fallback="y"}',
+          '{!record.Name  maxLength="5"   format="upper" }',
+          '{!record.Name fallback=""}',
+          '{!}',
+          '{!   }',
+          '{!!!}',
+          '{!record.}',
+          '{!record..Name}',
+          '{!related.recent_contacts[-1].Reference_Name__c}',
+          '{!related.recent_contacts[99999999999].Reference_Name__c}'
+        }
+      ) {
+        PromptContextDTO.TemplateConfig config = baseConfig();
+        config.templateBody = body + ' {!related.recent_contacts.count}';
+        try {
+          PromptContextDTO.ValidationResult result = PromptContextValidator.validate(
+            config
+          );
+          if (result.isValid) {
+            PromptContextService.generate(
+              config,
+              PromptContextTestDataFactory.selectRootRecord().Id
+            );
+          }
+        } catch (PromptContextException expected) {
+          continue;
+        } catch (Exception unexpected) {
+          Assert.fail(
+            body +
+              ' raised ' +
+              unexpected.getTypeName() +
+              ': ' +
+              unexpected.getMessage()
           );
         }
-      } catch (PromptContextException expected) {
-        continue;
-      } catch (Exception unexpected) {
-        Assert.fail(
-          body +
-            ' raised ' +
-            unexpected.getTypeName() +
-            ': ' +
-            unexpected.getMessage()
-        );
       }
     }
   }
 
   @isTest
   static void shouldHideWhichFieldIsHiddenFromUsersWithoutDiagnostics() {
-    PromptContextException hidden = PromptContextException.withReason(
-      PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
-      'Field Salary__c is not readable.'
-    );
-    PromptContextException configuration = PromptContextException.withReason(
-      PromptContextReasonCodes.INVALID_CONFIGURATION,
-      'Choose AND or OR.'
-    );
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextException hidden = PromptContextException.withReason(
+        PromptContextReasonCodes.FIELD_NOT_ACCESSIBLE,
+        'Field Salary__c is not readable.'
+      );
+      PromptContextException configuration = PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'Choose AND or OR.'
+      );
 
-    PromptContextAccess.setDiagnosticsForTest(false);
-    String ordinary = PromptContextTrace.safeMessage(hidden);
-    String ordinaryConfiguration = PromptContextTrace.safeMessage(
-      configuration
-    );
-    PromptContextAccess.setDiagnosticsForTest(true);
-    String troubleshooter = PromptContextTrace.safeMessage(hidden);
+      PromptContextAccess.setDiagnosticsForTest(false);
+      String ordinary = PromptContextTrace.safeMessage(hidden);
+      String ordinaryConfiguration = PromptContextTrace.safeMessage(
+        configuration
+      );
+      PromptContextAccess.setDiagnosticsForTest(true);
+      String troubleshooter = PromptContextTrace.safeMessage(hidden);
 
-    Assert.areEqual(Label.PCB_Access_Denied, ordinary);
-    Assert.isFalse(ordinary.contains('Salary__c'));
-    Assert.areEqual('Choose AND or OR.', ordinaryConfiguration);
-    Assert.areEqual(
-      'Field Salary__c is not readable.',
-      troubleshooter,
-      'Troubleshooting users still see the exact field.'
-    );
+      Assert.areEqual(Label.PCB_Access_Denied, ordinary);
+      Assert.isFalse(ordinary.contains('Salary__c'));
+      Assert.areEqual('Choose AND or OR.', ordinaryConfiguration);
+      Assert.areEqual(
+        'Field Salary__c is not readable.',
+        troubleshooter,
+        'Troubleshooting users still see the exact field.'
+      );
+    }
   }
 
   @isTest
   static void shouldFindEveryRecordFieldAFormulaReads() {
-    Assert.areEqual(
-      new Set<String>{
-        'Name',
-        'Status__c',
-        'Account.Owner.Email',
-        'Amount',
-        'CloseDate'
-      },
-      PromptContextFormulaAccess.references(
-        '/* Amount_Old__c is ignored */ IF(ISPICKVAL(Status__c, "Closed Won"), ' +
-          'Name & " " & Account.Owner.Email & TEXT( Amount ), ' +
-          '"Not Name__c" & \'x\' & $User.Email & $Label.Greeting & TEXT(CloseDate) & ' +
-          'TODAY() + 1.5e3 + TRUE)'
-      )
-    );
-    try {
-      PromptContextFormulaAccess.references('Owner:User.FirstName');
-      Assert.fail('A polymorphic formula cannot be verified.');
-    } catch (PromptContextException expected) {
-      Assert.areEqual('FORMULA_INPUT_NOT_VERIFIED', expected.reasonCode);
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      Assert.areEqual(
+        new Set<String>{
+          'Name',
+          'Status__c',
+          'Account.Owner.Email',
+          'Amount',
+          'CloseDate'
+        },
+        PromptContextFormulaAccess.references(
+          '/* Amount_Old__c is ignored */ IF(ISPICKVAL(Status__c, "Closed Won"), ' +
+            'Name & " " & Account.Owner.Email & TEXT( Amount ), ' +
+            '"Not Name__c" & \'x\' & $User.Email & $Label.Greeting & TEXT(CloseDate) & ' +
+            'TODAY() + 1.5e3 + TRUE)'
+        )
+      );
+      try {
+        PromptContextFormulaAccess.references('Owner:User.FirstName');
+        Assert.fail('A polymorphic formula cannot be verified.');
+      } catch (PromptContextException expected) {
+        Assert.areEqual('FORMULA_INPUT_NOT_VERIFIED', expected.reasonCode);
+      }
+      Assert.isTrue(
+        PromptContextFormulaAccess.references('"a:b" & Name').contains('Name'),
+        'A colon inside text is not a relationship.'
+      );
     }
-    Assert.isTrue(
-      PromptContextFormulaAccess.references('"a:b" & Name').contains('Name'),
-      'A colon inside text is not a relationship.'
-    );
   }
 
   // ---------- Case tables ----------
@@ -823,85 +850,97 @@ private class PromptContextAdversarialTest {
 
   @isTest
   static void shouldNameAQuerySalesforceRefusesInsteadOfAPlatformError() {
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    config.sources.remove(1);
-    PromptContextDTO.SourceConfig links = config.sources[0];
-    links.referenceName = 'links';
-    links.sourceMode = 'REFERENCE';
-    links.relatedObject = 'ContentDocumentLink';
-    links.correlationField = null;
-    links.rootField = null;
-    links.selectedFields = new List<String>{ 'LinkedEntityId' };
-    links.filters.clear();
-    links.sorts.clear();
-    links.maxRows = 5;
-    config.templateBody = '{!related.links.count}';
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.sources.remove(1);
+      PromptContextDTO.SourceConfig links = config.sources[0];
+      links.referenceName = 'links';
+      links.sourceMode = 'REFERENCE';
+      links.relatedObject = 'ContentDocumentLink';
+      links.correlationField = null;
+      links.rootField = null;
+      links.selectedFields = new List<String>{ 'LinkedEntityId' };
+      links.filters.clear();
+      links.sorts.clear();
+      links.maxRows = 5;
+      config.templateBody = '{!related.links.count}';
 
-    try {
-      PromptContextService.generate(
-        config,
-        PromptContextTestDataFactory.selectRootRecord().Id
-      );
-      Assert.fail('Salesforce requires an Id filter on this object.');
-    } catch (PromptContextException expected) {
-      Assert.areEqual(
-        PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
-        expected.reasonCode,
-        expected.getMessage()
-      );
+      try {
+        PromptContextService.generate(
+          config,
+          PromptContextTestDataFactory.selectRootRecord().Id
+        );
+        Assert.fail('Salesforce requires an Id filter on this object.');
+      } catch (PromptContextException expected) {
+        Assert.areEqual(
+          PromptContextReasonCodes.QUERY_NOT_SUPPORTED,
+          expected.reasonCode,
+          expected.getMessage()
+        );
+      }
     }
   }
 
   @isTest
   static void shouldRefuseObjectKindsThatCannotBeVerified() {
-    for (
-      String objectName : new List<String>{
-        'Sales__x',
-        'Clicks__b',
-        'Faq__kav'
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      for (
+        String objectName : new List<String>{
+          'Sales__x',
+          'Clicks__b',
+          'Faq__kav'
+        }
+      ) {
+        PromptContextDTO.TemplateConfig config = baseConfig();
+        config.sources[0].relatedObject = objectName;
+        Assert.isTrue(
+          hasCode(
+            PromptContextValidator.validate(config).messages,
+            'OBJECT_KIND_NOT_SUPPORTED'
+          ),
+          objectName + ' must be refused.'
+        );
       }
-    ) {
-      PromptContextDTO.TemplateConfig config = baseConfig();
-      config.sources[0].relatedObject = objectName;
-      Assert.isTrue(
-        hasCode(
-          PromptContextValidator.validate(config).messages,
-          'OBJECT_KIND_NOT_SUPPORTED'
-        ),
-        objectName + ' must be refused.'
-      );
     }
   }
 
   @isTest
   static void shouldWarnAboutFilterValuesThatSilentlyMatchNothing() {
-    PromptContextDTO.TemplateConfig config = baseConfig();
-    config.sources[0].filters[0].fieldName = 'Source_Mode__c';
-    config.sources[0].filters[0].operator = 'IN';
-    config.sources[0].filters[0].value = 'related, Reference_Records';
-    config.sources[1].filters[0].value = 'Zulu ';
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      PromptContextDTO.TemplateConfig config = baseConfig();
+      config.sources[0].filters[0].fieldName = 'Source_Mode__c';
+      config.sources[0].filters[0].operator = 'IN';
+      config.sources[0].filters[0].value = 'related, Reference_Records';
+      config.sources[1].filters[0].value = 'Zulu ';
 
-    List<PromptContextDTO.Message> messages = PromptContextValidator.validate(
-        config
-      )
-      .messages;
+      List<PromptContextDTO.Message> messages = PromptContextValidator.validate(
+          config
+        )
+        .messages;
 
-    Assert.isTrue(hasCode(messages, 'UNKNOWN_PICKLIST_VALUE'), codes(messages));
-    Assert.isTrue(
-      hasCode(messages, 'FILTER_VALUE_WHITESPACE'),
-      codes(messages)
-    );
-    Integer unknownCount = 0;
-    for (PromptContextDTO.Message message : messages) {
-      if (message.code == 'UNKNOWN_PICKLIST_VALUE') {
-        unknownCount++;
-        Assert.isTrue(message.text.contains('Reference_Records'), message.text);
+      Assert.isTrue(
+        hasCode(messages, 'UNKNOWN_PICKLIST_VALUE'),
+        codes(messages)
+      );
+      Assert.isTrue(
+        hasCode(messages, 'FILTER_VALUE_WHITESPACE'),
+        codes(messages)
+      );
+      Integer unknownCount = 0;
+      for (PromptContextDTO.Message message : messages) {
+        if (message.code == 'UNKNOWN_PICKLIST_VALUE') {
+          unknownCount++;
+          Assert.isTrue(
+            message.text.contains('Reference_Records'),
+            message.text
+          );
+        }
       }
+      Assert.areEqual(
+        1,
+        unknownCount,
+        'Picklist values match without regard to case; only the unknown value is named.'
+      );
     }
-    Assert.areEqual(
-      1,
-      unknownCount,
-      'Picklist values match without regard to case; only the unknown value is named.'
-    );
   }
 }

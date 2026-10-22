@@ -2,10 +2,12 @@ import fs from "node:fs";
 import path from "node:path";
 
 const reportPath = path.join(process.cwd(), "coverage", "coverage-final.json");
-const expectedFiles = [
-  "force-app/main/default/lwc/promptGenerator/promptGenerator.js",
-  "force-app/main/default/lwc/promptTemplateBuilder/promptTemplateBuilder.js"
-];
+const lwcRoot = "force-app/main/default/lwc";
+// Every component folder ships its controller, so each one must appear in the coverage report.
+const expectedFiles = fs
+  .readdirSync(path.join(process.cwd(), lwcRoot), { withFileTypes: true })
+  .filter((entry) => entry.isDirectory())
+  .map((entry) => `${lwcRoot}/${entry.name}/${entry.name}.js`);
 
 if (!fs.existsSync(reportPath)) {
   throw new Error("LWC coverage report is missing.");

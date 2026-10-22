@@ -1,0 +1,20 @@
+{
+  "orgName": "Prompt Context Builder Locker Multi-Currency Verification",
+  "edition": "Developer",
+  "description": "30-day Prompt Context Builder verification org: Locker, multi-currency, restricted users, and browser checks",
+  "hasSampleData": true,
+  "features": ["EnableSetPasswordInApi", "MultiCurrency"],
+  "settings": {
+    "lightningExperienceSettings": {
+      "enableS1DesktopEnabled": true
+    },
+    "mobileSettings": {
+      "enableS1EncryptedStoragePref2": false
+    },
+    "securitySettings": {
+      "sessionSettings": {
+        "lockerServiceNext": false
+      }
+    }
+  }
+}
