@@ -10,8 +10,12 @@ or save a private Prompt Input Log for later work.
 - Assign **Prompt Context Generate** to the person whose access the Flow uses.
 - Also assign **Prompt Context Save Input** when the Flow saves a Prompt Input Log.
 - Confirm that user can read every configured object, field, and record.
-- Obtain either the published template's Salesforce record Id or its stable automation key from
-  **Prompt Builder**. Prefer the automation key in a Flow that moves between orgs.
+- Obtain either the published template's Salesforce record Id or its automation key. In **Prompt
+  Builder**, open **Use in Flow or Apex** and select **Copy key**. Prefer the automation key in a
+  Flow that moves between orgs.
+- The key moves with the Flow only when every org has a template with the same key. Before you
+  first publish a template in an org, set its **Automation key** to the key the Flow uses; after the
+  first publish the key is fixed. Record IDs differ between orgs, but keys you set this way do not.
 
 ## Add the action
 

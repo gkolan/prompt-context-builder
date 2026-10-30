@@ -25,3 +25,25 @@
 .source-budget {
   margin-top: var(--slds-g-spacing-3, 0.75rem);
 }
+
+/* The Salesforce style reset hides the native marker, so show the open and closed arrow. */
+.automation-section summary {
+  cursor: pointer;
+  display: list-item;
+  list-style: disclosure-closed inside;
+}
+
+.automation-section[open] summary {
+  list-style-type: disclosure-open;
+}
+
+.automation-key-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--slds-g-spacing-3, 0.75rem);
+}
+
+.automation-key-row lightning-input {
+  flex: 1 1 16rem;
+}

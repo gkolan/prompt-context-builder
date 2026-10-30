@@ -19,7 +19,8 @@ module.exports = {
     "force-app/main/default/lwc/promptFilterSortEditor/promptFilterSortEditor.js",
     "force-app/main/default/lwc/promptFileSettings/promptFileSettings.js",
     "force-app/main/default/lwc/promptPublishPanel/promptPublishPanel.js",
-    "force-app/main/default/lwc/promptVersionHistory/promptVersionHistory.js"
+    "force-app/main/default/lwc/promptVersionHistory/promptVersionHistory.js",
+    "force-app/main/default/lwc/promptObjectPicker/promptObjectPicker.js"
   ],
   coverageThreshold: {
     global: {
@@ -36,7 +37,7 @@ module.exports = {
         lines: 90
       },
     // Prompt Builder sections. Each child keeps its own floor so a gap cannot hide behind the parent.
-    "force-app/main/default/lwc/prompt{TemplateHeader,BodyEditor,DataSetEditor,FilterSortEditor,FileSettings,PublishPanel,VersionHistory}/*.js":
+    "force-app/main/default/lwc/prompt{TemplateHeader,BodyEditor,DataSetEditor,FilterSortEditor,FileSettings,PublishPanel,VersionHistory,ObjectPicker}/*.js":
       {
         lines: 85
       }

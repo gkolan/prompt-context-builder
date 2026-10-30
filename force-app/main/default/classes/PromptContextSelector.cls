@@ -191,7 +191,7 @@ public inherited sharing class PromptContextSelector {
   /** Locks one template row while its draft is saved, so concurrent saves run one at a time. */
   public static Prompt_Template__c selectTemplateForDraftSave(Id templateId) {
     List<Prompt_Template__c> templates = [
-      SELECT Id, Status__c, Draft_Revision__c
+      SELECT Id, Status__c, Draft_Revision__c, Developer_Key__c, Published_At__c
       FROM Prompt_Template__c
       WHERE Id = :templateId
       WITH USER_MODE
@@ -199,6 +199,29 @@ public inherited sharing class PromptContextSelector {
       FOR UPDATE
     ];
     return templates.isEmpty() ? null : templates[0];
+  }
+
+  /**
+   * Returns the lowercase keys that start with a generated base key, so a new key can be numbered.
+   * Templates are shared Read/Write, so a user-mode query sees every key.
+   * @param baseKey Generated key without a number
+   * @return Keys already taken
+   */
+  public static Set<String> selectDeveloperKeysStartingWith(String baseKey) {
+    Set<String> keys = new Set<String>();
+    String pattern = escapeLikeValue(baseKey) + '%';
+    // ponytail: numbering stops being exact past 2,000 same-named templates; the unique field still
+    // refuses a duplicate on insert.
+    for (Prompt_Template__c templateRecord : [
+      SELECT Developer_Key__c
+      FROM Prompt_Template__c
+      WHERE Developer_Key__c LIKE :pattern
+      WITH USER_MODE
+      LIMIT 2000
+    ]) {
+      keys.add(templateRecord.Developer_Key__c.toLowerCase());
+    }
+    return keys;
   }
 
   /** Finds stable automation keys in one access-aware Salesforce query. */

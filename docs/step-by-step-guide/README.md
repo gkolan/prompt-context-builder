@@ -18,7 +18,12 @@ Set these fields:
 | Template name           | Account contact context |
 | Salesforce object       | Account                 |
 
-A new template starts as Draft. Prompt Builder creates its **Automation key** when you first save.
+Type part of an object's name or API name in **Search objects by name or API name** to shorten the
+**Salesforce object** list, or type the exact API name to choose it.
+
+A new template starts as Draft. When you first save, Prompt Builder creates an **Automation key** from
+the template name, such as `account_contact_context`. You only need it for Flow or Apex; it is in
+**Use in Flow or Apex** below the publish controls.
 
 Enter this text in **Template body**:
 

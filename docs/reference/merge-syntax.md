@@ -105,14 +105,14 @@ the restore.
 
 ## Authoring checks added in syntax version 2
 
-| Code                           | Cause                                                                           | Fix                                                        |
-| ------------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill                     | Use an index below the data set's maximum records          |
-| `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly                                   | Use parts such as `BillingCity` or `Location__Latitude__s` |
-| `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000                              | Correct the number                                         |
-| `FIELD_NOT_ACCESSIBLE`         | A formula field uses a field the running person cannot read                     | Grant read access to the formula inputs or remove it       |
-| `FORMULA_INPUT_NOT_VERIFIED`   | A formula's inputs cannot be checked, such as `Owner:User`                      | Use one-type relationships or a stored field               |
-| `OBJECT_KIND_NOT_SUPPORTED`    | An external (`__x`), big (`__b`), or Knowledge article (`__kav`) object is used | Choose a standard or custom object                         |
+| Code                           | Cause                                                                                                                                                                   | Fix                                                        |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `INDEX_OUT_OF_RANGE`           | `related.name[n]` uses an index the data set can never fill                                                                                                             | Use an index below the data set's maximum records          |
+| `COMPOUND_FIELD_NOT_SUPPORTED` | An Address or Location field is used directly                                                                                                                           | Use parts such as `BillingCity` or `Location__Latitude__s` |
+| `INVALID_MAX_LENGTH`           | `maxLength` is not a whole number from 1 to 20,000                                                                                                                      | Correct the number                                         |
+| `FIELD_NOT_ACCESSIBLE`         | A formula field uses a field the running person cannot read                                                                                                             | Grant read access to the formula inputs or remove it       |
+| `FORMULA_INPUT_NOT_VERIFIED`   | A formula's inputs cannot be checked, such as `Owner:User`                                                                                                              | Use one-type relationships or a stored field               |
+| `OBJECT_KIND_NOT_SUPPORTED`    | An external (`__x`), big (`__b`), Knowledge article (`__kav`), history, sharing, feed, change event, custom setting, custom metadata, or read-only setup object is used | Choose an object from the **Salesforce object** list       |
 
 Every syntax version also rejects more than 100 `each` and `if` blocks with `TOO_MANY_BLOCKS`
 before publication. A row index too large to fill, such as `[99999999999]`, prints its fallback.

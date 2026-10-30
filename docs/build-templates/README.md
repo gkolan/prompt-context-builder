@@ -19,7 +19,8 @@ sets omit that match and can include any matching records the person can access.
 ## Configure record results
 
 1. Enter a unique **Reference name**. The template uses this name when you insert the data.
-2. Choose the Salesforce object and the fields the prompt can use.
+2. Choose the Salesforce object and the fields the prompt can use. Type in **Search objects by name
+   or API name** to shorten the object list; typing an exact API name selects that object.
 3. For related records, choose current-record and related-record fields that hold the same kind of
    value.
 4. Add filters that match the selected field types. The value box shows the expected format: a

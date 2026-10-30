@@ -41,14 +41,14 @@
             ></lightning-input>
           </div>
           <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-            <lightning-combobox
+            <c-prompt-object-picker
               name="rootObject"
               label="Salesforce object"
               value={config.rootObject}
               options={objectOptions}
               required
               onchange={handleTemplateField}
-            ></lightning-combobox>
+            ></c-prompt-object-picker>
           </div>
         </div>
         <lightning-textarea
@@ -57,13 +57,6 @@
           value={config.description}
           onchange={handleTemplateField}
         ></lightning-textarea>
-        <lightning-input
-          label="Automation key"
-          value={config.developerKey}
-          placeholder="Created after the first save"
-          field-level-help="Automations use this stable key. Duplicating a template creates a new key, so existing automations keep using the original template."
-          disabled
-        ></lightning-input>
       </section>
 
       <section class="section" aria-labelledby="prompt-heading">
@@ -159,6 +152,42 @@
           onpreviewedit={handlePreviewEdit}
         ></c-prompt-publish-panel>
       </section>
+
+      <details class="section automation-section">
+        <summary class="slds-text-heading_small">Use in Flow or Apex</summary>
+        <dl class="slds-dl_horizontal slds-m-vertical_small automation-usage">
+          <dt class="slds-dl_horizontal__label">Flow action</dt>
+          <dd class="slds-dl_horizontal__detail">
+            Prepare Record Prompt Input
+          </dd>
+          <dt class="slds-dl_horizontal__label">Flow input</dt>
+          <dd class="slds-dl_horizontal__detail">Template Automation Key</dd>
+          <dt class="slds-dl_horizontal__label">Apex field</dt>
+          <dd class="slds-dl_horizontal__detail">
+            <code>templateDeveloperKey</code>
+          </dd>
+        </dl>
+        <p class="slds-m-bottom_small">
+          Every org that runs the automation needs a template with this key.
+        </p>
+        <div class="automation-key-row">
+          <lightning-input
+            name="developerKey"
+            label="Automation key"
+            value={config.developerKey}
+            placeholder="Created from the template name when you first save"
+            field-level-help={automationKeyHelp}
+            disabled={isAutomationKeyLocked}
+            onchange={handleTemplateField}
+          ></lightning-input>
+          <lightning-button
+            label="Copy key"
+            icon-name="utility:copy"
+            onclick={copyAutomationKey}
+            disabled={cannotCopyAutomationKey}
+          ></lightning-button>
+        </div>
+      </details>
 
       <template lwc:if={hasVersions}>
         <section class="section" aria-labelledby="versions-heading">

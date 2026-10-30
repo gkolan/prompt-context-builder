@@ -30,11 +30,9 @@ public with sharing class PromptContextSchema {
       if (
         description.isAccessible() &&
         description.isQueryable() &&
-        isBusinessObjectForPicker(description) &&
-        !description.isCustomSetting() &&
+        isSupportedPromptObject(description) &&
         !String.isBlank(objectLabel) &&
-        !objectLabel.startsWith('__MISSING LABEL__') &&
-        !description.isDeprecatedAndHidden()
+        !objectLabel.startsWith('__MISSING LABEL__')
       ) {
         options.add(
           new PromptContextDTO.Option(
@@ -47,6 +45,20 @@ public with sharing class PromptContextSchema {
     }
     options.sort();
     return options;
+  }
+
+  /**
+   * The object rule shared by the picker and the validator, so a typed API name is held to the
+   * same standard as a chosen one.
+   * @param description Object description
+   * @return True for a standard or custom business object
+   */
+  public static Boolean isSupportedPromptObject(
+    Schema.DescribeSObjectResult description
+  ) {
+    return isBusinessObjectForPicker(description) &&
+      !description.isCustomSetting() &&
+      !description.isDeprecatedAndHidden();
   }
 
   private static Boolean isBusinessObjectForPicker(

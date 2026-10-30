@@ -43,12 +43,16 @@ function edit(directory, path, change) {
   writeFileSync(file, after);
 }
 
-function gate(script, cwd, env = {}) {
-  const result = spawnSync(process.execPath, [join(repo, "scripts", script)], {
-    cwd,
-    env: { ...process.env, ...env },
-    encoding: "utf8"
-  });
+function gate(script, cwd, env = {}, args = []) {
+  const result = spawnSync(
+    process.execPath,
+    [join(repo, "scripts", script), ...args],
+    {
+      cwd,
+      env: { ...process.env, ...env },
+      encoding: "utf8"
+    }
+  );
   return { status: result.status, output: result.stdout + result.stderr };
 }
 
@@ -435,7 +439,8 @@ const releaseInputs = [
   "README.md",
   ".gitignore",
   ".github",
-  "docs/install/try-demo-scratch-org.md"
+  "docs/install/try-demo-scratch-org.md",
+  "scripts/apex/seedVerificationTemplates.apex"
 ];
 
 describe("Lesson: generated analyzer output must stay out of the repository", () => {
@@ -508,6 +513,87 @@ describe("Lesson: a green local command was described as deployed", () => {
     fails(
       gate("check-agent-guidance.mjs", directory),
       /## Evidence vocabulary/
+    );
+  });
+});
+
+describe("Lesson: the demo seed stopped partway through one transaction", () => {
+  const seed = "scripts/apex/seedVerificationTemplates.apex";
+
+  // A stand-in for the Salesforce CLI that reports each batch it receives, so the runner's
+  // batching and failure handling are tested without an org.
+  function runSeed(t, { failBatch = 0, marker = true } = {}) {
+    const directory = workspace(t, releaseInputs);
+    const bin = workspace(t, [], {
+      sf: `#!/usr/bin/env node
+const fs = require("node:fs");
+const args = process.argv.slice(2);
+const source = fs.readFileSync(args[args.indexOf("--file") + 1], "utf8");
+const batch = Number(/^Integer seedBatch = (\\d+);/m.exec(source)[1]);
+fs.appendFileSync(${JSON.stringify(join(directory, "batches.log"))}, batch + "\\n");
+if (batch === ${failBatch}) { console.log("System.LimitException: Too many SOQL queries: 101"); process.exit(1); }
+if (${marker}) console.log("SEED_BATCH_COMPLETE batch=" + batch + " of=3");
+`
+    });
+    chmodSync(join(bin, "sf"), 0o755);
+    const result = gate(
+      "seed-verification-templates.mjs",
+      directory,
+      { PATH: `${bin}:${process.env.PATH}` },
+      ["--target-org", "pcb-demo"]
+    );
+    const log = join(directory, "batches.log");
+    let batches = [];
+    try {
+      batches = readFileSync(log, "utf8").trim().split("\n").map(Number);
+    } catch {
+      // The runner never reached the CLI.
+    }
+    return { ...result, batches };
+  }
+
+  test("positive: the runner seeds every batch in its own transaction", (t) => {
+    const result = runSeed(t);
+    passes(result);
+    assert.deepEqual(result.batches, [1, 2, 3]);
+  });
+
+  test("negative: a batch that fails stops the run and names the batch", (t) => {
+    const result = runSeed(t, { failBatch: 2 });
+    fails(result, /batch 2 of 3 failed/);
+    assert.deepEqual(result.batches, [1, 2]);
+  });
+
+  test("negative: a batch that never reports completion fails", (t) => {
+    fails(runSeed(t, { marker: false }), /did not report completion/);
+  });
+
+  test("positive: the release gate accepts the batched seed", (t) => {
+    passes(gate("check-public-release.mjs", workspace(t, releaseInputs)));
+  });
+
+  test("negative: running the seed file in one transaction fails", (t) => {
+    const directory = workspace(t, releaseInputs);
+    edit(directory, "package.json", (s) =>
+      s.replace(
+        "node scripts/seed-verification-templates.mjs",
+        "sf apex run --file scripts/apex/seedVerificationTemplates.apex"
+      )
+    );
+    fails(
+      gate("check-public-release.mjs", directory),
+      /demo:setup-source must run every seed batch/
+    );
+  });
+
+  test("negative: a seed batch without a query reserve check fails", (t) => {
+    const directory = workspace(t, releaseInputs);
+    edit(directory, seed, (s) =>
+      s.replace(/Limits\.getLimitQueries\(\)/g, "Limits.getLimitDmlRows()")
+    );
+    fails(
+      gate("check-public-release.mjs", directory),
+      /must assert its remaining query reserve/
     );
   });
 });

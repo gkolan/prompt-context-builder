@@ -39,14 +39,14 @@
         ></lightning-combobox>
       </div>
       <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
-        <lightning-combobox
+        <c-prompt-object-picker
           name="relatedObject"
           label="Object to query"
           value={source.relatedObject}
           options={objectOptions}
           required
           onchange={handleField}
-        ></lightning-combobox>
+        ></c-prompt-object-picker>
       </div>
       <div class="slds-col slds-size_1-of-1 slds-large-size_1-of-2">
         <lightning-combobox

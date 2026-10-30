@@ -131,12 +131,35 @@ if (!existsSync(join(root, "docs", "install", "try-demo-scratch-org.md"))) {
     "docs/install/try-demo-scratch-org.md: required for public source evaluation"
   );
 }
+// Lesson: publishing the whole catalog in one transaction exceeded the SOQL limit, so the seed
+// runs in batches and each batch proves it left a query reserve.
 if (
   packageJson.scripts?.["demo:setup-source"] !==
-  "sf apex run --file scripts/apex/seedVerificationTemplates.apex"
+  "node scripts/seed-verification-templates.mjs"
 ) {
   failures.push(
-    "package.json: demo:setup-source must use the reviewed seed script"
+    "package.json: demo:setup-source must run every seed batch through scripts/seed-verification-templates.mjs"
+  );
+}
+const seedSource = existsSync(
+  join(root, "scripts", "apex", "seedVerificationTemplates.apex")
+)
+  ? readFileSync(
+      join(root, "scripts", "apex", "seedVerificationTemplates.apex"),
+      "utf8"
+    )
+  : "";
+if (!/^Integer seedBatch = 1;$/m.test(seedSource)) {
+  failures.push(
+    'scripts/apex/seedVerificationTemplates.apex: must declare "Integer seedBatch = 1;" for the batch runner'
+  );
+}
+if (
+  !/System\.assert\(\s*queriesLeft >= queryReserve/.test(seedSource) ||
+  !/Limits\.getLimitQueries\(\)\s*-\s*Limits\.getQueries\(\)/.test(seedSource)
+) {
+  failures.push(
+    "scripts/apex/seedVerificationTemplates.apex: each seed batch must assert its remaining query reserve"
   );
 }
 if (

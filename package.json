@@ -31,7 +31,7 @@
     "test:lesson-guards": "node --test scripts/lesson-guards.test.mjs",
     "scan:sfge": "node scripts/scan-sfge.mjs",
     "scan:code-analyzer": "node scripts/scan-code-analyzer.mjs",
-    "demo:setup-source": "sf apex run --file scripts/apex/seedVerificationTemplates.apex",
+    "demo:setup-source": "node scripts/seed-verification-templates.mjs",
     "demo:verify-source": "sf apex run --file scripts/apex/verifyVerificationTemplates.apex",
     "prettier": "prettier --write \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",
     "prettier:verify": "prettier --check \"**/*.{cls,cmp,component,css,html,js,json,md,page,trigger,xml,yaml,yml}\"",

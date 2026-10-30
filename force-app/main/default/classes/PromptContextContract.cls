@@ -28,6 +28,7 @@ public with sharing class PromptContextContract {
   public static final Integer MAX_AGGREGATE_INPUT_ROWS = 1000;
   public static final Integer MAX_TEMPLATE_CHARACTERS = 20000;
   public static final Integer MAX_PROMPT_CHARACTERS = 20000;
+  public static final Integer MAX_AUTOMATION_KEY_LENGTH = 80;
   public static final Integer MAX_BLOCK_ITERATIONS = 100;
   public static final Integer MAX_RELATIONSHIP_DEPTH = 5;
   public static final Integer MAX_SELECTED_FILES = 5;

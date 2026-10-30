@@ -8,7 +8,7 @@ an invalid Draft and never bypasses Salesforce checks.
 
 | Field label                 | API name                    | Purpose                                                                                                               |
 | --------------------------- | --------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Automation Key              | `Developer_Key__c`          | Stable automation identity generated on first save                                                                    |
+| Automation Key              | `Developer_Key__c`          | Flow and Apex template identity: created from the name on first save, editable until first publish, then fixed        |
 | Description                 | `Description__c`            | Administrator-facing intent and usage notes                                                                           |
 | Salesforce Object           | `Root_Object__c`            | Salesforce object used by the current record                                                                          |
 | Prompt Text                 | `Template_Body__c`          | Editable merge-language text                                                                                          |
