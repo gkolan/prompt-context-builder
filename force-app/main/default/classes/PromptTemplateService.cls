@@ -15,6 +15,11 @@ public with sharing class PromptTemplateService {
     'last_health_status__c',
     'last_health_version__c'
   };
+  private static final Integer MAX_KEY_LENGTH = PromptContextContract.MAX_AUTOMATION_KEY_LENGTH;
+  /** A letter, then lowercase letters, digits, or underscores. */
+  private static final Pattern KEY_FORMAT = Pattern.compile(
+    '[a-z][a-z0-9_]{0,' + (MAX_KEY_LENGTH - 1) + '}'
+  );
 
   /** Loads one limited page in a consistent order without loading prompt text or data sets. */
   public static PromptContextDTO.TemplateSummaryPage getTemplateSummaryPage(
@@ -131,8 +136,9 @@ public with sharing class PromptTemplateService {
     requireSavable(config);
     String persistedStatus = PromptContextContract.TEMPLATE_DRAFT;
     Integer nextRevision = 1;
+    Prompt_Template__c existingTemplate;
     if (config.id != null) {
-      Prompt_Template__c existingTemplate = PromptContextSelector.selectTemplateForDraftSave(
+      existingTemplate = PromptContextSelector.selectTemplateForDraftSave(
         config.id
       );
       if (existingTemplate == null) {
@@ -153,6 +159,7 @@ public with sharing class PromptTemplateService {
         PromptContextContract.TEMPLATE_DRAFT;
       nextRevision = storedRevision + 1;
     }
+    String developerKey = resolveDeveloperKey(config, existingTemplate);
     Savepoint savepointValue = Database.setSavepoint();
     try {
       Prompt_Template__c templateRecord = new Prompt_Template__c(
@@ -168,10 +175,10 @@ public with sharing class PromptTemplateService {
         Provider_Profile_Key__c = config.providerProfileKey,
         File_Citations_Enabled__c = config.fileCitationsEnabled == true
       );
+      if (developerKey != null) {
+        templateRecord.Developer_Key__c = developerKey;
+      }
       if (config.id == null) {
-        templateRecord.Developer_Key__c = String.isBlank(config.developerKey)
-          ? generateDeveloperKey(config.name)
-          : config.developerKey.trim();
         Database.SaveResult[] results = Database.insert(
           new List<Prompt_Template__c>{ templateRecord },
           true,
@@ -707,25 +714,100 @@ public with sharing class PromptTemplateService {
     return config;
   }
 
+  /**
+   * Builds a readable key from the name and numbers it (_2, _3, ...) when the name is taken.
+   * @param templateName Template name
+   * @return Unused automation key
+   */
   private static String generateDeveloperKey(String templateName) {
     String baseValue = templateName.trim()
       .toLowerCase()
-      .replaceAll('[^a-z0-9]+', '_');
-    while (baseValue.startsWith('_')) {
-      baseValue = baseValue.substring(1);
-    }
-    while (baseValue.endsWith('_')) {
-      baseValue = baseValue.substring(0, baseValue.length() - 1);
-    }
+      .replaceAll('[^a-z0-9]+', '_')
+      .removeStart('_')
+      .removeEnd('_');
     if (String.isBlank(baseValue)) {
       baseValue = 'prompt_template';
     }
-    if (baseValue.length() > 78) {
-      baseValue = baseValue.substring(0, 78);
+    if (!baseValue.left(1).isAlpha()) {
+      baseValue = 'template_' + baseValue;
     }
-    String suffix = EncodingUtil.convertToHex(Crypto.generateAesKey(128))
-      .substring(0, 12);
-    return baseValue + '_' + suffix;
+    // Leaves room for a numeric suffix within the 80-character key format.
+    baseValue = baseValue.left(MAX_KEY_LENGTH - 6).removeEnd('_');
+    Set<String> takenKeys = PromptContextSelector.selectDeveloperKeysStartingWith(
+      baseValue
+    );
+    String candidate = baseValue;
+    Integer suffix = 1;
+    while (takenKeys.contains(candidate)) {
+      suffix++;
+      candidate = baseValue + '_' + suffix;
+    }
+    return candidate;
+  }
+
+  /**
+   * Chooses the key to save: a generated or chosen key for a new template, and for an existing one
+   * a new key only when the editor changed it. Flow and Apex may already use a published template's
+   * key, so it is fixed from the first publish on.
+   * @param config Template being saved
+   * @param existingTemplate Stored template, or null for a new one
+   * @return Key to write, or null to keep the stored key
+   */
+  private static String resolveDeveloperKey(
+    PromptContextDTO.TemplateConfig config,
+    Prompt_Template__c existingTemplate
+  ) {
+    if (existingTemplate == null) {
+      return String.isBlank(config.developerKey)
+        ? generateDeveloperKey(config.name)
+        : requireAvailableKey(config.developerKey, null);
+    }
+    String storedKey = existingTemplate.Developer_Key__c ?? '';
+    if (
+      String.isBlank(config.developerKey) ||
+      config.developerKey.trim().equalsIgnoreCase(storedKey)
+    ) {
+      return null;
+    }
+    if (existingTemplate.Published_At__c != null) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'The automation key cannot change after the template is first published, because Flow and Apex may already use it. Duplicate the template to use a new key.'
+      );
+    }
+    return requireAvailableKey(config.developerKey, existingTemplate.Id);
+  }
+
+  /**
+   * Normalizes a chosen key and refuses one that is malformed or already used.
+   * @param requestedKey Key the editor entered
+   * @param templateId Template that may already own the key, or null for a new one
+   * @return Lowercase key
+   */
+  private static String requireAvailableKey(
+    String requestedKey,
+    Id templateId
+  ) {
+    String key = requestedKey.trim().toLowerCase();
+    if (!KEY_FORMAT.matcher(key).matches()) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'Automation key must start with a letter and use only lowercase letters, numbers, and underscores, up to ' +
+          MAX_KEY_LENGTH +
+          ' characters.'
+      );
+    }
+    Prompt_Template__c owner = PromptContextSelector.selectTemplatesByDeveloperKeys(
+        new Set<String>{ key }
+      )
+      .get(key);
+    if (owner != null && owner.Id != templateId) {
+      throw PromptContextException.withReason(
+        PromptContextReasonCodes.INVALID_CONFIGURATION,
+        'Automation key ' + key + ' is already used by another template.'
+      );
+    }
+    return key;
   }
 
   private static List<String> splitFields(String fieldText) {

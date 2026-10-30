@@ -66,7 +66,7 @@ describe("c-prompt-data-set-editor", () => {
 
     change(control(element, "lightning-combobox", "sourceMode"), "REFERENCE");
     change(control(element, "lightning-combobox", "resultMode"), "AGGREGATE");
-    change(control(element, "lightning-combobox", "relatedObject"), "Lead");
+    change(control(element, "c-prompt-object-picker", "relatedObject"), "Lead");
 
     expect(events.map((event) => event.detail.changes)).toEqual([
       { sourceMode: "REFERENCE", correlationField: "", rootField: "" },

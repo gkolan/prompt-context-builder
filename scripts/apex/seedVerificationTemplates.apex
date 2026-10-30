@@ -1,5 +1,11 @@
 // Creates an idempotent administrator verification catalog.
 // Valid examples are published; intentionally invalid examples remain Draft.
+// Publishing every template in one transaction exceeds the SOQL limit, so each run seeds one batch.
+// `npm run demo:setup-source` runs every batch in order; it rewrites the next line for each one.
+Integer seedBatch = 1;
+Integer templatesPerBatch = 4;
+// Queries a batch must leave unused: the heaviest template's publish plus the product's own headroom.
+Integer queryReserve = 25;
 
 List<Account> accounts = [
   SELECT Id, Name
@@ -424,7 +430,18 @@ Set<String> draftOnlyNames = new Set<String>{
 Integer publishedCount = 0;
 Integer draftCount = 0;
 List<String> failedNames = new List<String>();
-for (PromptContextDTO.TemplateConfig config : catalog) {
+Integer batchCount =
+  (catalog.size() + templatesPerBatch - 1) / templatesPerBatch;
+System.assert(
+  seedBatch >= 1 && seedBatch <= batchCount,
+  'Seed batch must be from 1 through ' + batchCount + '.'
+);
+Integer firstIndex = (seedBatch - 1) * templatesPerBatch;
+for (Integer index = 0; index < catalog.size(); index++) {
+  PromptContextDTO.TemplateConfig config = catalog[index];
+  if (index < firstIndex || index >= firstIndex + templatesPerBatch) {
+    continue;
+  }
   if (existingByName.containsKey(config.name)) {
     config.id = existingByName.get(config.name).Id;
     config.draftRevision = PromptTemplateService.getTemplate(config.id)
@@ -463,7 +480,7 @@ for (PromptContextDTO.TemplateConfig config : catalog) {
 
 System.debug(
   LoggingLevel.INFO,
-  'Verification catalog ready. Account=' +
+  'Verification catalog batch ready. Account=' +
     accountRecord.Id +
     ', Contact=' +
     contacts[0].Id +
@@ -473,4 +490,26 @@ System.debug(
     draftCount +
     ', Failed=' +
     JSON.serialize(failedNames)
+);
+Integer queriesLeft = Limits.getLimitQueries() - Limits.getQueries();
+System.assert(
+  queriesLeft >= queryReserve,
+  'Seed batch ' +
+    seedBatch +
+    ' left ' +
+    queriesLeft +
+    ' of ' +
+    Limits.getLimitQueries() +
+    ' queries; at least ' +
+    queryReserve +
+    ' must remain. Lower templatesPerBatch.'
+);
+System.debug(
+  LoggingLevel.INFO,
+  'SEED_BATCH_COMPLETE batch=' +
+    seedBatch +
+    ' of=' +
+    batchCount +
+    ' queriesLeft=' +
+    queriesLeft
 );

@@ -269,6 +269,22 @@ public with sharing class PromptContextValidator {
         objectApiName +
         ' is an external, big, or Knowledge article object. Choose a standard or custom object.'
       );
+      return;
+    }
+    // A missing or unreadable object is reported by the access checks, not here.
+    Schema.DescribeSObjectResult description = PromptContextSchemaCache.describeObject(
+      PromptContextSchemaCache.objectType(objectApiName)
+    );
+    if (
+      description != null &&
+      !PromptContextSchema.isSupportedPromptObject(description)
+    ) {
+      result.addError(
+        'OBJECT_KIND_NOT_SUPPORTED',
+        location,
+        objectApiName +
+        ' is a history, sharing, feed, setup, or settings object that prompts do not use. Choose an object from the Salesforce object list.'
+      );
     }
   }
 

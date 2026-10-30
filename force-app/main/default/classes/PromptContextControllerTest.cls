@@ -342,24 +342,40 @@ private class PromptContextControllerTest {
   }
 
   @isTest
-  static void shouldKeepAutomationKeyStableAfterFirstSave() {
+  static void shouldKeepAutomationKeyStableAfterFirstPublish() {
     User configurator = getConfigurator();
     System.runAs(configurator) {
       PromptContextDTO.TemplateConfig saved = PromptContextController.saveDraft(
         JSON.serialize(PromptContextTestDataFactory.createTwoSourceConfig())
       );
+      // The database rule backs up the service: a draft's key can still change.
       Prompt_Template__c templateRecord = [
         SELECT Id, Developer_Key__c
         FROM Prompt_Template__c
         WHERE Id = :saved.id
       ];
+      templateRecord.Developer_Key__c = 'draft_key';
+      update templateRecord;
+
+      PromptTemplateService.publish(
+        saved.id,
+        PromptContextTestDataFactory.selectRootRecord().Id
+      );
       templateRecord.Developer_Key__c = 'replacement_key';
       try {
         update templateRecord;
-        Assert.fail('The stable automation key must not be editable.');
+        Assert.fail('A published automation key must not be editable.');
       } catch (DmlException expected) {
-        Assert.isTrue(expected.getMessage().contains('permanent'));
+        Assert.isTrue(
+          expected.getMessage().contains('first published'),
+          expected.getMessage()
+        );
       }
+      Assert.areEqual(
+        'draft_key',
+        [SELECT Developer_Key__c FROM Prompt_Template__c WHERE Id = :saved.id]
+        .Developer_Key__c
+      );
     }
   }
 

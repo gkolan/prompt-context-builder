@@ -90,6 +90,12 @@ npm run demo:setup-source -- --target-org pcb-demo
 npm run demo:verify-source -- --target-org pcb-demo
 ```
 
+The seed runs in batches because publishing all 12 templates in one Apex transaction would exceed
+the Salesforce query limit. It prints one line per batch, such as
+`Seed batch 1 of 3 complete (52 SOQL queries left).`, and stops at the first batch that fails. Each
+batch must leave at least 25 queries unused; if one does not, the batch fails and asks you to lower
+`templatesPerBatch` in `scripts/apex/seedVerificationTemplates.apex`.
+
 The seed is repeatable. It reuses the named demonstration records and templates, while publishing
 again creates a new fixed template version as designed.
 

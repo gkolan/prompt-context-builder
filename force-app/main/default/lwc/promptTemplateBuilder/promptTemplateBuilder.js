@@ -72,6 +72,34 @@ export default class PromptTemplateBuilder extends LightningElement {
     return this.config.sources.length > 0;
   }
 
+  /** Flow and Apex may already use a published template's key, so it is fixed from then on. */
+  get isAutomationKeyLocked() {
+    return this.isLoading || Boolean(this.config.publishedAt);
+  }
+
+  get automationKeyHelp() {
+    return this.config.publishedAt
+      ? "Flow and Apex use this name to find the template. It is fixed because the template has been published. Renaming the template does not change it."
+      : "Flow and Apex use this name to find the template. Use lowercase letters, numbers, and underscores. You can change it until the template is first published.";
+  }
+
+  get cannotCopyAutomationKey() {
+    return !this.config.developerKey;
+  }
+
+  async copyAutomationKey() {
+    try {
+      await navigator.clipboard.writeText(this.config.developerKey);
+      this.toast("Automation key copied", this.config.developerKey, "success");
+    } catch {
+      this.toast(
+        "Copy is not available",
+        "Select the automation key and copy it manually.",
+        "warning"
+      );
+    }
+  }
+
   get hasVersions() {
     return (this.versions || []).length > 0;
   }
@@ -373,7 +401,9 @@ export default class PromptTemplateBuilder extends LightningElement {
         status: "Published",
         version: result.templateVersion,
         fingerprint: result.fingerprint,
-        hasUnpublishedChanges: false
+        hasUnpublishedChanges: false,
+        // Only its presence matters here: it locks the automation key.
+        publishedAt: this.config.publishedAt || new Date().toISOString()
       };
       this.messages = result.messages;
       this.accessManifest = result.accessManifest?.items || [];

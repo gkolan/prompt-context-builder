@@ -19,6 +19,7 @@ These are hard safety and governor-limit boundaries owned by `PromptContextContr
 | Relationship depth                 |           5 | Flatten deeper context into another supported source                        |
 | Template characters                |      20,000 | Remove repeated instructions or split the template                          |
 | Generated prompt characters        |      20,000 | Reduce fields or source row limits                                          |
+| Automation key characters          |          80 | Start with a letter; use only lowercase letters, numbers, and underscores   |
 | Block iterations                   |         100 | Reduce collection sizes or block repetition                                 |
 | Requests per API call              |         200 | Use Batch Apex for larger workloads                                         |
 | Distinct templates per transaction |          10 | Group work by template                                                      |

@@ -42,14 +42,12 @@ absence of a null-order setting and is exercised by sources that have no explici
 ## Seed and verify
 
 ```bash
-sf apex run \
-  --file scripts/apex/seedVerificationTemplates.apex \
-  --target-org TARGET_ALIAS
-
-sf apex run \
-  --file scripts/apex/verifyVerificationTemplates.apex \
-  --target-org TARGET_ALIAS
+npm run demo:setup-source -- --target-org TARGET_ALIAS
+npm run demo:verify-source -- --target-org TARGET_ALIAS
 ```
+
+The seed runs one batch of four templates per Apex transaction. Running
+`scripts/apex/seedVerificationTemplates.apex` directly seeds only its first batch.
 
 The verification script asserts:
 

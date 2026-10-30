@@ -905,6 +905,46 @@ private class PromptContextAdversarialTest {
   }
 
   @isTest
+  static void shouldRefuseTypedObjectsThePickerHides() {
+    System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
+      // History, read-only setup, and custom metadata objects exist in every org.
+      for (
+        String objectName : new List<String>{
+          'AccountHistory',
+          'RecordType',
+          'Prompt_Context_Provider__mdt'
+        }
+      ) {
+        PromptContextDTO.TemplateConfig config = baseConfig();
+        config.sources[0].relatedObject = objectName;
+        Assert.isTrue(
+          hasCode(
+            PromptContextValidator.validate(config).messages,
+            'OBJECT_KIND_NOT_SUPPORTED'
+          ),
+          objectName + ' must be refused as a data set object.'
+        );
+        PromptContextDTO.TemplateConfig rootConfig = baseConfig();
+        rootConfig.rootObject = objectName;
+        Assert.isTrue(
+          hasCode(
+            PromptContextValidator.validate(rootConfig).messages,
+            'OBJECT_KIND_NOT_SUPPORTED'
+          ),
+          objectName + ' must be refused as the Salesforce object.'
+        );
+      }
+      Assert.isFalse(
+        hasCode(
+          PromptContextValidator.validate(baseConfig()).messages,
+          'OBJECT_KIND_NOT_SUPPORTED'
+        ),
+        'Objects the picker offers must stay valid.'
+      );
+    }
+  }
+
+  @isTest
   static void shouldWarnAboutFilterValuesThatSilentlyMatchNothing() {
     System.runAs(PromptContextTestDataFactory.createConfiguratorUser()) {
       PromptContextDTO.TemplateConfig config = baseConfig();

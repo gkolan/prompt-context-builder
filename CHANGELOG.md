@@ -6,6 +6,26 @@ This file records user-visible changes. Package identifiers remain in `sfdx-proj
 
 ### Added
 
+- Prompt Builder finds objects by search. Type part of a name or API name above **Salesforce object**
+  or **Object to query** to shorten the list to 50 matches; typing an exact API name selects it.
+- Automation keys are readable: a new template named "Account Call Prep" gets `account_call_prep`,
+  then `account_call_prep_2` for the next one. Existing keys do not change. You can set or change a
+  key until the template is first published; then it is fixed. Keys are at most 80 characters and use
+  lowercase letters, numbers, and underscores. The key and a **Copy key** button moved to a new
+  **Use in Flow or Apex** section.
+
+### Changed
+
+- Validation now refuses a typed object that the object list never offers, such as a history,
+  sharing, feed, change event, custom setting, custom metadata, or read-only setup object, with
+  `OBJECT_KIND_NOT_SUPPORTED`. The rule applies to syntax version 2 templates. A published version 2
+  template created through the API on such an object stops generating until it uses a supported
+  object.
+
+- `npm run demo:setup-source` works again on current source. It seeds the verification catalog in
+  batches of four templates, one Apex transaction each, and every batch fails with a clear message if
+  it leaves fewer than 25 SOQL queries unused. Running `seedVerificationTemplates.apex` directly now
+  seeds only its first batch.
 - Added `npm run test:lesson-guards`, part of `ci:gates`, which proves every change-safety lesson's
   guard passes compliant source and fails each planted regression. The test-data isolation gate now
   scans every `@isTest` class in `force-app` and `integration-tests`, catches multiline, collection,

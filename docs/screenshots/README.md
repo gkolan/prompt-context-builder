@@ -17,7 +17,9 @@ entire working tree is deployed or package-verified.
 ### Published template overview
 
 The builder shows the selected published template, version and health state, description,
-automation key, and the start of the prompt editor.
+automation key, and the start of the prompt editor. This capture shows the deployed baseline. The
+workspace source moves the automation key into **Use in Flow or Apex** and adds object search above
+**Salesforce object**; that layout has not been captured in a browser.
 
 ![Published template open in Prompt Builder](./prompt-builder-current-overview.png)
 

@@ -3,9 +3,9 @@
     <fullName>Developer_Key_Is_Immutable</fullName>
     <active>true</active>
     <description
-  >Protects Flow and Apex references from changes to a template's stable automation key.</description>
+  >Protects Flow and Apex references: a template's automation key can change until the template is first published.</description>
     <errorConditionFormula
-  >AND(NOT(ISNEW()), ISCHANGED(Developer_Key__c))</errorConditionFormula>
+  >AND(NOT(ISNEW()), ISCHANGED(Developer_Key__c), NOT(ISBLANK(PRIORVALUE(Published_At__c))))</errorConditionFormula>
     <errorMessage
-  >The Automation Key is permanent after the template is first saved. Duplicate the template to create a new key.</errorMessage>
+  >The Automation Key cannot change after the template is first published. Duplicate the template to create a new key.</errorMessage>
 </ValidationRule>

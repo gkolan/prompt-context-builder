@@ -749,6 +749,86 @@ describe("c-prompt-template-builder", () => {
     );
   });
 
+  it("lets a draft's automation key be edited and copied, then locks it once published", async () => {
+    getTemplateSummaryPage.mockResolvedValue({
+      items: [{ id: "a01000000000001", name: "Deals", status: "Draft" }],
+      hasMore: false
+    });
+    getFieldOptions.mockResolvedValue([]);
+    getTemplate.mockResolvedValue({
+      id: "a01000000000001",
+      developerKey: "deals",
+      name: "Deals",
+      rootObject: "Account",
+      templateBody: "Deals for {!record.Name}",
+      status: "Draft",
+      version: 1,
+      draftRevision: 1,
+      publishedAt: null,
+      sources: []
+    });
+    saveDraft.mockImplementation(({ configJson }) =>
+      Promise.resolve(JSON.parse(configJson))
+    );
+    publishTemplate.mockResolvedValue({
+      prompt: "Deals for Acme",
+      templateVersion: 1,
+      fingerprint: "fingerprint",
+      messages: [],
+      accessManifest: { items: [], warnings: [] }
+    });
+    const writeText = jest.fn().mockResolvedValue();
+    Object.assign(navigator, { clipboard: { writeText } });
+    const element = createElement("c-prompt-template-builder", {
+      is: PromptTemplateBuilder
+    });
+    document.body.appendChild(element);
+    await flushPromises();
+    byLabel(element, "lightning-combobox", "Open a template").dispatchEvent(
+      new CustomEvent("change", { detail: { value: "a01000000000001" } })
+    );
+    await flushPromises();
+    await flushPromises();
+
+    // Opening a template also loads its fields and versions before the editor unlocks.
+    await flushPromises();
+    await flushPromises();
+
+    const key = () => byLabel(element, "lightning-input", "Automation key");
+    expect(key().disabled).toBe(false);
+    expect(
+      [...queryAll(element, ".automation-usage dd")].map((node) =>
+        node.textContent.trim()
+      )
+    ).toEqual([
+      "Prepare Record Prompt Input",
+      "Template Automation Key",
+      "templateDeveloperKey"
+    ]);
+    key().dispatchEvent(
+      new CustomEvent("change", { detail: { value: "deal_review" } })
+    );
+    await flushPromises();
+    byLabel(element, "lightning-button", "Copy key").click();
+    await flushPromises();
+    expect(writeText).toHaveBeenCalledWith("deal_review");
+
+    query(element, "lightning-record-picker").dispatchEvent(
+      new CustomEvent("change", { detail: { recordId: "001000000000001AAA" } })
+    );
+    byLabel(element, "lightning-button", "Publish").click();
+    await flushPromises();
+    await flushPromises();
+
+    expect(JSON.parse(saveDraft.mock.calls[0][0].configJson).developerKey).toBe(
+      "deal_review"
+    );
+    expect(key().disabled).toBe(true);
+    expect(key().fieldLevelHelp).toContain(
+      "fixed because the template has been published"
+    );
+  });
+
   it("shows when saved changes to a live template are not published", async () => {
     getTemplateSummaryPage.mockResolvedValue({
       items: [{ id: "a01000000000001", name: "Account", status: "Published" }],

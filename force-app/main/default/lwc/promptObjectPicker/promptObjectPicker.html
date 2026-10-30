@@ -1,0 +1,21 @@
+<template>
+  <lightning-input
+    type="search"
+    label="Search objects by name or API name"
+    value={searchText}
+    disabled={disabled}
+    onchange={handleSearch}
+  ></lightning-input>
+  <lightning-combobox
+    name={name}
+    label={label}
+    value={value}
+    options={shownOptions}
+    required={required}
+    disabled={disabled}
+    onchange={handleChange}
+  ></lightning-combobox>
+  <p class="slds-text-body_small slds-text-color_weak" aria-live="polite">
+    {countText}
+  </p>
+</template>
